@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
-from jarvis.task_planner import generate_task_plan
+from jarvis.task_planner import format_plan_guidance, generate_task_plan
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
@@ -1407,6 +1407,7 @@ class JarvisDesktop:
 
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
+        plan_titles: list[str] | None = None
         # Generate and persist a side-effect-free plan before normal execution. Planning
         # failure is non-fatal: the existing agent workflow still handles the request.
         if task_id and not cancel_event.is_set():
@@ -1431,8 +1432,11 @@ class JarvisDesktop:
                     f"Optional plan generation unavailable ({type(exc).__name__}); continuing with normal execution",
                 )
         try:
+            execution_text = format_plan_guidance(text, plan_titles or [])
+            if plan_titles:
+                self._record_task_step(task_id, "Using proposed plan as guidance; existing approval and safety checks remain active")
             result = self.agent.respond(
-                text,
+                execution_text,
                 cancel_event=cancel_event,
                 progress=lambda step: self._record_task_step(task_id, step),
                 tool_event=lambda name, status, action_id, note: self._record_tool_action(
