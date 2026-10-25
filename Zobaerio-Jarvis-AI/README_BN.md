@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.4.0 — J.A.R.V.I.S Logo ও Responsive Agent UI
+**সংস্করণ:** 1.4.2 — Agent Action Verification ও Responsive UI
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
