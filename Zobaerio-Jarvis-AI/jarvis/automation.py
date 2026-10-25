@@ -200,6 +200,147 @@ def search_files(query: str) -> str:
     return "Matching items:\n" + "\n".join(f"• {p}" for p in results)
 
 
+
+CONTENT_SEARCH_EXTENSIONS = {
+    ".txt", ".md", ".csv", ".json", ".log", ".yaml", ".yml", ".xml", ".ini", ".toml",
+    ".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx", ".py", ".sql", ".java",
+    ".c", ".h", ".cpp", ".go", ".rs", ".php", ".rb", ".swift", ".kt", ".vue", ".svelte",
+}
+MAX_CONTENT_SEARCH_FILES = 5000
+MAX_CONTENT_SEARCH_FILE_BYTES = 256_000
+MAX_CONTENT_SEARCH_MATCHES = 20
+CONTENT_SEARCH_IGNORED_DIRS = {
+    ".git", ".venv", "venv", "node_modules", "__pycache__", "AppData",
+    "System Volume Information", "$Recycle.Bin", ".cache",
+}
+
+
+def search_file_contents(query: str, location: str, approve) -> str:
+    """Search bounded text snippets in approved user folders, only after explicit consent."""
+    term = str(query).strip()
+    if len(term) < 2:
+        return "Give me a search phrase with at least 2 characters."
+    if len(term) > 120 or any(ord(char) < 32 and char not in "\\t" for char in term):
+        return "Search phrase must be 2–120 characters and cannot contain control characters."
+
+    label = str(location).strip()
+    if label.casefold() == "all":
+        selected_roots = [
+            ("Desktop", ROOTS["desktop"]),
+            ("Documents", ROOTS["documents"]),
+            ("Downloads", ROOTS["downloads"]),
+        ]
+    else:
+        aliases = {
+            "desktop": "desktop", "documents": "documents", "downloads": "downloads",
+            "ডেস্কটপ": "desktop", "ডকুমেন্টস": "documents", "ডাউনলোডস": "downloads",
+        }
+        key = aliases.get(label.casefold())
+        if key is None:
+            return "Location must be Desktop, Documents, Downloads, or All."
+        selected_roots = [(label.title(), ROOTS[key])]
+
+    scope_names = ", ".join(name for name, _root in selected_roots)
+    details = (
+        f"Search for this text: {term}\\n"
+        f"Folders: {scope_names}\\n\\n"
+        f"J.A.R.V.I.S will inspect only common text/source files, skip files larger than "
+        f"{MAX_CONTENT_SEARCH_FILE_BYTES:,} bytes, scan at most {MAX_CONTENT_SEARCH_FILES:,} files, "
+        f"and return at most {MAX_CONTENT_SEARCH_MATCHES} short matching-line excerpts. "
+        "Matching excerpts will be sent into the current AI conversation and may be sent to the configured AI provider. "
+        "No files will be edited. Approve this local content search?"
+    )
+    try:
+        if not approve("Confirm local content search", details):
+            return "Cancelled. No file contents were searched."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No files were searched."
+
+    needle = term.casefold()
+    matches: list[str] = []
+    scanned = 0
+    skipped_large = 0
+    scan_limit_hit = False
+    match_limit_hit = False
+    stop = False
+    ignored_names = {name.casefold() for name in CONTENT_SEARCH_IGNORED_DIRS}
+
+    for root_label, root in selected_roots:
+        if stop or not root.exists():
+            continue
+        try:
+            root_resolved = root.resolve()
+        except OSError:
+            continue
+        for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+            current_path = Path(current)
+            directories[:] = [
+                name for name in directories
+                if not name.startswith(".")
+                and name.casefold() not in ignored_names
+                and not (current_path / name).is_symlink()
+            ]
+            for filename in filenames:
+                if scanned >= MAX_CONTENT_SEARCH_FILES:
+                    scan_limit_hit = True
+                    stop = True
+                    break
+                scanned += 1
+                path = current_path / filename
+                if path.is_symlink() or path.suffix.casefold() not in CONTENT_SEARCH_EXTENSIONS:
+                    continue
+                try:
+                    resolved = path.resolve(strict=True)
+                    if not resolved.is_relative_to(root_resolved):
+                        continue
+                    if not path.is_file():
+                        continue
+                    metadata = path.stat()
+                    if metadata.st_size > MAX_CONTENT_SEARCH_FILE_BYTES:
+                        skipped_large += 1
+                        continue
+                    with path.open("rb") as stream:
+                        raw = stream.read(MAX_CONTENT_SEARCH_FILE_BYTES + 1)
+                    if len(raw) > MAX_CONTENT_SEARCH_FILE_BYTES or b"\\x00" in raw:
+                        skipped_large += 1
+                        continue
+                    text_content = raw.decode("utf-8", errors="replace")
+                except OSError:
+                    continue
+
+                for line_number, line in enumerate(text_content.splitlines(), start=1):
+                    if needle not in line.casefold():
+                        continue
+                    snippet = line.strip()
+                    if len(snippet) > 220:
+                        snippet = snippet[:217] + "..."
+                    matches.append(f"{path} (line {line_number}): {snippet}")
+                    if len(matches) >= MAX_CONTENT_SEARCH_MATCHES:
+                        match_limit_hit = True
+                        stop = True
+                        break
+                if stop:
+                    break
+            if stop:
+                break
+
+    if not matches:
+        summary = f"No matching lines found in {scope_names}. Scanned {scanned:,} file(s)."
+    else:
+        summary = f"Found {len(matches)} matching line(s) in {scope_names} after scanning {scanned:,} file(s):\\n"
+        summary += "\\n".join(f"- {item}" for item in matches)
+    notes = []
+    if skipped_large:
+        notes.append(f"skipped {skipped_large:,} large/binary file(s)")
+    if scan_limit_hit:
+        notes.append(f"stopped at the {MAX_CONTENT_SEARCH_FILES:,}-file scan limit")
+    if match_limit_hit:
+        notes.append(f"returned only the first {MAX_CONTENT_SEARCH_MATCHES} matching lines")
+    if notes:
+        summary += "\\n\\nSearch limits: " + "; ".join(notes) + "."
+    return summary
+
+
 def get_system_info() -> str:
     return (
         f"Operating system: {platform.system()} {platform.release()}\n"
