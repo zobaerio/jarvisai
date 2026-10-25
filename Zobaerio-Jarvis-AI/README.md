@@ -34,6 +34,8 @@ Three.js 0.186.1 loads from jsDelivr at runtime, so internet access and a WebGL-
 
 See `FEATURE_STATUS.md` for what is implemented, partial and still planned.
 
+For the end-to-end image → 3D model → rig → GLB import process, see [3D_CHARACTER_PIPELINE_BN.md](3D_CHARACTER_PIPELINE_BN.md).
+
 ## Install and run
 
 1. Install Python 3.12 (64-bit) from https://www.python.org/downloads/release/python-31210/.
