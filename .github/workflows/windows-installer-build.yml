@@ -44,7 +44,7 @@ jobs:
         run: |
           $version = & ".packaging-venv/Scripts/python.exe" -c "from jarvis.version import APP_VERSION; print(APP_VERSION)"
           if ($LASTEXITCODE -ne 0 -or !$version.Trim()) { throw "Could not read app version from source." }
-          $compiler = "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe"
+          $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
           if (!(Test-Path $compiler)) { throw "Inno Setup compiler was not found at $compiler." }
           & $compiler "/DMyAppVersion=$($version.Trim())" "installer.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
