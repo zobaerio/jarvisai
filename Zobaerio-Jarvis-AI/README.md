@@ -57,6 +57,10 @@ For the end-to-end image → 3D model → rig → GLB import process, see [3D_CH
 
 If installation fails, open PowerShell in the project folder and run `python --version`, then share the full installation error. Do not run `python pip install ...`; use `python -m pip install ...`.
 
+## Windows installer
+
+A per-user Windows installer definition and CI build are available in [`installer.iss`](installer.iss) and [INSTALLER.md](INSTALLER.md). The installer is **not considered ready for general installation** until the Windows Installer Package workflow completes successfully and the resulting unsigned installer has been tested on a real supported Windows PC. The current artifact is unsigned; Windows SmartScreen may display a warning.
+
 ## Safe Recycle Bin action
 
 J.A.R.V.I.S can send one regular file from Desktop, Documents or Downloads to the Windows Recycle Bin. It displays the exact path, size and type and asks for approval. It rejects directories, symbolic links, path traversal, missing files and files that change while the approval dialog is open. This is a recoverable OS trash operation, not a permanent-delete command; recovery still depends on the Recycle Bin not having been emptied and Windows permitting the move.
