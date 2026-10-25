@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.1 — Approved file operations and safe file opening
+**Version:** 1.5.2 — Consent-based local content search
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -60,6 +60,10 @@ The right-side **ACTIVE TASKS** panel now includes **RUN QUEUED TASKS**, **CANCE
 Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
 
 Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
+
+## Consent-based local content search
+
+J.A.R.V.I.S can search inside common text and source-code files in Desktop, Documents, Downloads or all three locations. Before scanning, it asks for approval and explains that up to 20 short matching-line excerpts enter the AI conversation and may be sent to the configured provider. The search skips hidden/ignored directories, symbolic links, binary files and files larger than 256 KB. It scans at most 5,000 files and does not edit any file. This is a bounded text search, not full-disk search or semantic document verification.
 
 ## Approved file opening
 
