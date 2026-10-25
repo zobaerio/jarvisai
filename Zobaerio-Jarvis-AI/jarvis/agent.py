@@ -10,7 +10,7 @@ import requests
 from . import automation
 from .settings import get_api_key
 
-SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
+SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
 TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
@@ -18,6 +18,10 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_folder", "description": "Open the user's Desktop, Documents, or Downloads folder in File Explorer.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}}, "required": ["location"]}}},
     {"type": "function", "function": {"name": "search_files", "description": "Search filenames under Desktop, Documents, and Downloads. Does not read file content.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "get_system_info", "description": "Get basic OS, computer, Python, and current-time information.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "list_open_windows", "description": "List the titles of visible Windows application windows. This reads titles only, not screenshots, text fields, or app contents.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "get_active_window_title", "description": "Read the active Windows application window title only; does not inspect its contents.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "paste_text_into_window", "description": "Paste provided text into the current field of a named visible Windows window. Always needs explicit user approval and will not press Enter or submit a form. Select the target using a distinctive substring from list_open_windows.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "text": {"type": "string"}}, "required": ["expected_app", "text"]}}},
+    {"type": "function", "function": {"name": "press_allowed_shortcut", "description": "Send one user-approved editing/navigation shortcut to a named Windows window. Only supported allow-listed shortcuts are accepted; Enter, Alt+F4, Windows+R and arbitrary key sequences are blocked.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "shortcut": {"type": "string", "enum": ["CTRL+S", "CTRL+A", "CTRL+C", "CTRL+V", "CTRL+Z", "CTRL+Y", "CTRL+F", "TAB", "SHIFT+TAB", "ESC", "HOME", "END", "PAGEUP", "PAGEDOWN"]}}, "required": ["expected_app", "shortcut"]}}},
     {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside Desktop, Documents, or Downloads. The desktop app will ask the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "name": {"type": "string"}}, "required": ["location", "name"]}}},
     {"type": "function", "function": {"name": "create_text_file", "description": "Create a new .txt, .md, .csv, .json, or .log file under Desktop, Documents, or Downloads. No overwriting. The app asks the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "content": {"type": "string"}}, "required": ["location", "filename", "content"]}}},
     {"type": "function", "function": {"name": "read_text_file", "description": "Read a small text/code file from Desktop, Documents, or Downloads. Provide the exact filename within the selected folder. Only common text formats are supported.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}}, "required": ["location", "filename"]}}},
@@ -145,6 +149,18 @@ class JarvisAgent:
             return automation.search_files(str(args.get("query", "")))
         if name == "get_system_info":
             return automation.get_system_info()
+        if name == "list_open_windows":
+            return automation.list_open_windows()
+        if name == "get_active_window_title":
+            return automation.get_active_window_title()
+        if name == "paste_text_into_window":
+            return automation.paste_text_into_window(
+                str(args.get("text", "")), str(args.get("expected_app", "")), self.approval
+            )
+        if name == "press_allowed_shortcut":
+            return automation.press_allowed_shortcut(
+                str(args.get("shortcut", "")), str(args.get("expected_app", "")), self.approval
+            )
         if name == "create_folder":
             return automation.create_folder(str(args.get("location", "")), str(args.get("name", "")), self.approval)
         if name == "create_text_file":

@@ -61,6 +61,12 @@ Cancellation is cooperative. An already-blocked model request may need to finish
 
 Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
 
+## Approved foreground application actions
+
+The agent can list visible application window titles, paste text into a named window, and send a small allow-list of editing/navigation shortcuts. Every paste or shortcut asks for approval and names the target window; the paste action does not press Enter or submit a form. `Enter`, `Alt+F4`, `Windows+R` and arbitrary shortcut sequences are blocked. Text insertion is not independently verified, so check the target app after the action.
+
+This is not full visual computer control. The agent cannot see screenshots or arbitrary app contents, and it does not have general-purpose mouse clicking. Keep the intended application/window visible and enter a distinctive window-title fragment when the model asks for a target.
+
 ## Safety and capabilities
 
 - Only explicitly allow-listed app and website actions are supported by default.
