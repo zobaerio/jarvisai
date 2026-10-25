@@ -24,6 +24,30 @@ class SocialWebNavigationTests(unittest.TestCase):
                 open_url.assert_called_once_with(expected_url)
                 self.assertIn("Opened", result)
 
+    def test_google_workspace_aliases_open_official_sites(self) -> None:
+        cases = {
+            "Gmail": "https://mail.google.com/",
+            "জিমেইল": "https://mail.google.com/",
+            "Google Calendar": "https://calendar.google.com/",
+            "ক্যালেন্ডার": "https://calendar.google.com/",
+            "Google Drive": "https://drive.google.com/",
+            "গুগল ড্রাইভ": "https://drive.google.com/",
+            "Google Docs": "https://docs.google.com/",
+            "Google Sheets": "https://sheets.google.com/",
+            "Google Maps": "https://maps.google.com/",
+        }
+        for spoken_name, expected_url in cases.items():
+            with self.subTest(spoken_name=spoken_name), patch("jarvis.automation.webbrowser.open") as open_url:
+                result = automation.open_website(spoken_name)
+                open_url.assert_called_once_with(expected_url)
+                self.assertIn("Opened", result)
+
+    def test_direct_command_opens_workspace_alias_without_ai(self) -> None:
+        with patch("jarvis.automation.webbrowser.open") as open_url:
+            result = automation.direct_command("open gmail")
+        open_url.assert_called_once_with("https://mail.google.com/")
+        self.assertIn("Opened", result)
+
     def test_english_youtube_search_opens_youtube_results(self) -> None:
         with patch("jarvis.automation.webbrowser.open") as open_url:
             result = automation.open_website("search YouTube for Bangla natok")

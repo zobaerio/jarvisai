@@ -11,6 +11,7 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 - Configurable OpenAI-compatible Chat Completions endpoint; optional local Ollama setup.
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, consent-gated text-file read/create, folder creation, and approval-gated single-file copy/move/rename.
 - Social web navigation via voice/AI tool calls: open WhatsApp Web, Facebook, YouTube, Instagram and Messenger, plus explicit English/Bangla YouTube search commands.
+- Google Workspace navigation: open Gmail, Calendar, Drive, Docs, Sheets and Maps through official URLs using English and selected Bangla aliases; this opens the service only and does not access account data or submit actions.
 - WhatsApp message-draft preparation: validate an international phone number and bounded message text, open WhatsApp Web with the message prefilled, and leave final recipient review and sending to the user; the app does not click Send or claim delivery.
 - Email draft preparation: validate a single recipient address and bounded subject/body, open the default email app through a `mailto:` draft, and leave final review and sending to the user; this does not authenticate to Gmail/Outlook or send messages.
 - Calendar event draft preparation: validate local ISO start/end times, duration, content limits and timezone allow-list, then open a Google Calendar template; it never saves the event or sends invitations automatically.
