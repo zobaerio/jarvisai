@@ -10,3 +10,4 @@ pyttsx3>=2.90
 pyautogui>=0.9.54
 pyperclip>=1.9.0
 Send2Trash>=1.8.3
+pystray>=0.19.5

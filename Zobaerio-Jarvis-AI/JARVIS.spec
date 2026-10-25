@@ -17,6 +17,8 @@ hiddenimports = [
     "pyautogui",
     "pyperclip",
     "send2trash",
+    "pystray",
+    "pystray._win32",
     "win32com",
     "win32com.client",
     "pythoncom",
