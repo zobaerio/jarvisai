@@ -28,6 +28,8 @@ class SystemHealthCheckTests(unittest.TestCase):
                 os_name="Windows",
                 frozen=True,
                 module_available=lambda _name: True,
+                local_endpoint=lambda _endpoint: True,
+                api_key_resolver=lambda _settings: "",
             )
             self.assertEqual({item.status for item in report}, {"PASS"})
             self.assertEqual(summarize_system_health(report), {"overall": "PASS", "PASS": len(report), "WARN": 0, "FAIL": 0})
@@ -62,12 +64,43 @@ class SystemHealthCheckTests(unittest.TestCase):
             python_version=(3, 12, 3),
             os_name="Windows",
             module_available=lambda _name: True,
+            local_endpoint=lambda _endpoint: False,
+            api_key_resolver=lambda source: source.get("api_key", ""),
         )
         serialized = json.dumps([item.__dict__ for item in report], ensure_ascii=False)
         self.assertNotIn("provider.example", serialized)
         self.assertNotIn(secret, serialized)
         self.assertNotIn("private-model-name", serialized)
         self.assertIn("configured", serialized)
+
+    def test_cloud_endpoint_reports_missing_key_without_revealing_keyring_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = collect_system_health(
+                {"api_base_url": "https://cloud.example/v1", "model": "cloud-model"},
+                project_root=Path(directory),
+                python_version=(3, 12, 3),
+                os_name="Windows",
+                frozen=True,
+                module_available=lambda _name: True,
+                local_endpoint=lambda _endpoint: False,
+                api_key_resolver=lambda _settings: "",
+            )
+            key_check = next(item for item in report if item.component == "AI API key")
+            self.assertEqual(key_check.status, "WARN")
+            self.assertIn("not found", key_check.detail)
+
+    def test_api_key_store_error_is_sanitized(self) -> None:
+        secret = "PRIVATE_KEYRING_ERROR_SENTINEL"
+        report = collect_system_health(
+            {"api_base_url": "https://cloud.example/v1", "model": "model"},
+            module_available=lambda _name: True,
+            local_endpoint=lambda _endpoint: False,
+            api_key_resolver=lambda _settings: (_ for _ in ()).throw(RuntimeError(secret)),
+        )
+        serialized = json.dumps([item.__dict__ for item in report], ensure_ascii=False)
+        self.assertNotIn(secret, serialized)
+        self.assertIn("AI API key", serialized)
+        self.assertTrue(any(item.status == "WARN" for item in report if item.component == "AI API key"))
 
     def test_unusual_python_and_non_windows_platform_show_warn_not_exception(self) -> None:
         report = collect_system_health(
