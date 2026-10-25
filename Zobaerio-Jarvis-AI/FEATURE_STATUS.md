@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.6.0 safe ZIP archive creation. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.6.1 read-only duplicate-file detection. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -16,6 +16,7 @@ Audit date: 2026-10-25. Version focus: v1.6.0 safe ZIP archive creation. This in
 - Approval-gated opening of common document/data/image files through the Windows default app; executable/script extensions, symlinks, traversal, and files changed during confirmation are blocked.
 - Consent-gated reading of a selected text file (maximum 100 KB), with exact path/size disclosure, provider-transmission notice, recheck against file changes and binary/symlink blocking.
 - Consent-based, bounded local content search for common text/source files; skips symlinks/binary/hidden/ignored directories, caps files and result snippets, and warns that matching excerpts enter the AI conversation.
+- Consent-gated duplicate-file detection using local SHA-256 for same-size candidates, bounded to 5,000 entries/256 MiB of hash work, skipping symlinks, hidden/generated directories and files over 100 MiB; returns limited path/hash summaries only and never modifies files.
 - Approval-gated bounded ZIP archive creation for up to 100 selected regular files (100 MiB total), with explicit confirmation, per-source identity rechecks, temp-file cleanup, and atomic no-overwrite publishing; unsupported filesystems fail closed.
 - Approval-gated single-file copy, move and rename within Desktop/Documents/Downloads; blocks symlinks/path traversal, refuses overwrites, and preserves the source until a destination copy succeeds.
 - Opt-in wake-word listening prototype.

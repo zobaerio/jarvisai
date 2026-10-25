@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.0 — Safe ZIP archive creation
+**Version:** 1.6.1 — Safe duplicate-file finder
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -56,6 +56,10 @@ If installation fails, open PowerShell in the project folder and run `python --v
 ## Safe Recycle Bin action
 
 J.A.R.V.I.S can send one regular file from Desktop, Documents or Downloads to the Windows Recycle Bin. It displays the exact path, size and type and asks for approval. It rejects directories, symbolic links, path traversal, missing files and files that change while the approval dialog is open. This is a recoverable OS trash operation, not a permanent-delete command; recovery still depends on the Recycle Bin not having been emptied and Windows permitting the move.
+
+## Safe duplicate-file finder
+
+J.A.R.V.I.S can find identical files by locally hashing same-size candidates in Desktop, Documents, Downloads or all three. The scan requires approval, is limited to 5,000 file entries and 256 MiB of total hashing, skips individual files over 100 MiB, hidden/generated directories, symbolic links and files that change during hashing. Only matching paths, sizes and shortened hash fingerprints enter the AI conversation; file contents are not included, and no file is modified or deleted. The tool does not decide which copy should be removed.
 
 ## Safe ZIP archive creation
 
