@@ -14,6 +14,7 @@ from typing import Callable
 from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key
 from jarvis.speech import SpeechEngine
+from jarvis.avatar_studio import launch_avatar_studio
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -45,7 +46,7 @@ class JarvisDesktop:
         self._configure_styles()
         self._prepare_avatar_images()
         self._build_ui()
-        self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. চারটি character থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
+        self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. তিনটি character profile থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
         self._write_message("SYSTEM", "নিরাপত্তা: ফাইল তৈরি/ফোল্ডার তৈরি করার আগে আমি অনুমতি চাইব। এই সংস্করণ arbitrary PowerShell/terminal command চালায় না।", "system")
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(100, self._drain_events)
@@ -148,7 +149,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="PERSONAL AI COMMAND CENTER · V1.2.0", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="PERSONAL AI COMMAND CENTER · V1.2.2", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -231,6 +232,10 @@ class JarvisDesktop:
             for widget in (card, avatar, name):
                 widget.bind("<Button-1>", lambda _e, k=key: self._select_character(k))
         self._refresh_character_cards()
+        tk.Button(char_panel, text="◈  OPEN REAL 3D AVATAR STUDIO", command=self._open_avatar_studio,
+                  bg="#0b2a40", fg=ACCENT, activebackground="#16415b", activeforeground=TEXT,
+                  relief="flat", bd=0, font=("Segoe UI Semibold", 8, "bold"),
+                  padx=8, pady=10, cursor="hand2").pack(fill="x", padx=11, pady=(0, 12))
 
         tools_panel = self._panel(left)
         tools_panel.pack(fill="both", expand=True)
@@ -423,40 +428,21 @@ class JarvisDesktop:
             py = cy + math.sin(angle) * radius * 0.68
             canvas.create_oval(px-3, py-3, px+3, py+3,
                                fill=ACCENT if idx % 2 == 0 else "#ffb36b", outline="")
-        avatar = self.avatar_images.get(self.selected_character)
-        if avatar:
-            # Subtle idle animation: breathing scale, gentle body sway and a tiny bob.
-            # Source artwork stays intact; this is 2.5D motion rather than a true 3D rig.
-            import math
-            pil_source = self.avatar_pil_images.get(self.selected_character)
-            if pil_source is not None:
-                from PIL import Image, ImageTk
-                breath = 1.0 + 0.008 * math.sin(phase * 0.72)
-                frame_w = max(190, int(pil_source.width * breath))
-                frame_h = max(238, int(pil_source.height * breath))
-                frame = pil_source.resize((frame_w, frame_h), Image.Resampling.LANCZOS)
-                angle = 1.0 * math.sin(phase * 0.43)
-                frame = frame.rotate(angle, resample=Image.Resampling.BICUBIC, expand=False, fillcolor=(248, 250, 253, 255))
-                self._current_avatar_photo = ImageTk.PhotoImage(frame)
-                sway = int(math.sin(phase * 0.55) * 2.5)
-                bob = int(math.sin(phase * 1.15) * 2.0)
-                avatar_x, avatar_y = cx + sway, cy + bob
-                canvas.create_image(avatar_x, avatar_y, image=self._current_avatar_photo)
-                # Tiny eyelid strokes during periodic blink frames (best-effort 2D effect).
-                if self._blink_frames > 0:
-                    eye_y = {"luna": -94, "ruby": -105, "maya": -22}.get(self.selected_character, -90)
-                    eye_color = {"luna": "#e0a4b6", "ruby": "#f0c2b6", "maya": "#cfa28c"}.get(self.selected_character, "#e0b4a5")
-                    spread = 9 if self.selected_character != "maya" else 20
-                    for ex in (avatar_x - spread, avatar_x + spread):
-                        canvas.create_line(ex-5, avatar_y+eye_y, ex+5, avatar_y+eye_y+1,
-                                           fill=eye_color, width=3, capstyle="round")
-                    self._blink_frames -= 1
-            else:
-                canvas.create_image(cx, cy, image=avatar)
-        else:
-            canvas.create_oval(cx-75, cy-75, cx+75, cy+75, fill="#102a44", outline=ACCENT, width=3)
-            canvas.create_text(cx, cy, text=self.characters[self.selected_character]["name"],
-                               fill=TEXT, font=("Segoe UI Black", 25, "bold"))
+        # The supplied stills remain profile thumbnails only. Do not fake a 3D body
+        # by rotating the bitmap; the actual procedural 3D avatar opens in Avatar Studio.
+        pulse = 1.0 + 0.025 * math.sin(phase * 1.7)
+        orb_r = 68 * pulse
+        for radius, color, width_px in ((orb_r + 28, "#155f88", 1), (orb_r + 12, "#1789b5", 2), (orb_r, ACCENT, 2)):
+            canvas.create_oval(cx-radius, cy-radius, cx+radius, cy+radius, outline=color, width=width_px)
+        canvas.create_oval(cx-orb_r*.70, cy-orb_r*.70, cx+orb_r*.70, cy+orb_r*.70,
+                           fill="#0d2e4b", outline="#3cc6ee", width=2)
+        canvas.create_text(cx, cy-8, text="3D", fill="#dffaff", font=("Segoe UI Black", 31, "bold"))
+        canvas.create_text(cx, cy+25, text="AVATAR RIG", fill=ACCENT, font=("Consolas", 9, "bold"))
+        for idx in range(6):
+            angle = phase * 0.7 + idx * math.tau / 6
+            radius = orb_r + 20 + (idx % 2) * 10
+            px, py = cx + math.cos(angle) * radius, cy + math.sin(angle) * radius * .63
+            canvas.create_oval(px-3, py-3, px+3, py+3, fill=ACCENT if idx % 2 else ORANGE, outline="")
         # Core callout
         text_x = min(width - 20, int(width * 0.62))
         canvas.create_text(text_x, int(height * 0.28), text="ONE COMMAND.", anchor="w",
@@ -513,6 +499,16 @@ class JarvisDesktop:
                         child.configure(fg=ACCENT if selected else TEXT)
                 except tk.TclError:
                     pass
+
+    def _open_avatar_studio(self) -> None:
+        try:
+            opened = launch_avatar_studio(self.selected_character)
+            if opened:
+                self._write_message("SYSTEM", "3D Character Studio opened in your default browser. It renders procedural 3D geometry with independent head, arms, forearms, legs, eye-blink and speech-mouth animation. Internet is required to load the Three.js engine; the preview does not access your camera or microphone.", "system")
+            else:
+                self._write_message("SYSTEM", "Your default browser did not report that the 3D Studio opened. Check browser settings and try again.", "system")
+        except Exception as exc:
+            messagebox.showerror("3D Avatar Studio", f"Could not open 3D Character Studio: {exc}")
 
     def _select_character(self, key: str) -> None:
         if key not in self.characters:
