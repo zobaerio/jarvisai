@@ -369,7 +369,7 @@ class TaskStore:
         self, task_id: str, step_id: str, *, status: str
     ) -> dict[str, Any] | None:
         """Persist one step transition; retrying a failed step is always explicit."""
-        if status not in {"pending", "running", "completed", "failed", "skipped"}:
+        if status not in {"pending", "running", "completed", "failed", "skipped", "unverified"}:
             raise ValueError(f"Unsupported plan-step status: {status}")
         allowed_transitions = {
             "pending": {"running", "skipped"},
@@ -377,6 +377,7 @@ class TaskStore:
             "failed": {"pending"},
             "completed": set(),
             "skipped": set(),
+            "unverified": set(),
         }
         with self._lock:
             rows = self._read()
@@ -405,6 +406,33 @@ class TaskStore:
                 item["attempts"] = min(999, attempts + 1)
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
+            return dict(target)
+
+    def finalize_task_plan(self, task_id: str, outcome: str) -> dict[str, Any] | None:
+        """Mark untouched plan items unverified when the task ends; never infer completion."""
+        if outcome not in {"completed", "partial", "failed", "cancelled"}:
+            raise ValueError(f"Unsupported task outcome: {outcome}")
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None:
+                return None
+            plan = target.get("plan")
+            if not isinstance(plan, list):
+                return dict(target)
+            now = _now()
+            changed = False
+            for item in plan:
+                if not isinstance(item, dict) or item.get("status") not in {"pending", "running"}:
+                    continue
+                item["status"] = "unverified"
+                item["updated_at"] = now
+                item["outcome"] = outcome
+                item["verification_note"] = "Task ended without a dedicated execution/verification event for this plan step."
+                changed = True
+            if changed:
+                target["updated_at"] = now
+                self._write(rows[-MAX_TASKS:])
             return dict(target)
 
     def cancel_queued_task(self, task_id: str) -> dict[str, Any] | None:

@@ -54,6 +54,26 @@ class DurableTaskPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.update_plan_step(task["id"], step_id, status="running")
 
+    def test_finalizing_task_marks_only_unfinished_plan_steps_unverified(self) -> None:
+        task = self.store.create_task("Prepare a report")
+        plan = self.store.set_task_plan(task["id"], ["Inspect inputs", "Create draft"])
+        first_id = plan["plan"][0]["id"]
+        self.store.update_plan_step(task["id"], first_id, status="running")
+        self.store.update_plan_step(task["id"], first_id, status="completed")
+
+        finalized = self.store.finalize_task_plan(task["id"], "partial")
+        self.assertEqual(finalized["plan"][0]["status"], "completed")
+        self.assertEqual(finalized["plan"][1]["status"], "unverified")
+        self.assertEqual(finalized["plan"][1]["outcome"], "partial")
+        self.assertIn("without a dedicated", finalized["plan"][1]["verification_note"])
+
+    def test_finalizing_missing_plan_is_safe_and_invalid_outcome_rejected(self) -> None:
+        task = self.store.create_task("No plan")
+        self.assertIsNotNone(self.store.finalize_task_plan(task["id"], "completed"))
+        self.assertIsNone(self.store.finalize_task_plan("missing", "completed"))
+        with self.assertRaises(ValueError):
+            self.store.finalize_task_plan(task["id"], "unknown")
+
     def test_plan_input_is_bounded_and_validated(self) -> None:
         task = self.store.create_task("Bounded")
         with self.assertRaises(ValueError):
