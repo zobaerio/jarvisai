@@ -240,6 +240,55 @@ def prepare_whatsapp_message(phone_number: str, message: str) -> str:
 
 
 
+def prepare_calendar_event_draft(title: str, start: str, end: str, details: str = "", location: str = "", timezone_name: str = "Asia/Dhaka") -> str:
+    """Open a Google Calendar event template; never create or save the event automatically."""
+    from datetime import datetime
+    from urllib.parse import urlencode
+
+    title_text = str(title).strip()
+    if not title_text or len(title_text) > 200:
+        return "Calendar draft blocked: event title must be 1–200 characters."
+    if any(ord(char) < 32 for char in title_text):
+        return "Calendar draft blocked: title contains unsupported control characters."
+
+    def parse_local(value: str, label: str) -> datetime | None:
+        raw = str(value).strip()
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if parsed.tzinfo is not None:
+            return None
+        if not raw or parsed.second != 0 or parsed.microsecond != 0:
+            return None
+        return parsed
+
+    start_dt = parse_local(start, "start")
+    end_dt = parse_local(end, "end")
+    if start_dt is None or end_dt is None:
+        return "Calendar draft blocked: start and end must be local ISO dates/times like 2026-10-26T14:30, without a timezone offset."
+    if end_dt <= start_dt:
+        return "Calendar draft blocked: end time must be after start time."
+    if (end_dt - start_dt).total_seconds() > 7 * 24 * 60 * 60:
+        return "Calendar draft blocked: event duration cannot exceed 7 days."
+    details_text, location_text = str(details).strip(), str(location).strip()
+    if len(details_text) > 4000 or len(location_text) > 300:
+        return "Calendar draft blocked: details must be 4,000 characters or fewer and location 300 or fewer."
+    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in details_text) or any(ord(char) < 32 for char in location_text):
+        return "Calendar draft blocked: details or location contain unsupported control characters."
+    if timezone_name not in {"Asia/Dhaka", "UTC", "Asia/Kolkata", "Asia/Singapore", "Europe/London", "America/New_York", "America/Los_Angeles"}:
+        return "Calendar draft blocked: timezone is not in the supported allow-list."
+    dates = start_dt.strftime("%Y%m%dT%H%M%S") + "/" + end_dt.strftime("%Y%m%dT%H%M%S")
+    params = {"action": "TEMPLATE", "text": title_text, "dates": dates, "ctz": timezone_name}
+    if details_text:
+        params["details"] = details_text
+    if location_text:
+        params["location"] = location_text
+    url = "https://calendar.google.com/calendar/render?" + urlencode(params)
+    webbrowser.open(url)
+    return "Opened a Google Calendar event draft. Nothing was saved or invited automatically. Review the title, time, timezone, details and location, then save it yourself."
+
+
 def prepare_email_draft(recipient: str, subject: str, body: str) -> str:
     """Open the default email app with a validated mailto draft; never send it."""
     address = str(recipient).strip()
