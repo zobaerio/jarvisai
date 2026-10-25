@@ -54,6 +54,13 @@ class JarvisDesktop:
         self.agent = JarvisAgent(self.settings, self._request_approval)
         self._busy = False
         self.task_store = TaskStore()
+        self._startup_recovered_task_count = 0
+        self._task_recovery_error: str | None = None
+        try:
+            self._startup_recovered_task_count = self.task_store.recover_interrupted_tasks()
+        except Exception as exc:
+            # Startup recovery must not prevent the assistant UI from opening.
+            self._task_recovery_error = type(exc).__name__
         self._active_task_id: str | None = None
         self._active_task_cancel_event: threading.Event | None = None
         self._active_task_command = ""
@@ -67,7 +74,19 @@ class JarvisDesktop:
         self._prepare_avatar_images()
         self._build_ui()
         self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. তিনটি character profile থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
-        self._write_message("SYSTEM", "নিরাপত্তা: file read/create/copy/move/rename করার আগে আমি নির্দিষ্ট action-এর অনুমতি চাইব। File read করলে contents AI provider-এ যেতে পারে। arbitrary PowerShell/terminal command চালানো হয় না।", "system")
+        self._write_message("SYSTEM", "নিরাপত্তা: file read/create/copy/move/rename বা Recycle Bin-এ পাঠানোর আগে আমি নির্দিষ্ট action-এর অনুমতি চাইব। File read করলে contents AI provider-এ যেতে পারে। arbitrary PowerShell/terminal command চালানো হয় না।", "system")
+        if self._startup_recovered_task_count:
+            self._write_message(
+                "SYSTEM",
+                f"Startup recovery: {self._startup_recovered_task_count}টি task আগের session-এ চলমান ছিল, তাই failed হিসেবে চিহ্নিত করেছি। কোনো task নিজে থেকে আবার চালানো হয়নি—partial action হতে পারে, আগে Task History দেখে নাও।",
+                "system",
+            )
+        if self._task_recovery_error:
+            self._write_message(
+                "SYSTEM",
+                f"Task History startup recovery সম্পন্ন হয়নি ({self._task_recovery_error})। History খুলে চলমান task-এর অবস্থা যাচাই করো; কোনো queued task নিজে থেকে চালানো হয়নি।",
+                "system",
+            )
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(100, self._drain_events)
 
@@ -171,7 +190,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.5.8", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.5.9", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
