@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.6.7 privacy-safe aggregate diagnostics export. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.6.8 redacted exception messages and content-free progress telemetry. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -30,6 +30,7 @@ Audit date: 2026-10-25. Version focus: v1.6.7 privacy-safe aggregate diagnostics
 - Task History exposes an explicit cancel action for a selected `queued` command. It marks that command `cancelled` before execution, does not touch running/terminal tasks, and preserves FIFO order among remaining queued commands.
 - Task History can search within the latest 100 records by command, result, progress events, task ID or tool-action metadata, and filter by recorded task status. Filters run locally and do not mutate or execute tasks.
 - Task History can export a user-confirmed aggregate diagnostics JSON with task/action counts, UTC dates/durations and runtime version fields. The report excludes user command/result text, IDs, paths, progress text, tool names/arguments/results and exception details.
+- Unexpected tool/worker exception text is redacted from user/provider-facing responses; only the sanitized exception type and generic guidance are emitted. Progress telemetry records the tool name/status, not the returned tool-result text.
 - AI endpoint validation rejects embedded URL credentials/query fragments and blocks API-key transmission over remote plain HTTP; Settings exposes a background /models connectivity check without a chat-generation request.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; path-level in-process locking, unique temp files, fsync/atomic replacement and backup recovery; history viewer is available in the desktop UI.
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
