@@ -32,6 +32,39 @@ def _lock_for_path(path: Path) -> threading.RLock:
         return lock
 
 
+
+def _process_is_running(pid: int) -> bool:
+    """Conservatively check whether an owner process may still be alive."""
+    if type(pid) is not int or pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            process_query_limited_information = 0x1000
+            handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
+            if handle:
+                kernel32.CloseHandle(handle)
+                return True
+            # Access denied means a process likely exists; do not risk recovering it as stale.
+            return ctypes.get_last_error() == 5
+        except Exception:
+            # Unknown Windows API errors must not cause an active task to be marked stale.
+            return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        # If the process status cannot be established, leave the task for manual review.
+        return True
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -69,6 +102,7 @@ class TaskStore:
             "finished_at": None,
             "result": "",
             "steps": [],
+            "process_id": os.getpid(),
         }
         with self._lock:
             rows = self._read()
@@ -108,6 +142,8 @@ class TaskStore:
             target["updated_at"] = now
             if status is not None:
                 target["status"] = status
+                if status == "running":
+                    target["process_id"] = os.getpid()
                 if status in {"completed", "failed", "cancelled"}:
                     target["finished_at"] = now
             if result is not None:
@@ -118,6 +154,43 @@ class TaskStore:
                 target["steps"] = steps[-MAX_STEPS:]
             self._write(rows[-MAX_TASKS:])
             return dict(target)
+
+    def recover_interrupted_tasks(self) -> int:
+        """Mark abandoned active tasks failed without automatically replaying risky actions."""
+        recovery_note = (
+            "Interrupted by an app restart. This task may have partially completed, so it was not "
+            "automatically rerun to avoid duplicating actions. Review Task History before retrying."
+        )
+        recovery_step = "Startup recovery: previous execution was interrupted; task marked failed and not auto-replayed"
+        with self._lock:
+            rows = self._read()
+            now = _now()
+            recovered = 0
+            for row in rows:
+                if row.get("status") not in {"running", "cancelling"}:
+                    continue
+                owner_pid = row.get("process_id")
+                # If another J.A.R.V.I.S process still appears active, leave its task alone.
+                # Legacy rows without a PID are treated as interrupted by the newer app.
+                if type(owner_pid) is int and _process_is_running(owner_pid):
+                    continue
+                previous_result = str(row.get("result", "")).strip()
+                combined_result = (
+                    previous_result + "\n\n" + recovery_note if previous_result else recovery_note
+                )
+                row["status"] = "failed"
+                row["updated_at"] = now
+                row["finished_at"] = now
+                row["result"] = combined_result[:MAX_RESULT_LENGTH]
+                steps = row.get("steps")
+                if not isinstance(steps, list):
+                    steps = []
+                steps.append({"time": now, "text": recovery_step[:240]})
+                row["steps"] = steps[-MAX_STEPS:]
+                recovered += 1
+            if recovered:
+                self._write(rows[-MAX_TASKS:])
+            return recovered
 
     @property
     def backup_path(self) -> Path:
