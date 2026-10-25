@@ -57,6 +57,8 @@ class JarvisAgent:
         report("Checking supported local commands")
         direct = automation.direct_command(user_text)
         if direct is not None:
+            if cancelled():
+                return "বাতিলের অনুরোধ local command চলার সময় এসেছে। Command-এর ফল ইতিমধ্যে ঘটতে পারে: " + direct
             return direct
         if cancelled():
             return "কাজটি বাতিল করা হয়েছে। কোনো নতুন AI tool action চালানো হয়নি।"
