@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.5.0 approved single-file operations. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -9,10 +9,11 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - One-shot microphone input using SpeechRecognition + Google speech recognition (internet required).
 - Spoken responses using Edge TTS with pyttsx3 fallback.
 - Configurable OpenAI-compatible Chat Completions endpoint; optional local Ollama setup.
-- AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, safe text-file read/create and folder creation.
+- AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, safe text-file read/create, folder creation, and approval-gated single-file copy/move/rename.
 - Foreground desktop actions: list visible window titles (title-only), paste text into a named Windows window and send allow-listed editing/navigation shortcuts—each interaction requires explicit user approval.
 - Deterministic local verification: check whether an exact filename/folder exists inside an allowed user folder or a visible window title matches a target; brief tool outcome lines are persisted to task history.
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
+- Approval-gated single-file copy, move and rename within Desktop/Documents/Downloads; blocks symlinks/path traversal, refuses overwrites, and preserves the source until a destination copy succeeds.
 - Opt-in wake-word listening prototype.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.

@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.4.2 — Action planning and verification
+**Version:** 1.5.0 — Approved file operations
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -61,6 +61,10 @@ Cancellation is cooperative. An already-blocked model request may need to finish
 
 Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
 
+## Approved file copy, move and rename
+
+J.A.R.V.I.S can copy, move or rename one regular file at a time inside Desktop, Documents and Downloads. Before every operation, an approval dialog shows the exact source, destination, file size and operation. Existing destination files are never overwritten. Symbolic links and path traversal are blocked. Move/rename copies the file first and removes the original only after the destination copy succeeds; if source removal fails, both copies remain and the result reports that partial state. This feature does not delete files, recursively copy folders, or operate outside the three allow-listed locations.
+
 ## Approved foreground application actions
 
 The agent can list visible application window titles, paste text into a named window, send a small allow-list of editing/navigation shortcuts, and verify basic outcomes such as whether a file/folder exists or a matching window title is visible. Every paste or shortcut asks for approval and names the target window; the paste action does not press Enter or submit a form. `Enter`, `Alt+F4`, `Windows+R` and arbitrary shortcut sequences are blocked. Text insertion is not independently verified, so check the target app after the action.
@@ -70,7 +74,7 @@ This is not full visual computer control. The agent cannot see screenshots or ar
 ## Safety and capabilities
 
 - Only explicitly allow-listed app and website actions are supported by default.
-- Creating or changing files requires confirmation in the assistant workflow.
+- Creating, copying, moving or renaming files requires action-specific confirmation in the assistant workflow. Existing destination files are never overwritten.
 - Arbitrary PowerShell/shell execution is intentionally not exposed as a default tool.
 - An AI model may plan only from its configured tools; it cannot literally operate every program or guarantee every task will complete.
 - Review any action before allowing it to send messages, submit forms, or alter important files.
