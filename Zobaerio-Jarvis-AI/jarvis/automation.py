@@ -228,7 +228,7 @@ def prepare_whatsapp_message(phone_number: str, message: str) -> str:
         return "WhatsApp draft not opened: message text is empty."
     if len(text) > 4000:
         return "WhatsApp draft blocked: message must be 4,000 characters or fewer."
-    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in text):
+    if any(ord(char) < 32 and char not in "\n\r\t" for char in text):
         return "WhatsApp draft blocked: message contains unsupported control characters."
     url = "https://web.whatsapp.com/send?phone=" + digits + "&text=" + quote(text, safe="")
     webbrowser.open(url)
