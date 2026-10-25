@@ -1113,7 +1113,7 @@ class JarvisDesktop:
                 return
             try:
                 destination.write_text(
-                    json.dumps(record, indent=2, ensure_ascii=False) + "\\n",
+                    json.dumps(record, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8",
                 )
             except Exception as exc:
