@@ -40,7 +40,7 @@ History ও queued command এই PC-তে `%APPDATA%\Zobaerio\Jarvis\task_hist
 
 ## AI Agent-এর approved desktop control
 
-AI Agent এখন visible app window-এর title list করতে পারে, নির্দিষ্ট window-তে text paste করতে পারে এবং অনুমোদিত editing/navigation shortcut পাঠাতে পারে। প্রতিটি paste/shortcut-এর আগে confirmation চাইবে এবং কোন window-তে কাজ হবে তা দেখাবে। Text paste করার পর Enter চাপবে না বা form submit করবে না। Enter, Alt+F4, Windows+R এবং arbitrary shortcut sequence blocked। Paste সত্যিই app-এ বসেছে কি না, নিজে থেকে যাচাই করতে পারে না—তাই app দেখে নিশ্চিত করবে।
+AI Agent এখন visible app window-এর title list করতে পারে, নির্দিষ্ট window-তে text paste করতে পারে এবং অনুমোদিত editing/navigation shortcut পাঠাতে পারে। প্রতিটি paste/shortcut-এর আগে confirmation চাইবে এবং কোন window-তে কাজ হবে তা দেখাবে। Text paste করার পর Enter চাপবে না বা form submit করবে না। Enter, Alt+F4, Windows+R এবং arbitrary shortcut sequence blocked। Paste সত্যিই app-এ বসেছে কি না, নিজে থেকে যাচাই করতে পারে না—তাই app দেখে নিশ্চিত করবে। এছাড়া file/folder-এর অস্তিত্ব এবং নির্দিষ্ট window title মিলিয়ে basic verification করা যায়; কিন্তু document-এর content/quality বা পুরো external task সম্পূর্ণ হয়েছে কি না তা যাচাই করতে পারে না।
 
 এটি এখনো full visual computer control নয়: screenshot/OCR দেখে app বুঝতে পারে না এবং যেকোনো জায়গায় mouse click করতে পারে না। সঠিক app/window খোলা রাখবে এবং প্রয়োজন হলে তার title-এর নির্দিষ্ট অংশ জানাবে।
 
