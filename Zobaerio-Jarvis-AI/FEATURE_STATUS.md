@@ -12,6 +12,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
 - Opt-in wake-word listening prototype.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
+- Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
 - Cooperative cancellation between AI request/tool steps; the approval dialog also offers a Cancel Task action.
 - New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion.
 
