@@ -57,7 +57,7 @@ if not exist "dist\JARVIS\JARVIS.exe" (
 )
 
 echo [6/7] Writing portable package version metadata...
-".packaging-venv\Scripts\python.exe" -c "import json, platform; from pathlib import Path; from jarvis.version import APP_NAME, APP_VERSION; data={'app_name': APP_NAME, 'app_version': APP_VERSION, 'package_type': 'unsigned-portable-folder', 'python_version': platform.python_version(), 'architecture': platform.machine()}; Path('dist/JARVIS/version.json').write_text(json.dumps(data, indent=2) + '\\n', encoding='utf-8')"
+".packaging-venv\Scripts\python.exe" -c "import json, platform; from pathlib import Path; from jarvis.version import APP_NAME, APP_VERSION; data={'app_name': APP_NAME, 'app_version': APP_VERSION, 'package_type': 'unsigned-portable-folder', 'python_version': platform.python_version(), 'architecture': platform.machine()}; Path('dist/JARVIS/version.json').write_text(json.dumps(data, indent=2) + chr(10), encoding='utf-8')"
 if errorlevel 1 goto failed
 
 echo [7/7] Creating the portable ZIP...
