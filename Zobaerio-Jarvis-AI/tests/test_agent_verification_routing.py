@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from jarvis.agent import JarvisAgent, SYSTEM_PROMPT, TOOLS
 
@@ -34,6 +34,25 @@ class VerificationToolRoutingTests(unittest.TestCase):
         self.assertIn("complete supported user requests", SYSTEM_PROMPT)
         self.assertIn("partially completed", SYSTEM_PROMPT)
         self.assertIn("verify_local_action", SYSTEM_PROMPT)
+
+    def test_task_has_a_hard_tool_call_budget(self) -> None:
+        calls = [
+            {
+                "id": f"call-{index}",
+                "type": "function",
+                "function": {"name": "unknown_tool_for_test", "arguments": "{}"},
+            }
+            for index in range(13)
+        ]
+        response = Mock()
+        response.status_code = 200
+        response.json.return_value = {"choices": [{"message": {"content": None, "tool_calls": calls}}]}
+        with patch("jarvis.agent.get_api_key", return_value=""), patch(
+            "jarvis.agent.requests.post", return_value=response
+        ), patch.object(self.agent, "_execute_tool", wraps=self.agent._execute_tool) as execute:
+            result = self.agent.respond("Please complete a multi-step task")
+        self.assertIn("Partially completed", result)
+        self.assertEqual(execute.call_count, 12)
 
 
 if __name__ == "__main__":
