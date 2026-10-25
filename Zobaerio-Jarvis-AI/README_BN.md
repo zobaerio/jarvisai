@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.5 — Queued task controls
+**সংস্করণ:** 1.6.6 — Task History search & filters
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
@@ -107,3 +107,8 @@ Task History-তে `COMPLETED`, `PARTIAL`, `FAILED` ও `CANCELLED` আলা�
 ## নতুন: Queue-তে থাকা Command Cancel
 
 Task History থেকে `QUEUED` status-এর command নির্বাচন করে **Cancel Selected Queued Task** চাপলে confirmation নেওয়া হবে। এরপর command-টি `CANCELLED` হবে এবং execute করা হবে না। ইতিমধ্যে চলতে শুরু করেছে এমন task এই control দিয়ে cancel করা যায় না। বাকি queued task আগের FIFO order-এ থাকবে; app restart-এর পর queue চালাতে এখনও আলাদা confirmation লাগবে।
+
+
+## নতুন: Task History Search ও Status Filter
+
+Search box-এ command, result, progress step, task ID বা tool-action metadata লিখে task খুঁজে পাবে। Status dropdown থেকে `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` ইত্যাদি filter করা যাবে। এটি এই PC-তে থাকা সর্বশেষ ১০০টি history record-এর ওপর local search; এতে task record পরিবর্তন হয় না এবং কোনো command execute হয় না।
