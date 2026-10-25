@@ -535,6 +535,73 @@ def _operation_child_path(location: str, filename: str) -> Path:
     return safe_child_path(location, raw)
 
 
+
+SUPPORTED_OPEN_FILE_SUFFIXES = {
+    ".txt", ".md", ".csv", ".json", ".log", ".pdf",
+    ".doc", ".docx", ".rtf", ".odt",
+    ".xls", ".xlsx", ".ods",
+    ".ppt", ".pptx", ".odp",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff",
+}
+
+
+def _is_windows_platform() -> bool:
+    return os.name == "nt"
+
+
+def _launch_file_with_default_app(path: Path) -> None:
+    """Ask Windows Shell to open a user-selected document/image with its default app."""
+    os.startfile(str(path))  # type: ignore[attr-defined]
+
+
+def open_file(location: str, filename: str, approve) -> str:
+    """Open one allow-listed document/image from an approved user folder after confirmation."""
+    try:
+        path = _operation_child_path(location, filename)
+    except (ValueError, OSError) as exc:
+        return f"File open blocked: {exc}"
+    if path.suffix.lower() not in SUPPORTED_OPEN_FILE_SUFFIXES:
+        return (
+            "For safety, only common document, data and image formats can be opened: "
+            + ", ".join(sorted(SUPPORTED_OPEN_FILE_SUFFIXES))
+            + ". Executables and scripts are blocked."
+        )
+    if not path.is_file():
+        return f"File not found or not a regular file: {path}"
+    if not _is_windows_platform():
+        return "Opening files with their Windows default application is supported only on Windows."
+    try:
+        before = path.stat()
+    except OSError as exc:
+        return f"Could not inspect the file before opening: {exc}"
+    detail = (
+        f"Open this file in its default Windows application?\\n\\n"
+        f"File: {path}\\n"
+        f"Type: {path.suffix.lower()}\\n"
+        f"Size: {before.st_size:,} bytes\\n\\n"
+        "J.A.R.V.I.S will not edit or submit the file. The associated application may have its own behavior."
+    )
+    try:
+        if not approve("Confirm open file", detail):
+            return "Cancelled. The file was not opened."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). The file was not opened."
+    try:
+        # Re-check the path and metadata after the dialog to avoid opening a swapped link/file.
+        current = _operation_child_path(location, filename)
+        after = current.stat()
+        if current != path or not current.is_file():
+            return "The selected file changed after confirmation. Nothing was opened."
+        if (after.st_size, after.st_mtime_ns, after.st_ino) != (before.st_size, before.st_mtime_ns, before.st_ino):
+            return "The file changed after confirmation. Please review it and try again."
+        _launch_file_with_default_app(current)
+    except (OSError, ValueError) as exc:
+        return f"Could not open the file: {exc}"
+    except Exception as exc:
+        return f"Opening the file failed safely ({type(exc).__name__}): {exc}"
+    return f"Asked Windows to open: {path}. Verify that the expected application and file are visible."
+
+
 def _copy_file_no_overwrite(source: Path, destination: Path) -> None:
     """Copy one regular file without ever opening an existing destination for writing."""
     created_destination = False
