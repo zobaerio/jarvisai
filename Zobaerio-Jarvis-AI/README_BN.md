@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.8 — Safe exception redaction
+**সংস্করণ:** 1.6.9 — Windows portable build workflow
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
@@ -122,3 +122,15 @@ Task History থেকে **Export Safe Diagnostics** চাপলে আগে 
 ## নতুন: Safe Exception Redaction
 
 কোনো tool বা desktop worker-এ অপ্রত্যাশিত error হলে user-facing message ও AI model-এ পাঠানো tool result-এ শুধু সীমিত error type এবং পরবর্তী করণীয় থাকবে; raw exception message পাঠানো হবে না। কারণ exception-এর ভেতরে local file path, URL, account identifier বা user data থাকতে পারে। Tool result-এর text-ও progress history-তে কপি করা হবে না—সেখানে status থাকবে, content নয়।
+
+
+## নতুন: Windows Portable Build
+
+**যা লাগবে:** Windows 10/11, Python 3.12 x64, dependency download করার জন্য internet এবং পর্যাপ্ত disk space।
+
+১. `Zobaerio-Jarvis-AI` folder খুলে `build_portable.bat` চালাও।
+২. Build শেষ হলে `dist/JARVIS-Windows-Portable.zip` পাবে।
+৩. ZIP ফাইলটি কোনো folder-এ extract করো এবং পুরো `JARVIS` folder একসঙ্গে রাখো।
+৪. `JARVIS/JARVIS.exe` চালাও; `_internal` folder মুছে ফেলবে না, কারণ এর মধ্যে runtime library ও 3D asset থাকে।
+
+Build script আলাদা `.packaging-venv` ব্যবহার করে, তাই app-এর runtime environment-এ PyInstaller যোগ হয় না। GitHub Actions Windows-এ executable, 3D page ও ZIP যাচাই করে artifact ১৪ দিনের জন্য রাখে। এই build **unsigned**—এটি signed installer/MSIX নয় এবং auto-update নেই; Windows SmartScreen warning দিতে পারে। 3D Studio-এর Three.js CDN, AI provider ও speech service-এর কারণে app পুরোপুরি offline নয়।
