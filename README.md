@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.6.6 — Task History search & filters  
+**Version:** 1.6.7 — Privacy-safe diagnostics export  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -56,3 +56,8 @@ The official SVG mark and wordmark are in `Zobaerio-Jarvis-AI/assets/branding/`.
 
 ## Safety and QA
 Only allow-listed desktop tools are enabled by default; supported file/folder changes ask for approval. Voice services may transmit audio/text to their providers. Syntax, unit tests and JavaScript module parsing run in GitHub Actions; target-device GPU/WebGL, microphone and speaker tests are still required.
+
+
+## Privacy-safe diagnostics export
+
+Task History can export a support report after explicit confirmation. It contains aggregate task/outcome/action counts, UTC date and duration summaries, app version, OS family and Python version. It excludes task IDs, prompts/commands, result text, file paths and names, progress text, tool names/arguments/outputs and exception details. The export is a JSON file you choose locally; review it before sharing.
