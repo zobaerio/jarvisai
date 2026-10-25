@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.1 — অনুমতি-ভিত্তিক File Operations ও Safe Open
+**সংস্করণ:** 1.5.2 — Consent-based Local Content Search
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -37,6 +37,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 এটি cooperative cancellation: model-এর network request ইতিমধ্যে আটকে থাকলে সেটি return না করা পর্যন্ত অপেক্ষা লাগতে পারে (read timeout ৪৫ সেকেন্ড), আর ইতিমধ্যে শুরু হওয়া external action স্বয়ংক্রিয়ভাবে undo করা যায় না। Cancel শনাক্ত হওয়ার পরে নতুন AI tool action শুরু করা হয় না।
 
 History ও queued command এই PC-তে `%APPDATA%\Zobaerio\Jarvis\task_history.json`-এ JSON হিসেবে থাকে; এই feature সেটি encrypt করে না। Restart-এর পর saved queue চালাতে আলাদাভাবে confirmation দিতে হবে। Command হিসেবে password, API key বা secret দেবে না।
+
+## নতুন: ফাইলের ভেতরের লেখা খোঁজা
+
+Desktop, Documents, Downloads অথবা তিনটি folder-এই common text/source file-এর ভেতরে কোনো শব্দ বা phrase খুঁজতে পারবে। Search শুরু করার আগে confirmation dialog দেখাবে; সর্বোচ্চ ২০টি ছোট matching line AI conversation-এ যাবে এবং cloud provider ব্যবহার করলে সেখানেও পাঠানো হতে পারে—এ কথা স্পষ্টভাবে জানাবে। Hidden/ignored directory, symbolic link, binary file এবং ২৫৬ KB-এর বড় file বাদ থাকবে; সর্বোচ্চ ৫,০০০টি file scan হবে। কোনো file edit করবে না। এটি সীমিত text search, পুরো disk scan বা document-এর semantic quality verification নয়।
 
 ## নতুন: নিরাপদে নির্দিষ্ট ফাইল খোলা
 
