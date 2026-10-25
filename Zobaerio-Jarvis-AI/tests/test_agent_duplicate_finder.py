@@ -16,7 +16,7 @@ class DuplicateFinderToolTests(unittest.TestCase):
 
     def test_duplicate_finder_tool_is_advertised_as_read_only(self) -> None:
         tool = next(t for t in TOOLS if t["function"]["name"] == "find_duplicate_files")
-        self.assertIn("never modify or delete files", tool["function"]["description"].lower())
+        self.assertIn("never edits or deletes files", tool["function"]["description"].lower())
         self.assertEqual(
             tool["function"]["parameters"]["properties"]["location"]["enum"],
             ["Desktop", "Documents", "Downloads", "All"],
