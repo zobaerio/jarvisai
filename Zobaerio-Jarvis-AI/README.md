@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.5 — Queued task controls
+**Version:** 1.6.6 — Task History search & filters
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -150,3 +150,8 @@ Task History distinguishes `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED`. Kno
 ## Cancel a saved queued command
 
 In Task History, select a row whose status is `QUEUED` and choose **Cancel Selected Queued Task**. The app confirms the command and marks that queue entry `CANCELLED` without executing it. A running or already-finished task cannot be cancelled through this control. Remaining queued commands retain FIFO order and still require the user to arm the saved queue after an app restart.
+
+
+## Search and filter Task History
+
+Use the search box to find a task by its command, recorded result, progress step, task ID or tool-action metadata. Use the status drop-down to filter to `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` or another recorded state. Search is performed locally against the latest 100 history entries; filtering does not change task records or start any command.
