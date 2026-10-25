@@ -65,6 +65,38 @@ jobs:
           "Size bytes: $((Get-Item $installer).Length)"
           "SHA256: $hash"
 
+      - name: Smoke-test install, launch, and uninstall
+        shell: pwsh
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          $installer = (Resolve-Path "dist/JARVIS-Setup.exe").Path
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs/Zobaerio/JARVIS"
+          $appExe = Join-Path $installDir "JARVIS.exe"
+          $userDataDir = Join-Path $env:APPDATA "Zobaerio/Jarvis"
+          $sentinel = Join-Path $userDataDir "installer-smoke-test-preserve.txt"
+
+          $install = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installer exited with code $($install.ExitCode)." }
+          if (!(Test-Path $appExe)) { throw "Installed JARVIS.exe was not found." }
+          if (!(Test-Path (Join-Path $installDir "_internal/assets/avatar_studio.html"))) { throw "Installed 3D Studio asset is missing." }
+
+          $app = Start-Process -FilePath $appExe -WorkingDirectory $installDir -PassThru
+          Start-Sleep -Seconds 5
+          $app.Refresh()
+          if ($app.HasExited) { throw "Installed app exited during the startup smoke test (code $($app.ExitCode))." }
+          Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 1
+
+          New-Item -ItemType Directory -Path $userDataDir -Force | Out-Null
+          Set-Content -LiteralPath $sentinel -Value "preserve-user-data" -Encoding ascii
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (!(Test-Path $uninstaller)) { throw "Inno Setup uninstaller was not installed." }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstaller exited with code $($uninstall.ExitCode)." }
+          if (Test-Path $appExe) { throw "Application executable remains after uninstall." }
+          if (!(Test-Path $sentinel)) { throw "Uninstall removed user data that should be preserved." }
+          Remove-Item -LiteralPath $sentinel -Force
+          "Installer smoke test passed: install, launch, uninstall, and user-data preservation."
       - name: Upload unsigned Windows installer
         uses: actions/upload-artifact@v4
         with:
