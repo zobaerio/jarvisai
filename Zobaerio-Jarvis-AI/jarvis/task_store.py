@@ -399,7 +399,10 @@ class TaskStore:
             item["status"] = status
             item["updated_at"] = now
             if status == "running":
-                item["attempts"] = min(999, max(0, int(item.get("attempts", 0))) + 1)
+                attempts = item.get("attempts", 0)
+                if type(attempts) is not int or attempts < 0:
+                    attempts = 0
+                item["attempts"] = min(999, attempts + 1)
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
             return dict(target)
