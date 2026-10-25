@@ -1,6 +1,7 @@
 """Opt-in per-user Windows login startup registration for J.A.R.V.I.S."""
 from __future__ import annotations
 
+import ntpath
 import os
 import subprocess
 import sys
@@ -23,10 +24,10 @@ def build_startup_command(
     if is_frozen:
         return subprocess.list2cmdline([exe])
     script = str(app_script or (Path(__file__).resolve().parents[1] / "app.py"))
-    pythonw = Path(exe)
-    if pythonw.name.casefold() == "python.exe":
-        pythonw = pythonw.with_name("pythonw.exe")
-    return subprocess.list2cmdline([str(pythonw), script])
+    pythonw = exe
+    if ntpath.basename(exe).casefold() == "python.exe":
+        pythonw = ntpath.join(ntpath.dirname(exe), "pythonw.exe")
+    return subprocess.list2cmdline([pythonw, script])
 
 
 def is_windows_startup_enabled(*, winreg_module: Any = None, is_windows: bool | None = None) -> bool:
