@@ -31,6 +31,10 @@ class AvatarStudioTests(unittest.TestCase):
             self.assertEqual(response.status, 200)
         self.assertIn("J.A.R.V.I.S 3D CHARACTER STUDIO", html.upper())
         self.assertIn("CapsuleGeometry", html)
+        self.assertIn("async function startStudio()", html)
+        self.assertIn("3D PREVIEW COULD NOT START", html)
+        self.assertIn("window.location.reload()", html)
+        self.assertIn("webglcontextlost", html)
         self.assertIn("data-character=\"ruby\"", html)
 
     def test_studio_supports_local_glb_import_and_embedded_clips(self) -> None:
