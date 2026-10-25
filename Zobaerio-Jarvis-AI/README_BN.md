@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.0 — অনুমতি-ভিত্তিক File Operations
+**সংস্করণ:** 1.5.1 — অনুমতি-ভিত্তিক File Operations ও Safe Open
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -37,6 +37,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 এটি cooperative cancellation: model-এর network request ইতিমধ্যে আটকে থাকলে সেটি return না করা পর্যন্ত অপেক্ষা লাগতে পারে (read timeout ৪৫ সেকেন্ড), আর ইতিমধ্যে শুরু হওয়া external action স্বয়ংক্রিয়ভাবে undo করা যায় না। Cancel শনাক্ত হওয়ার পরে নতুন AI tool action শুরু করা হয় না।
 
 History ও queued command এই PC-তে `%APPDATA%\Zobaerio\Jarvis\task_history.json`-এ JSON হিসেবে থাকে; এই feature সেটি encrypt করে না। Restart-এর পর saved queue চালাতে আলাদাভাবে confirmation দিতে হবে। Command হিসেবে password, API key বা secret দেবে না।
+
+## নতুন: নিরাপদে নির্দিষ্ট ফাইল খোলা
+
+Desktop, Documents অথবা Downloads থেকে নির্দিষ্ট document/data/image file default Windows application-এ খোলার আগে confirmation dialog-এ exact path, file type ও size দেখাবে। .exe file, script, symbolic link ও folder-এর বাইরে যাওয়ার path block করা হয়। Confirmation dialog খোলা থাকা অবস্থায় file বদলে গেলে operation থেমে যায়। Windows-কে file open করতে বলা হয়েছে—এটুকু নিশ্চিত করে; কোন app আসলে খুলেছে তা user-কে দেখে নিশ্চিত করতে হবে।
 
 ## নতুন: File Copy, Move ও Rename
 
