@@ -24,8 +24,6 @@ class SafeExceptionFormattingTests(unittest.TestCase):
         self.assertNotIn("super-secret-value", message)
 
     def test_exception_type_is_bounded_and_has_no_punctuation(self) -> None:
-        class Strange_Error_Name__:
-            __name__ = "Bad Type / Secret"
         # An actual exception subclass is used so the helper sees a genuine exception instance.
         StrangeError = type("Bad Type / Secret", (Exception,), {})
         self.assertEqual(safe_exception_type(StrangeError("private text")), "BadTypeSecret")
