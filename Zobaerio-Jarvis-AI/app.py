@@ -18,6 +18,7 @@ from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
 from jarvis.safe_errors import safe_worker_error
+from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
@@ -35,7 +36,7 @@ BORDER = "#203650"
 class JarvisDesktop:
     def __init__(self) -> None:
         self.root = tk.Tk()
-        self.root.title("J.A.R.V.I.S — Desktop AI Assistant")
+        self.root.title(f"{APP_NAME} — Desktop AI Assistant")
         self.root.geometry("1100x760")
         self.root.minsize(900, 620)
         self.root.configure(bg=BG)
@@ -192,7 +193,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.8", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text=f"AI AGENT ASSISTANT · V{APP_VERSION}", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -987,7 +988,7 @@ class JarvisDesktop:
             try:
                 report_data = build_safe_diagnostics(
                     self.task_store.list_tasks(limit=100),
-                    app_version="1.6.7",
+                    app_version=APP_VERSION,
                     os_name=platform.system(),
                     python_version=platform.python_version(),
                 )
