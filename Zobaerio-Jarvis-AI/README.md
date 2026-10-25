@@ -49,7 +49,7 @@ If installation fails, open PowerShell in the project folder and run `python --v
 
 ## Task history and cancellation (v1.3.0)
 
-The right-side **ACTIVE TASKS** panel now includes **CANCEL CURRENT TASK** and **TASK HISTORY**. J.A.R.V.I.S keeps the newest 100 task records, including the command, status, timestamps, result summary and progress events. File/folder approval dialogs include a **Cancel Task** option.
+The right-side **ACTIVE TASKS** panel now includes **CANCEL CURRENT TASK** and **TASK HISTORY**. J.A.R.V.I.S keeps the newest 100 task records, including the command, status, timestamps, result summary and progress events. Select a row and use **Retry Selected Task** to run its saved command again after a confirmation warning; it uses current settings and creates a new record. File/folder approval dialogs include a **Cancel Task** option.
 
 Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
 
