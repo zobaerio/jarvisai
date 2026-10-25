@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
-from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key
+from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.task_store import TaskStore
@@ -171,7 +171,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.5.4", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.5.5", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -1307,7 +1307,7 @@ class JarvisDesktop:
     def _open_settings(self) -> None:
         win = tk.Toplevel(self.root)
         win.title("J.A.R.V.I.S Settings")
-        win.geometry("600x570")
+        win.geometry("600x625")
         win.resizable(False, False)
         win.configure(bg=BG)
         win.transient(self.root)
@@ -1346,8 +1346,51 @@ class JarvisDesktop:
         speak_var = tk.BooleanVar(value=bool(self.settings.get("speak_replies", True)))
         tk.Checkbutton(pad, text="Speak assistant replies aloud (internet required for neural voice)", variable=speak_var, bg=BG, fg=TEXT, activebackground=BG, activeforeground=TEXT, selectcolor=CARD, font=("Segoe UI", 9)).pack(anchor="w", pady=(10, 12))
 
+        connection_status = tk.Label(
+            pad, text="Connection not tested yet.", bg=BG, fg=MUTED,
+            font=("Segoe UI", 9), justify="left", wraplength=540,
+        )
+        connection_status.pack(fill="x", pady=(0, 6))
+        tk.Label(
+            pad,
+            text="Test Connection requests /models only; it does not send a chat prompt or generate an answer.",
+            bg=BG, fg=MUTED, font=("Segoe UI", 8), wraplength=540, justify="left",
+        ).pack(fill="x", pady=(0, 4))
+
         buttons = tk.Frame(pad, bg=BG)
         buttons.pack(fill="x", side="bottom", pady=(12, 0))
+        test_button = ttk.Button(buttons, text="Test Connection")
+
+        def show_connection_result(result: dict) -> None:
+            try:
+                if not win.winfo_exists():
+                    return
+                connected = bool(result.get("ok"))
+                model_available = result.get("model_available")
+                color = ACCENT if connected and model_available is not False else ORANGE
+                connection_status.configure(text=f"Connection test: {result.get('message', 'No result.')}", fg=color)
+                test_button.configure(state="normal", text="Test Connection")
+            except tk.TclError:
+                pass
+
+        def test_connection() -> None:
+            base_value = variables["api_base_url"].get().strip()
+            model_value = variables["model"].get().strip()
+            api_key_value = key_var.get().strip()
+            if not base_value or not model_value:
+                messagebox.showerror("Connection test", "Enter both API base URL and model name first.", parent=win)
+                return
+            test_button.configure(state="disabled", text="Testing…")
+            connection_status.configure(text="Checking the /models endpoint…", fg=MUTED)
+
+            def worker() -> None:
+                result = test_api_connection(base_value, model_value, api_key_value)
+                self.events.put((show_connection_result, (result,)))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        test_button.configure(command=test_connection)
+        test_button.pack(side="left")
 
         def save_and_close() -> None:
             new = self.settings.copy()
@@ -1355,10 +1398,15 @@ class JarvisDesktop:
             new["speech_language"] = lang_var.get()
             new["voice"] = voice_var.get()
             new["speak_replies"] = speak_var.get()
-            if not new["api_base_url"].startswith(("http://", "https://")):
-                messagebox.showerror("Invalid endpoint", "API base URL must start with http:// or https://", parent=win)
+            try:
+                new["api_base_url"] = validate_api_base_url(new["api_base_url"])
+                if not new["model"]:
+                    raise ValueError("Model name cannot be empty.")
+                validate_api_key_transport(new["api_base_url"], key_var.get().strip())
+                save_settings(new)
+            except (ValueError, OSError) as exc:
+                messagebox.showerror("Invalid settings", str(exc), parent=win)
                 return
-            save_settings(new)
             key_saved = set_api_key(key_var.get().strip())
             self.settings = new
             self.agent.update_settings(self.settings)
