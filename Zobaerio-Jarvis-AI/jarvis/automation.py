@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
+import re
 import shutil
 import subprocess
 import uuid
@@ -150,10 +151,56 @@ def open_application(app_name: str) -> str:
         return f"Windows could not find the app '{app_name}'."
 
 
+SOCIAL_WEBSITE_ALIASES = {
+    "whatsapp": "https://web.whatsapp.com/",
+    "واتসঅ্যাপ": "https://web.whatsapp.com/",
+    "হোয়াটসঅ্যাপ": "https://web.whatsapp.com/",
+    "হোয়াটসঅ্যাপ": "https://web.whatsapp.com/",
+    "facebook": "https://www.facebook.com/",
+    "ফেসবুক": "https://www.facebook.com/",
+    "youtube": "https://www.youtube.com/",
+    "ইউটিউব": "https://www.youtube.com/",
+    "instagram": "https://www.instagram.com/",
+    "ইনস্টাগ্রাম": "https://www.instagram.com/",
+    "messenger": "https://www.messenger.com/",
+    "মেসেঞ্জার": "https://www.messenger.com/",
+}
+
+
+def _youtube_search_query(value: str) -> str | None:
+    """Extract an explicit YouTube search request in English or Bangla."""
+    patterns = (
+        r"^(?:search|find)\\s+(?:on\\s+)?youtube\\s+(?:for\\s+)?(.+)$",
+        r"^youtube\\s+(?:search|find)\\s+(?:for\\s+)?(.+)$",
+        r"^ইউটিউবে\\s+(.+?)(?:\\s+(?:সার্চ|খুঁজে)(?:\\s+করো|\\s+দাও)?)?$",
+        r"^ইউটিউব\\s+(?:এ|তে)\\s+(.+?)(?:\\s+(?:সার্চ|খুঁজে)(?:\\s+করো|\\s+দাও)?)?$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, value, flags=re.IGNORECASE)
+        if match:
+            query = match.group(1).strip(" \\t।.!?")
+            if query and query.casefold() not in {"open", "খোলো", "চালু করো"}:
+                return query
+    return None
+
+
 def open_website(url_or_query: str) -> str:
     value = url_or_query.strip()
     if not value:
         return "Tell me a website or something to search for."
+
+    # Explicit video searches should land on YouTube results, not generic Google results.
+    video_query = _youtube_search_query(value)
+    if video_query:
+        url = "https://www.youtube.com/results?search_query=" + quote(video_query)
+        webbrowser.open(url)
+        return f"Searched YouTube for: {video_query}."
+
+    known_site = SOCIAL_WEBSITE_ALIASES.get(value.casefold())
+    if known_site:
+        webbrowser.open(known_site)
+        return f"Opened {known_site}."
+
     parsed = urlparse(value)
     if parsed.scheme in {"http", "https"} and parsed.netloc:
         webbrowser.open(value)
