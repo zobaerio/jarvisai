@@ -45,6 +45,7 @@ class JarvisDesktop:
         self._active_task_id: str | None = None
         self._active_task_cancel_event: threading.Event | None = None
         self._active_task_command = ""
+        self._queue_armed = False
         self._task_history_window: tk.Toplevel | None = None
         self._approval_dialog: tk.Toplevel | None = None
         self.wake_enabled = False
@@ -368,6 +369,13 @@ class JarvisDesktop:
         self._refresh_activity()
         task_buttons = tk.Frame(task_panel, bg=PANEL)
         task_buttons.pack(fill="x", padx=10, pady=(0, 10))
+        self.run_queue_btn = tk.Button(
+            task_buttons, text="▶  RUN QUEUED TASKS", command=self._run_queued_tasks,
+            bg="#13344a", fg=ACCENT, activebackground="#1d4d67", activeforeground=TEXT,
+            relief="flat", bd=0, font=("Segoe UI Semibold", 8, "bold"), padx=8, pady=8,
+            cursor="hand2"
+        )
+        self.run_queue_btn.pack(fill="x", pady=(0, 5))
         self.cancel_task_btn = tk.Button(
             task_buttons, text="■  CANCEL CURRENT TASK", command=self._cancel_current_task,
             bg="#4a2430", fg="#fecaca", activebackground="#702b3b", activeforeground="#ffffff",
@@ -637,9 +645,13 @@ class JarvisDesktop:
         self.status_dot.configure(text="● CANCELLING", fg=ORANGE)
         self._render_core()
         self._push_activity("Cancellation requested")
+        queue_note = ""
+        if self._queue_armed:
+            self._queue_armed = False
+            queue_note = " Queued commands remain saved and will not auto-run; use RUN QUEUED TASKS when ready."
         self._write_message(
             "SYSTEM",
-            "Cancellation requested. J.A.R.V.I.S will not start further AI tool actions after it observes the request. An already-running network request or desktop action may need to finish first; a started external action cannot be undone automatically.",
+            "Cancellation requested. J.A.R.V.I.S will not start further AI tool actions after it observes the request. An already-running network request or desktop action may need to finish first; a started external action cannot be undone automatically." + queue_note,
             "system",
         )
         if self._approval_dialog is not None:
@@ -805,23 +817,121 @@ class JarvisDesktop:
         if not command:
             return
         if self._busy:
-            self._write_message("SYSTEM", "একটি কাজ এখনও চলছে। সেটি শেষ হলে পরের নির্দেশনা দাও।", "system")
+            if not messagebox.askyesno(
+                "Queue this command?",
+                "A task is already running. Queue this command to run after it finishes?\n\n"
+                f"Command:\n{command}\n\n"
+                "Queued commands remain on this PC and will ask for file/folder approval when needed.",
+                parent=self.root,
+                icon="question",
+            ):
+                return
+            try:
+                record = self.task_store.create_task(command, status="queued")
+                self.task_store.update_task(record["id"], step="Queued by user while another task was running")
+            except Exception as exc:
+                self._write_message("SYSTEM", f"Could not queue this command: {type(exc).__name__}: {exc}", "system")
+                return
+            self._queue_armed = True
+            self._write_message("YOU", command, "user")
+            self._write_message("SYSTEM", f"Command queued (#{record['id']}). It will start after the active task finishes.", "system")
+            self._push_activity("Queued: " + command)
+            self._refresh_queue_button()
             return
-        self._write_message("YOU", command, "user")
-        self._push_activity("Working on: " + command)
+
+        self._launch_task(command, task_id=None, existing_record=False)
+
+    def _launch_task(self, command: str, task_id: str | None = None, *, existing_record: bool = False) -> None:
         cancel_event = threading.Event()
-        try:
-            record = self.task_store.create_task(command)
-            task_id = str(record["id"])
-        except Exception as exc:
-            task_id = None
-            self._write_message("SYSTEM", f"Task history could not be saved: {type(exc).__name__}: {exc}", "system")
+        if task_id is None:
+            try:
+                record = self.task_store.create_task(command)
+                task_id = str(record["id"])
+            except Exception as exc:
+                self._write_message("SYSTEM", f"Task history could not be saved: {type(exc).__name__}: {exc}", "system")
+        elif existing_record:
+            try:
+                self.task_store.update_task(task_id, status="running", step="Started from the persistent task queue")
+            except Exception as exc:
+                self._write_message("SYSTEM", f"Could not start queued task: {type(exc).__name__}: {exc}", "system")
+                return
+
         self._active_task_id = task_id
         self._active_task_command = command
         self._active_task_cancel_event = cancel_event
         self._busy = True
         self._set_busy(True, "● THINKING")
+        self._push_activity("Working on: " + command)
+        self._refresh_queue_button()
         threading.Thread(target=self._work, args=(command, task_id, cancel_event), daemon=True).start()
+
+    def _refresh_queue_button(self) -> None:
+        if not hasattr(self, "run_queue_btn"):
+            return
+        try:
+            count = self.task_store.queued_count()
+            self.run_queue_btn.configure(text=f"▶  RUN QUEUED TASKS ({count})")
+        except Exception:
+            self.run_queue_btn.configure(text="▶  RUN QUEUED TASKS")
+
+    def _run_queued_tasks(self) -> None:
+        try:
+            count = self.task_store.queued_count()
+        except Exception as exc:
+            messagebox.showerror("Task queue", f"Could not read the saved queue: {exc}", parent=self.root)
+            return
+        if count == 0:
+            messagebox.showinfo("Task queue", "There are no queued commands.", parent=self.root)
+            self._refresh_queue_button()
+            return
+        if self._busy:
+            if messagebox.askyesno(
+                "Arm saved task queue",
+                f"{count} command(s) are queued. Run them in FIFO order after the active task finishes?",
+                parent=self.root,
+                icon="question",
+            ):
+                self._queue_armed = True
+                self._write_message("SYSTEM", "Saved task queue armed. Commands will run in order after the active task finishes.", "system")
+                self._push_activity("Saved queue armed")
+            return
+        if not messagebox.askyesno(
+            "Run queued tasks?",
+            f"Run {count} saved command(s) in first-in, first-out order?\n\n"
+            "Actions can open applications/websites. File and folder changes will still require approval. "
+            "You can cancel the active task; remaining queued commands will stay saved.",
+            parent=self.root,
+            icon="warning",
+        ):
+            return
+        self._queue_armed = True
+        self._start_next_queued_task()
+
+    def _start_next_queued_task(self) -> None:
+        if self._busy or not self._queue_armed:
+            return
+        try:
+            record = self.task_store.next_queued_task()
+        except Exception as exc:
+            self._queue_armed = False
+            self._write_message("SYSTEM", f"Could not load the next queued command: {exc}", "system")
+            return
+        if record is None:
+            self._queue_armed = False
+            self._refresh_queue_button()
+            self._push_activity("Task queue complete")
+            self._write_message("SYSTEM", "All queued commands have finished.", "system")
+            if self.wake_enabled:
+                self.root.after(300, self._start_wake_listener)
+            return
+        task_id = str(record["id"])
+        command = str(record.get("command", "")).strip()
+        if not command:
+            self.task_store.update_task(task_id, status="failed", result="Queued command was empty.")
+            self.root.after(0, self._start_next_queued_task)
+            return
+        self._write_message("SYSTEM", f"Starting queued command #{task_id}: {command}", "system")
+        self._launch_task(command, task_id=task_id, existing_record=True)
 
     def _record_task_step(self, task_id: str | None, step: str) -> None:
         if not task_id:
@@ -831,6 +941,21 @@ class JarvisDesktop:
         except Exception:
             # A history disk error should not crash a task that is already underway.
             pass
+        try:
+            self.events.put((self._show_task_progress, (task_id, step)))
+        except Exception:
+            pass
+
+    def _show_task_progress(self, task_id: str, step: str) -> None:
+        # This callback runs on Tk's main thread via the event queue.
+        if task_id != self._active_task_id or not self.root.winfo_exists():
+            return
+        self._push_activity(step)
+        if self._active_task_cancel_event is not None and self._active_task_cancel_event.is_set():
+            return
+        self.core_mode = "EXECUTING"
+        self.status_dot.configure(text="● EXECUTING", fg=ACCENT)
+        self._render_core()
 
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
@@ -866,12 +991,15 @@ class JarvisDesktop:
             self._active_task_cancel_event = None
             self._active_task_command = ""
         self._set_busy(False, "● READY")
+        self._refresh_queue_button()
         if self.settings.get("speak_replies", True):
-            threading.Thread(target=self._speak_safely, args=(result,), daemon=True).start()
+            threading.Thread(target=self._speak_safely, args=(result, self._queue_armed), daemon=True).start()
+        elif self._queue_armed:
+            self.root.after(250, self._start_next_queued_task)
         elif self.wake_enabled:
             self.root.after(300, self._start_wake_listener)
 
-    def _speak_safely(self, text: str) -> None:
+    def _speak_safely(self, text: str, continue_queue: bool = False) -> None:
         # Avoid speaking long file listings or raw provider error dumps.
         self._speech_active.set()
         try:
@@ -879,11 +1007,13 @@ class JarvisDesktop:
                 self.speech.speak(text, str(self.settings.get("voice", "bn-BD-PradeepNeural")))
         finally:
             self._speech_active.clear()
-            if self.wake_enabled:
-                try:
+            try:
+                if continue_queue and self._queue_armed:
+                    self.root.after(150, self._start_next_queued_task)
+                elif self.wake_enabled:
                     self.root.after(500, self._start_wake_listener)
-                except tk.TclError:
-                    pass
+            except tk.TclError:
+                pass
 
     def _listen(self) -> None:
         if self._busy:
@@ -920,8 +1050,10 @@ class JarvisDesktop:
         self.status_dot.configure(text=status, fg=ORANGE if busy else GREEN)
         if hasattr(self, "core_canvas"):
             self._render_core()
-        self.send_btn.configure(state="disabled" if busy else "normal")
-        self.entry.configure(state="disabled" if busy else "normal")
+        # Keep text entry/send available while a task runs so a user can queue
+        # another command; microphone listening remains single-task-at-a-time.
+        self.send_btn.configure(state="normal", text="QUEUE  ➤" if busy else "SEND  ➤")
+        self.entry.configure(state="normal")
         self.mic_btn.configure(state="disabled" if busy else "normal")
         if hasattr(self, "cancel_task_btn"):
             cancellable = self._active_task_cancel_event is not None and not self._active_task_cancel_event.is_set()
@@ -1200,6 +1332,7 @@ class JarvisDesktop:
                 except Exception:
                     pass
             self.wake_enabled = False
+            self._queue_armed = False
             self.root.destroy()
 
     def run(self) -> None:

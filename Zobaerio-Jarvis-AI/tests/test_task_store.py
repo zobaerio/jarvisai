@@ -46,6 +46,25 @@ class TaskStoreTests(unittest.TestCase):
             self.assertEqual(store.get_task(record["id"])["command"], "recover")
             self.assertIsInstance(json.loads(path.read_text(encoding="utf-8")), list)
 
+    def test_persistent_queue_returns_oldest_queued_task_first(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = TaskStore(Path(directory) / "history.json")
+            first = store.create_task("Open Notepad", status="queued")
+            second = store.create_task("Open Calculator", status="queued")
+            self.assertEqual(store.queued_count(), 2)
+            self.assertEqual(store.next_queued_task()["id"], first["id"])
+            store.update_task(first["id"], status="running", step="Started from queue")
+            self.assertEqual(store.next_queued_task()["id"], second["id"])
+            store.update_task(second["id"], status="completed", result="Opened")
+            self.assertEqual(store.queued_count(), 0)
+            self.assertIsNone(store.next_queued_task())
+
+    def test_new_task_status_must_be_queued_or_running(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = TaskStore(Path(directory) / "history.json")
+            with self.assertRaises(ValueError):
+                store.create_task("bad status", status="completed")
+
     def test_rejects_unknown_status(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             store = TaskStore(Path(directory) / "history.json")

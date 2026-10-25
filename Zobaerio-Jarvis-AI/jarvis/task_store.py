@@ -41,12 +41,14 @@ class TaskStore:
                     return dict(row)
         return None
 
-    def create_task(self, command: str) -> dict[str, Any]:
+    def create_task(self, command: str, *, status: str = "running") -> dict[str, Any]:
+        if status not in {"queued", "running"}:
+            raise ValueError("New tasks can only be queued or started.")
         now = _now()
         row: dict[str, Any] = {
             "id": uuid.uuid4().hex[:12],
             "command": str(command).strip()[:MAX_COMMAND_LENGTH],
-            "status": "running",
+            "status": status,
             "created_at": now,
             "updated_at": now,
             "finished_at": None,
@@ -58,6 +60,18 @@ class TaskStore:
             rows.append(row)
             self._write(rows[-MAX_TASKS:])
         return dict(row)
+
+    def next_queued_task(self) -> dict[str, Any] | None:
+        """Return the oldest queued task without changing its state."""
+        with self._lock:
+            for row in self._read():
+                if row.get("status") == "queued":
+                    return dict(row)
+        return None
+
+    def queued_count(self) -> int:
+        with self._lock:
+            return sum(1 for row in self._read() if row.get("status") == "queued")
 
     def update_task(
         self,

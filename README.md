@@ -12,11 +12,11 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - **IMPORT RIGGED .GLB** lets you load a model from your own computer. The browser parses that model locally and does not upload the GLB file.
 - Embedded idle/default and named wave/talk clips can be played if they exist inside the imported model.
 - A feature inventory and a Bengali guide for generating, rigging and importing your own 3D character.
-- Local task history (last 100 tasks), user-confirmed retry from history, and cooperative cancellation with a cancel control in the desktop dashboard and approval dialog.
+- Local task history (last 100 tasks), user-confirmed retry, a persistent FIFO command queue, and cooperative cancellation with a cancel control in the desktop dashboard and approval dialog.
 
 The built-in characters are stylized procedural models—not photorealistic or 1:1 recreations of the reference drawings. The app does not automatically generate a matching 3D model from those pictures or invent absent animation clips. For close likeness, create/license a rigged GLB with the needed motion clips first. Natural walking, hair/cloth physics, expressive facial rigging and phoneme-level lip-sync remain unfinished. Maya's supplied source is only a portrait and cannot define missing full-body geometry. The viewer loads Three.js from a CDN and needs internet access plus WebGL support.
 
-Task history is stored in `%APPDATA%\\Zobaerio\\Jarvis\\task_history.json` as local, unencrypted JSON. Avoid entering secrets as commands. Cancellation cannot interrupt an in-flight model network read immediately and cannot undo an action already started.
+Task history and queued commands are stored in `%APPDATA%\\Zobaerio\\Jarvis\\task_history.json` as local, unencrypted JSON. Avoid entering secrets as commands. Saved queued commands require explicit resumption after an app restart. Cancellation cannot interrupt an in-flight model network read immediately and cannot undo an action already started.
 
 ## Guides
 - [Bengali installation guide](Zobaerio-Jarvis-AI/README_BN.md)
