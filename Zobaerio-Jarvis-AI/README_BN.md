@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.4 — Durable Task History
+**সংস্করণ:** 1.5.5 — Secure Endpoint Check
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -27,6 +27,12 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 4. Install সফল হলে `run.bat` double-click করো।
 5. বাম পাশে LUNA, RUBY অথবা MAYA সিলেক্ট করো।
 6. Local AI-এর জন্য Ollama ইনস্টল করে PowerShell-এ চালাও: `ollama pull qwen2.5:3b`। Settings-এ Base URL `http://localhost:11434/v1`, model `qwen2.5:3b` দাও।
+
+## নতুন: Secure API Endpoint ও Test Connection
+
+Settings এখন API base URL যাচাই করে, URL-এর ভেতরে username/API key এবং query/fragment থাকলে block করে। Stored API key কোনো remote non-local endpoint-এ plain HTTP দিয়ে পাঠানো হবে না—remote provider-এর জন্য HTTPS ব্যবহার করবে; local Ollama/loopback address-এ HTTP চলতে পারে।
+
+**Test Connection** শুধু `/models` endpoint-এ GET request পাঠায়। Chat prompt পাঠায় না বা answer generate করে না। Result endpoint পাওয়া যাচ্ছে কি না এবং configured model তালিকায় আছে কি না জানায়; এটি সব provider-এ chat completion/tool calling কাজ করবে তার নিশ্চয়তা নয়।
 
 ## নতুন: Task History ও Cancel Task
 
