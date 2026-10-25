@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.2.2 — Procedural 3D Avatar Studio prototype
+**Version:** 1.3.0 — Task history and cooperative cancellation
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
