@@ -12,6 +12,35 @@ from .settings import get_api_key, is_local_api_endpoint, validate_api_key_trans
 
 SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; moving a file to the Recycle Bin requires explicit, action-specific approval and must never be described as permanent deletion; reading local file contents, creating, copying, moving, or renaming files requires explicit, action-specific approval. Before reading a file, the approval dialog must show the exact path and size and warn that contents enter the AI conversation and may be sent to the configured AI provider. File operations are restricted to one regular file inside Desktop, Documents, or Downloads, symbolic links are blocked, and existing destinations must never be overwritten. Only search file contents when the user asks to search inside files; search results require explicit approval and disclose that short matching excerpts enter the AI conversation. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
+
+def _safe_provider_http_error(status_code: int) -> str:
+    """Return actionable HTTP diagnostics without reflecting provider-controlled response bodies."""
+    messages = {
+        400: "The provider rejected the request. Check the model name, endpoint format, and tool-calling support.",
+        401: "Authentication failed. Check the API key in Settings.",
+        403: "The provider denied access. Check API-key permissions and model access.",
+        404: "The endpoint or model was not found. Check the API base URL and model name.",
+        408: "The provider timed out. Try again or use a shorter request.",
+        413: "The request was too large for the provider. Try a shorter request or a model with a larger context window.",
+        429: "The provider rate limit or quota was reached. Check usage limits before retrying.",
+        500: "The provider encountered an internal error. Try again later.",
+        502: "The provider gateway returned an error. Check service status and try again.",
+        503: "The provider is temporarily unavailable. Try again later.",
+        504: "The provider gateway timed out. Try again later.",
+    }
+    advice = messages.get(status_code, "Check the endpoint, provider status, and model permissions.")
+    return (
+        f"AI provider returned HTTP {status_code}. {advice} "
+        "The raw response body is hidden to protect prompt content and credentials."
+    )
+
+
+def _invalid_provider_response(message: str = "AI provider returned an invalid or unsupported response format.") -> str:
+    """Keep malformed provider payloads from raising errors in the desktop UI."""
+    return message
+
+
+
 TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
     {"type": "function", "function": {"name": "open_website", "description": "Open an HTTP(S) website or search Google for a query in the default browser.", "parameters": {"type": "object", "properties": {"url_or_query": {"type": "string"}}, "required": ["url_or_query"]}}},
@@ -118,19 +147,44 @@ class JarvisAgent:
                 if cancelled():
                     return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। বর্তমান AI request শেষ হওয়ার পরে কোনো নতুন tool action চালানো হয়নি।"
                 if response.status_code >= 400:
-                    details = response.text[:500]
-                    if response.status_code in (401, 403):
-                        return "AI provider authentication failed. Settings-এ API key এবং endpoint যাচাই করো।"
-                    return f"AI provider error ({response.status_code}): {details}"
-                payload = response.json()
-                choices = payload.get("choices", [])
+                    return _safe_provider_http_error(int(response.status_code))
+                try:
+                    payload = response.json()
+                except (ValueError, requests.RequestException):
+                    return _invalid_provider_response(
+                        "AI provider returned invalid JSON. Check endpoint compatibility; response content was hidden."
+                    )
+                if not isinstance(payload, dict):
+                    return _invalid_provider_response()
+                choices = payload.get("choices")
+                if not isinstance(choices, list):
+                    return _invalid_provider_response("AI provider response is missing a valid choices list.")
                 if not choices:
                     return "AI provider কোনো উত্তর দেয়নি। Model/endpoint Settings-এ যাচাই করো।"
-                message = choices[0].get("message", {})
+                choice = choices[0]
+                if not isinstance(choice, dict):
+                    return _invalid_provider_response("AI provider returned a malformed choice object.")
+                message = choice.get("message")
+                if not isinstance(message, dict):
+                    return _invalid_provider_response("AI provider response is missing a valid message object.")
                 tool_calls = message.get("tool_calls") or []
+                if not isinstance(tool_calls, list):
+                    return _invalid_provider_response("AI provider returned malformed tool-call data.")
+                for tool_call in tool_calls:
+                    if not isinstance(tool_call, dict) or not isinstance(tool_call.get("function", {}), dict):
+                        return _invalid_provider_response("AI provider returned malformed tool-call data.")
+                    arguments = tool_call["function"].get("arguments", "{}")
+                    if not isinstance(arguments, (str, dict)):
+                        return _invalid_provider_response("AI provider returned malformed tool arguments.")
                 messages.append(message)
                 if not tool_calls:
-                    answer = message.get("content") or "আমি উত্তর তৈরি করতে পারিনি। আরেকবার বলো।"
+                    content = message.get("content")
+                    if content is None or content == "":
+                        answer = "আমি উত্তর তৈরি করতে পারিনি। আরেকবার বলো।"
+                    elif isinstance(content, str):
+                        answer = content
+                    else:
+                        return _invalid_provider_response("AI provider returned an unsupported answer content type.")
                     self.history.append({"role": "assistant", "content": answer})
                     return answer
                 for call in tool_calls:
@@ -163,8 +217,15 @@ class JarvisAgent:
             return "AI model-এ সংযোগ করা যাচ্ছে না। Local Ollama ব্যবহার করলে Ollama চালু আছে কি না ও model pull করা হয়েছে কি না দেখো; cloud provider হলে internet, endpoint ও API key যাচাই করো।"
         except requests.exceptions.Timeout:
             return "AI model উত্তর দিতে বেশি সময় নিয়েছে। আবার চেষ্টা করো অথবা ছোট নির্দেশনা দাও।"
-        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
-            return f"AI request ব্যর্থ হয়েছে: {type(exc).__name__}: {exc}"
+        except requests.RequestException as exc:
+            # Network exception strings can include URLs or provider-controlled text; never echo them.
+            return f"AI request failed safely ({type(exc).__name__}). Check your network and endpoint settings."
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return _invalid_provider_response()
+        except Exception as exc:
+            # Keep an unexpected adapter/library failure from escaping into the Tkinter worker.
+            report(f"Unexpected AI request failure: {type(exc).__name__}")
+            return f"AI request failed safely ({type(exc).__name__}). Check endpoint settings and try again."
 
     def _execute_tool(self, name: str, args: dict[str, Any]) -> str:
         if name == "open_application":

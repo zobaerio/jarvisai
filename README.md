@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.5.7 — Safe Recycle Bin action  
+**Version:** 1.5.8 — Safe provider response handling  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -20,6 +20,7 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - Settings includes a non-generative `/models` connection check; malformed URLs are rejected and stored API keys are never sent over remote plain HTTP.
 - Settings are atomically saved with a local recovery backup and fall back to that backup when the primary JSON becomes unreadable.
 - Files can be sent to the Windows Recycle Bin only after approval; this is not a permanent-delete capability.
+- AI provider error bodies and raw exception messages are hidden; malformed provider responses return safe diagnostics.
 - Consent-based text search across allow-listed user folders, with bounded file/result limits and a warning that matching snippets may reach the configured AI provider.
 - A consistent J.A.R.V.I.S icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
 - Approved foreground-app actions: title-only window discovery, user-confirmed text paste, strict allow-listed shortcuts, and deterministic checks for local file/folder existence or visible window titles.
