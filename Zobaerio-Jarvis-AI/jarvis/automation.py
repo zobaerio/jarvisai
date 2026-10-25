@@ -261,7 +261,7 @@ def prepare_email_draft(recipient: str, subject: str, body: str) -> str:
         return "Email draft blocked: body must be 5,000 characters or fewer."
     if any(ord(char) < 32 and char not in "\n\r\t" for char in body_text):
         return "Email draft blocked: body contains unsupported control characters."
-    url = "mailto:" + quote(address, safe="@.+_% -".replace(" ", ""))
+    url = "mailto:" + quote(address, safe="@.+_%-")
     params = []
     if subject_text:
         params.append("subject=" + quote(subject_text, safe=""))
