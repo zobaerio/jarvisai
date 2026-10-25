@@ -1,13 +1,13 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.7.2 reliable cloud API-key readiness without secret disclosure. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and playback timeouts. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
 - Responsive desktop layout: the right-side rail hides on narrow windows, decorative top navigation collapses, and the main workspace grows; minimum window size is 820×560.
 - Selectable LUNA, RUBY and MAYA reference profiles.
-- One-shot microphone input using SpeechRecognition + Google speech recognition (internet required).
-- Spoken responses using Edge TTS with pyttsx3 fallback.
+- One-shot microphone input using SpeechRecognition + Google speech recognition (internet required), with bounded network-operation timeout.
+- Spoken responses using Edge TTS with pyttsx3 fallback; online synthesis and primary playback paths have bounded timeouts.
 - Configurable OpenAI-compatible Chat Completions endpoint; optional local Ollama setup.
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, consent-gated text-file read/create, folder creation, and approval-gated single-file copy/move/rename.
 - Foreground desktop actions: list visible window titles (title-only), paste text into a named Windows window and send allow-listed editing/navigation shortcuts—each interaction requires explicit user approval.
@@ -68,6 +68,10 @@ Audit date: 2026-10-25. Version focus: v1.7.2 reliable cloud API-key readiness w
 5. Add one scoped Office/calendar/email integration at a time, using least-privilege permissions and confirmation before sending/submitting.
 6. Add screen-aware automation after threat modelling, allowlists, action confirmations and audit logging.
 7. Add automated tests, CI, signed package, uninstaller, updater and repeatable device-level tests.
+
+## Voice reliability limitations
+- Speech recognition still uses an online provider by default; the timeout limits waiting but does not make recognition offline.
+- Local TTS fallback is best-effort and depends on Windows audio drivers and installed voices; device-level microphone/speaker QA remains required.
 
 ## Safety/privacy
 The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Stored provider keys must not be sent over plain HTTP to non-loopback endpoints. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access. Task history is stored locally as JSON under the app's APPDATA folder and is not encrypted by this feature; an atomic-save backup aids recovery but does not replace encrypted storage; avoid entering passwords, API keys or other secrets as commands.
