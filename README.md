@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.6.4 — Honest task outcome status  
+**Version:** 1.6.5 — Queued task controls  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -34,7 +34,7 @@ Task history and queued commands are stored in `%APPDATA%\\Zobaerio\\Jarvis\\tas
 
 ## AI Agent desktop actions
 
-Task History distinguishes `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED`. Known provider/configuration failures and malformed responses are marked failed; tool exceptions or the agent action budget are marked partial. This is execution-status reporting, not proof that the user's semantic goal or document quality was achieved.
+Task History distinguishes `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED`. Known provider/configuration failures and malformed responses are marked failed; tool exceptions or the agent action budget are marked partial. A selected command that is still `QUEUED` can be cancelled from Task History before execution; tasks that have started cannot be cancelled using that queue control. This is execution-status reporting, not proof that the user's semantic goal or document quality was achieved.
 
 The AI agent can inspect visible window titles (not their contents), paste text into a named Windows app, send one allow-listed editing/navigation shortcut, and check basic outcomes such as file/folder existence or a visible window title. Each paste/shortcut asks for confirmation. This is not semantic verification of document quality or task intent; screenshot vision and arbitrary mouse clicking are not implemented.
 
