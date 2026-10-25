@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.6.1 — Safe duplicate-file finder  
+**Version:** 1.6.2 — Bounded AI provider retry/backoff  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
