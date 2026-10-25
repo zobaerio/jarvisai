@@ -10,7 +10,7 @@ import requests
 from . import automation
 from .settings import get_api_key
 
-SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
+SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; creating, copying, moving, or renaming files requires an explicit, action-specific approval. File operations are restricted to one regular file inside Desktop, Documents, or Downloads, symbolic links are blocked, and existing destinations must never be overwritten. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
 TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
@@ -26,6 +26,10 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside Desktop, Documents, or Downloads. The desktop app will ask the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "name": {"type": "string"}}, "required": ["location", "name"]}}},
     {"type": "function", "function": {"name": "create_text_file", "description": "Create a new .txt, .md, .csv, .json, or .log file under Desktop, Documents, or Downloads. No overwriting. The app asks the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "content": {"type": "string"}}, "required": ["location", "filename", "content"]}}},
     {"type": "function", "function": {"name": "read_text_file", "description": "Read a small text/code file from Desktop, Documents, or Downloads. Provide the exact filename within the selected folder. Only common text formats are supported.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}}, "required": ["location", "filename"]}}},
+
+    {"type": "function", "function": {"name": "copy_file", "description": "Copy one regular file between Desktop, Documents, or Downloads. Requires explicit approval, blocks symbolic links, and never overwrites an existing destination.", "parameters": {"type": "object", "properties": {"source_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "destination_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "destination_filename": {"type": "string"}}, "required": ["source_location", "filename", "destination_location", "destination_filename"]}}},
+    {"type": "function", "function": {"name": "move_file", "description": "Move one regular file between Desktop, Documents, or Downloads. Requires explicit approval; destination is created with no-overwrite protection, and the source is removed only after the copy succeeds.", "parameters": {"type": "object", "properties": {"source_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "destination_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "destination_filename": {"type": "string"}}, "required": ["source_location", "filename", "destination_location", "destination_filename"]}}},
+    {"type": "function", "function": {"name": "rename_file", "description": "Rename one regular file inside Desktop, Documents, or Downloads. Requires explicit approval and never overwrites an existing destination.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "new_filename": {"type": "string"}}, "required": ["location", "filename", "new_filename"]}}},
 ]
 
 
@@ -187,4 +191,27 @@ class JarvisAgent:
             return automation.create_text_file(str(args.get("location", "")), str(args.get("filename", "")), str(args.get("content", "")), self.approval)
         if name == "read_text_file":
             return automation.read_text_file(str(args.get("location", "")), str(args.get("filename", "")))
+        if name == "copy_file":
+            return automation.copy_file(
+                str(args.get("source_location", "")),
+                str(args.get("filename", "")),
+                str(args.get("destination_location", "")),
+                str(args.get("destination_filename", "")),
+                self.approval,
+            )
+        if name == "move_file":
+            return automation.move_file(
+                str(args.get("source_location", "")),
+                str(args.get("filename", "")),
+                str(args.get("destination_location", "")),
+                str(args.get("destination_filename", "")),
+                self.approval,
+            )
+        if name == "rename_file":
+            return automation.rename_file(
+                str(args.get("location", "")),
+                str(args.get("filename", "")),
+                str(args.get("new_filename", "")),
+                self.approval,
+            )
         return f"Unknown tool '{name}' was blocked."
