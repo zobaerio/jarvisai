@@ -805,6 +805,7 @@ def create_zip_archive(location: str, filenames: list[str], archive_filename: st
         "",
         f"Folder: {destination.parent}",
         f"Archive: {destination.name}",
+        f"Destination: {destination}",
         f"Selected files: {len(source_records)}",
         f"Total uncompressed size: {total_size:,} bytes",
         "",
@@ -870,6 +871,13 @@ def create_zip_archive(location: str, filenames: list[str], archive_filename: st
                     )
                     if after_identity != opened_identity or written_for_source != original.st_size:
                         raise ValueError(f"Selected file changed while archiving: {source.name}")
+                    # The path itself must still name the file that was approved and opened.
+                    path_after = source.stat()
+                    path_identity = (
+                        path_after.st_dev, path_after.st_ino, path_after.st_size, path_after.st_mtime_ns
+                    )
+                    if source.is_symlink() or path_identity != opened_identity:
+                        raise ValueError(f"Selected file path changed while archiving: {source.name}")
 
         if destination.exists():
             return f"Archive destination appeared before commit: {destination}. Nothing was overwritten."
