@@ -99,7 +99,7 @@ class SafeDuplicateFinderTests(unittest.TestCase):
         (root / "large-b.txt").write_bytes(b"12345")
         with patch("jarvis.automation.MAX_DUPLICATE_SINGLE_FILE_BYTES", 4):
             result = automation.find_duplicate_files("Documents", lambda *_: True)
-        self.assertIn("skipped 2 file(s) above", result)
+        self.assertIn("skipped 2 file(s) larger than 4 bytes", result)
         self.assertIn("No identical-file groups", result)
 
     def test_file_mutation_during_hash_is_not_reported_as_duplicate(self) -> None:
