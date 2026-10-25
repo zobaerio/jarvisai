@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.2 — Consent-based local content search
+**Version:** 1.5.3 — Consent-gated file reading
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -60,6 +60,10 @@ The right-side **ACTIVE TASKS** panel now includes **RUN QUEUED TASKS**, **CANCE
 Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
 
 Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
+
+## Consent-gated reading of a specific file
+
+Before reading any supported text/source file, J.A.R.V.I.S shows the exact path and size and asks for explicit approval. The dialog warns that the file contents enter the AI conversation and may be sent to the configured AI provider. Reading is limited to supported text formats up to 100 KB; symbolic links, binary/null-byte files and files that change during confirmation or reading are blocked. Declining means no file content is returned.
 
 ## Consent-based local content search
 
