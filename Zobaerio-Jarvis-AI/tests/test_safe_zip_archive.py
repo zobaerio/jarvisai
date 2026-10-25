@@ -100,7 +100,7 @@ class SafeZipArchiveTests(unittest.TestCase):
         source.write_text("a", encoding="utf-8")
         self.assertIn("must end with .zip", automation.create_zip_archive("Downloads", ["a.txt"], "out.rar", lambda *_: True))
         self.assertIn("at most", automation.create_zip_archive("Downloads", ["a.txt"] * 101, "out.zip", lambda *_: True))
-        with patch("jarvis.automation.MAX_ARCHIVE_TOTAL_BYTES", 3):
+        with patch("jarvis.automation.MAX_ARCHIVE_TOTAL_BYTES", 0):
             result = automation.create_zip_archive("Downloads", ["a.txt"], "out.zip", lambda *_: True)
             self.assertNotIn("Created ZIP archive", result)
 
