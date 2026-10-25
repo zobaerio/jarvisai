@@ -80,6 +80,23 @@ class SafeZipArchiveTests(unittest.TestCase):
         self.assertEqual(destination.read_bytes(), b"created while asking")
         self.assertTrue(source.exists())
 
+    def test_atomic_publish_race_never_overwrites_existing_destination(self) -> None:
+        source = self.roots["documents"] / "notes.txt"
+        destination = self.roots["documents"] / "race.zip"
+        source.write_text("source contents", encoding="utf-8")
+
+        def race_commit(_temp, final_path):
+            Path(final_path).write_bytes(b"another process created this")
+            raise FileExistsError("destination already created")
+
+        with patch("jarvis.automation.os.link", side_effect=race_commit):
+            result = automation.create_zip_archive("Documents", ["notes.txt"], "race.zip", lambda *_: True)
+
+        self.assertIn("destination already exists", result)
+        self.assertEqual(destination.read_bytes(), b"another process created this")
+        self.assertEqual(source.read_text(encoding="utf-8"), "source contents")
+        self.assertFalse(any(p.name.endswith(".tmp") for p in self.roots["documents"].iterdir()))
+
     def test_blocks_traversal_symlinks_directories_and_duplicate_names(self) -> None:
         outside = Path(self.temp.name) / "outside.txt"
         outside.write_text("outside", encoding="utf-8")
