@@ -274,7 +274,7 @@ def prepare_calendar_event_draft(title: str, start: str, end: str, details: str 
     details_text, location_text = str(details).strip(), str(location).strip()
     if len(details_text) > 4000 or len(location_text) > 300:
         return "Calendar draft blocked: details must be 4,000 characters or fewer and location 300 or fewer."
-    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in details_text) or any(ord(char) < 32 for char in location_text):
+    if any(ord(char) < 32 and char not in "\n\r\t" for char in details_text) or any(ord(char) < 32 for char in location_text):
         return "Calendar draft blocked: details or location contain unsupported control characters."
     if timezone_name not in {"Asia/Dhaka", "UTC", "Asia/Kolkata", "Asia/Singapore", "Europe/London", "America/New_York", "America/Los_Angeles"}:
         return "Calendar draft blocked: timezone is not in the supported allow-list."
