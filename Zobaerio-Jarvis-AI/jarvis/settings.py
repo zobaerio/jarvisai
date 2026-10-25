@@ -19,6 +19,7 @@ DEFAULTS: dict[str, Any] = {
     "voice": "bn-BD-NabanitaNeural",
     "speak_replies": True,
     "selected_character": "luna",
+    "auto_start_at_login": False,
 }
 
 
