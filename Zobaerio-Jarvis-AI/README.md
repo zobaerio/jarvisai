@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.4 — Durable task history and recovery
+**Version:** 1.5.5 — Secure AI endpoint checks
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -52,6 +52,12 @@ For the end-to-end image → 3D model → rig → GLB import process, see [3D_CH
 6. For local LLM support, install Ollama, run `ollama pull qwen2.5:3b`, then configure `http://localhost:11434/v1` and model `qwen2.5:3b` in Settings.
 
 If installation fails, open PowerShell in the project folder and run `python --version`, then share the full installation error. Do not run `python pip install ...`; use `python -m pip install ...`.
+
+## AI endpoint validation and connection test
+
+Settings validates the API base URL, rejects embedded URL credentials and query/fragment components, and prevents the assistant from sending a stored API key over plain HTTP to a non-local endpoint. Use HTTPS for remote providers; loopback addresses such as localhost can use HTTP for local services.
+
+**Test Connection** sends a GET request to `/models` only. It does not submit a chat prompt or generate an answer. The result confirms reachability and whether the configured model appears in the returned list; it does not prove that chat completions or tool-calling work with every provider.
 
 ## Task history and cancellation (v1.3.0)
 
