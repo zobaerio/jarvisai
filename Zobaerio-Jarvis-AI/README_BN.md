@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.1 — Duplicate File Finder
+**সংস্করণ:** 1.6.2 — AI provider retry/backoff
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
