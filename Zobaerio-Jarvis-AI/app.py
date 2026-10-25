@@ -831,6 +831,21 @@ class JarvisDesktop:
         except Exception:
             # A history disk error should not crash a task that is already underway.
             pass
+        try:
+            self.events.put((self._show_task_progress, (task_id, step)))
+        except Exception:
+            pass
+
+    def _show_task_progress(self, task_id: str, step: str) -> None:
+        # This callback runs on Tk's main thread via the event queue.
+        if task_id != self._active_task_id or not self.root.winfo_exists():
+            return
+        self._push_activity(step)
+        if self._active_task_cancel_event is not None and self._active_task_cancel_event.is_set():
+            return
+        self.core_mode = "EXECUTING"
+        self.status_dot.configure(text="● EXECUTING", fg=ACCENT)
+        self._render_core()
 
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
