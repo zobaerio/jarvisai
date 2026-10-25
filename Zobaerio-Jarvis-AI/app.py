@@ -1050,8 +1050,10 @@ class JarvisDesktop:
         self.status_dot.configure(text=status, fg=ORANGE if busy else GREEN)
         if hasattr(self, "core_canvas"):
             self._render_core()
-        self.send_btn.configure(state="disabled" if busy else "normal")
-        self.entry.configure(state="disabled" if busy else "normal")
+        # Keep text entry/send available while a task runs so a user can queue
+        # another command; microphone listening remains single-task-at-a-time.
+        self.send_btn.configure(state="normal", text="QUEUE  ➤" if busy else "SEND  ➤")
+        self.entry.configure(state="normal")
         self.mic_btn.configure(state="disabled" if busy else "normal")
         if hasattr(self, "cancel_task_btn"):
             cancellable = self._active_task_cancel_event is not None and not self._active_task_cancel_event.is_set()
