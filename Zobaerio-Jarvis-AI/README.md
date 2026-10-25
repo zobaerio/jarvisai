@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.8 — Safe exception redaction
+**Version:** 1.6.9 — Windows portable build workflow
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -165,3 +165,15 @@ Choose **Export Safe Diagnostics** from Task History and confirm the privacy not
 ## Safe exception redaction
 
 When a tool or desktop worker raises an unexpected exception, user-facing messages and model tool results contain only a bounded exception type and guidance; raw `str(exception)` details are not forwarded. Those details can accidentally contain local file paths, URLs, account identifiers or returned data. Tool outputs are also omitted from progress-history text so that progress logs carry status rather than content. This does not replace operating-system permissions or the separate approval gates for actions.
+
+
+## Build a Windows portable package
+
+Requirements: Windows 10/11, Python 3.12 x64, internet access for dependency installation, and enough disk space for a separate build environment.
+
+1. Open `Zobaerio-Jarvis-AI` in File Explorer or a terminal.
+2. Run `build_portable.bat`.
+3. After the build finishes, find `dist/JARVIS-Windows-Portable.zip` and extract it to a folder you choose.
+4. Launch `JARVIS/JARVIS.exe` from the extracted package. Keep the whole `JARVIS` folder together because `_internal` contains runtime libraries and the 3D page/assets.
+
+The script uses an isolated `.packaging-venv` instead of adding PyInstaller to the runtime `.venv`. The package includes `version.json` with the app version, Python version, architecture and the fact that this is an unsigned portable build; Windows CI checks that this manifest matches the version constant in source. The workflow verifies the executable, packaged 3D page and ZIP, then uploads the artifact for 14 days. This package is **unsigned**; Windows SmartScreen may warn until a trusted code-signing identity is configured. It is not an MSIX installer and does not auto-update. The 3D studio still loads Three.js from a CDN, and AI/speech features depend on the configured provider or external services, so the package is not fully offline.

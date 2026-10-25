@@ -44,6 +44,17 @@ jobs:
           if (!(Test-Path "dist/JARVIS/_internal/assets/avatar_studio.html")) {
             throw "The 3D Character Studio page is missing from the packaged assets."
           }
+          if (!(Test-Path "dist/JARVIS/version.json")) {
+            throw "The portable package version manifest is missing."
+          }
+          $manifest = Get-Content "dist/JARVIS/version.json" -Raw | ConvertFrom-Json
+          $expectedVersion = & ".packaging-venv/Scripts/python.exe" -c "from jarvis.version import APP_VERSION; print(APP_VERSION)"
+          if ($manifest.app_version -ne $expectedVersion.Trim()) {
+            throw "Version manifest ($($manifest.app_version)) does not match source version ($($expectedVersion.Trim()))."
+          }
+          if ($manifest.package_type -ne "unsigned-portable-folder") {
+            throw "Unexpected portable package type in the manifest."
+          }
           if (!(Test-Path "dist/JARVIS-Windows-Portable.zip")) {
             throw "The portable ZIP artifact was not produced."
           }

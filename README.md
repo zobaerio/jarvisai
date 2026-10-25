@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.6.8 — Safe exception redaction  
+**Version:** 1.6.9 — Windows portable build workflow  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -66,3 +66,8 @@ Task History can export a support report after explicit confirmation. It contain
 ## Safe exception reporting
 
 Unexpected tool/worker errors show a bounded exception type and next-step guidance, not raw exception strings that might include local paths, account identifiers, or other sensitive data. Tool-result text is no longer copied into Task History progress events. The full underlying exception detail is intentionally withheld from the user/provider response path.
+
+
+## Windows portable build
+
+A reproducible PyInstaller one-folder build is defined in `Zobaerio-Jarvis-AI/JARVIS.spec` and `build_portable.bat`. On Windows with Python 3.12 x64, run `install.bat` only if you want the source-based setup; to create a portable package, open `Zobaerio-Jarvis-AI` and run `build_portable.bat`. The output is `dist/JARVIS-Windows-Portable.zip`. GitHub Actions also builds this ZIP on Windows and uploads it as a 14-day workflow artifact. This is an **unsigned** portable build, not a signed installer/MSIX. Online AI endpoints, speech services, and the 3D viewer's Three.js CDN still require their respective connectivity; this does not make the app fully offline.
