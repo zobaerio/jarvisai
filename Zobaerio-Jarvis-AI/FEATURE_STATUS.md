@@ -41,12 +41,12 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
 - Persistent FIFO command queue: commands can be queued while another task runs; the user can arm saved queued commands after a restart.
 - Cooperative cancellation between AI request/tool steps; the approval dialog also offers a Cancel Task action.
-- New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion.
+- New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion. Startup/import and renderer initialization failures now show a readable recovery panel with a reload action instead of leaving a blank preview; WebGL context loss is reported to the user.
 
 ## Prototype / partial
 - 3D design: stylized procedural mesh characters inspired by the references, not photorealistic or a pixel-perfect 1:1 conversion. The viewer now accepts a user-selected local rigged `.glb` model and can play embedded animation clips.
 - Animation: procedural characters have independent limb parts and simulated motion. A user-provided rigged `.glb` can replace the selected procedural character; if the file contains embedded clips, the viewer can play an idle/default clip and clips named like wave/hello/gesture or talk/speak. There is still no built-in production skeletal rig, generated custom model, hair/cloth physics, motion capture, natural walking, emotion capture or phoneme-level lip-sync.
-- 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required.
+- 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required. CDN or renderer startup failures display a recovery panel; actual GPU/browser recovery still requires device-level testing.
 - Wake word is based on repeated speech recognition, not a dedicated low-latency offline wake-word engine.
 - AI Agent can plan only with declared tools. Foreground controls are limited to title-matched text paste and a small shortcut allow-list with approval; there is no screenshot/OCR context, arbitrary clicking, broad keyboard scripting, or guaranteed completion of multi-app workflows.
 - Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
