@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.7.0 — Local system health checks
+**সংস্করণ:** 1.7.1 — AI API-key readiness check
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
@@ -138,4 +138,4 @@ Build script আলাদা `.packaging-venv` ব্যবহার করে, 
 
 ## নতুন: Local System Health Check
 
-AI model status panel থেকে **RUN SYSTEM HEALTH CHECK** চাপলে Python runtime, Windows platform, local 3D/branding asset, dependency এবং AI endpoint/model configuration পরীক্ষা করবে। প্রতিটি আইটেমে `PASS`, `WARN` বা `FAIL` দেখা যাবে এবং Refresh button থাকবে। এই check কোনো AI request পাঠায় না, microphone/speaker hardware test করে না, user file scan করে না এবং endpoint/API key দেখায় না। Network connection যাচাই করতে Settings-এর আলাদা provider connection test ব্যবহার করো।
+AI model status panel থেকে **RUN SYSTEM HEALTH CHECK** চাপলে Python runtime, Windows platform, local 3D/branding asset, dependency, endpoint/model configuration এবং cloud API key আছে কি না পরীক্ষা করবে। Key-এর মান কখনও দেখাবে না—শুধু পাওয়া গেছে কি না জানাবে। Local Ollama endpoint-এর জন্য API key বাধ্যতামূলক নয়। প্রতিটি আইটেমে `PASS`, `WARN` বা `FAIL` দেখা যাবে এবং Refresh button থাকবে। এই check কোনো AI request পাঠায় না, microphone/speaker hardware test করে না, user file scan করে না এবং endpoint/key value দেখায় না। Network connection যাচাই করতে Settings-এর আলাদা provider connection test ব্যবহার করো।
