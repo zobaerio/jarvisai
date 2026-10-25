@@ -10,7 +10,7 @@ import requests
 from . import automation
 from .settings import get_api_key
 
-SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
+SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
 TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
@@ -20,6 +20,7 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "get_system_info", "description": "Get basic OS, computer, Python, and current-time information.", "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "list_open_windows", "description": "List the titles of visible Windows application windows. This reads titles only, not screenshots, text fields, or app contents.", "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {"name": "get_active_window_title", "description": "Read the active Windows application window title only; does not inspect its contents.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "verify_local_action", "description": "Verify an exact file/folder name inside Desktop, Documents or Downloads, or verify that a visible Windows app window title contains a given fragment. Use after the related action when possible. This checks existence/title only, not file contents or whether a user-visible task was fully completed.", "parameters": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["window", "file", "folder"]}, "target": {"type": "string"}, "location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}}, "required": ["kind", "target"]}}},
     {"type": "function", "function": {"name": "paste_text_into_window", "description": "Paste provided text into the current field of a named visible Windows window. Always needs explicit user approval and will not press Enter or submit a form. Select the target using a distinctive substring from list_open_windows.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "text": {"type": "string"}}, "required": ["expected_app", "text"]}}},
     {"type": "function", "function": {"name": "press_allowed_shortcut", "description": "Send one user-approved editing/navigation shortcut to a named Windows window. Only supported allow-listed shortcuts are accepted; Enter, Alt+F4, Windows+R and arbitrary key sequences are blocked.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "shortcut": {"type": "string", "enum": ["CTRL+S", "CTRL+A", "CTRL+C", "CTRL+V", "CTRL+Z", "CTRL+Y", "CTRL+F", "TAB", "SHIFT+TAB", "ESC", "HOME", "END", "PAGEUP", "PAGEDOWN"]}}, "required": ["expected_app", "shortcut"]}}},
     {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside Desktop, Documents, or Downloads. The desktop app will ask the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "name": {"type": "string"}}, "required": ["location", "name"]}}},
@@ -84,11 +85,14 @@ class JarvisAgent:
         if key:
             headers["Authorization"] = f"Bearer {key}"
         url = base_url + "/chat/completions"
+        max_rounds = 8
+        max_tool_calls = 12
+        tool_call_count = 0
         try:
-            for turn in range(5):
+            for turn in range(max_rounds):
                 if cancelled():
                     return "কাজটি বাতিল করা হয়েছে। আর কোনো tool action চালানো হবে না।"
-                report(f"Contacting AI model (turn {turn + 1}/5)")
+                report(f"Contacting AI model (turn {turn + 1}/{max_rounds})")
                 response = requests.post(
                     url,
                     headers=headers,
@@ -118,6 +122,13 @@ class JarvisAgent:
                 for call in tool_calls:
                     if cancelled():
                         return "কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।"
+                    if tool_call_count >= max_tool_calls:
+                        report("Task action budget reached; no further tools will start")
+                        return (
+                            "Partially completed: নিরাপত্তার জন্য এই task-এ ১২টি tool action-এর সীমা পৌঁছেছে। "
+                            "যে ফলাফলগুলো পাওয়া গেছে তা যাচাই করো, তারপর বাকি কাজের জন্য নতুন নির্দেশনা দাও।"
+                        )
+                    tool_call_count += 1
                     function = call.get("function", {})
                     name = function.get("name", "")
                     raw_args = function.get("arguments", "{}")
@@ -128,9 +139,12 @@ class JarvisAgent:
                     except Exception as exc:
                         result = f"Tool failed safely: {type(exc).__name__}: {exc}"
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
+                    # Persist a brief, useful outcome line without copying full file contents.
+                    outcome = str(result).splitlines()[0][:150] if str(result).splitlines() else "No result text"
+                    report(f"Tool result: {name or 'unknown'} — {outcome}")
                     if cancelled():
                         return "কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।"
-            return "আমি কয়েকটি পদক্ষেপ চেষ্টা করেছি, কিন্তু কাজটি এই রানেই শেষ করতে পারিনি। কাজটি ছোট ছোট নির্দেশনায় ভাগ করে বলো।"
+            return "Partially completed: এই task-এ ৮টি AI action round-এর সীমা পৌঁছেছে। Task History ও progress দেখো; বাকি কাজ নতুন নির্দেশনায় চালাও।"
         except requests.exceptions.ConnectionError:
             return "AI model-এ সংযোগ করা যাচ্ছে না। Local Ollama ব্যবহার করলে Ollama চালু আছে কি না ও model pull করা হয়েছে কি না দেখো; cloud provider হলে internet, endpoint ও API key যাচাই করো।"
         except requests.exceptions.Timeout:
@@ -153,6 +167,12 @@ class JarvisAgent:
             return automation.list_open_windows()
         if name == "get_active_window_title":
             return automation.get_active_window_title()
+        if name == "verify_local_action":
+            return automation.verify_local_action(
+                str(args.get("kind", "")),
+                str(args.get("target", "")),
+                str(args.get("location", "Desktop")),
+            )
         if name == "paste_text_into_window":
             return automation.paste_text_into_window(
                 str(args.get("text", "")), str(args.get("expected_app", "")), self.approval

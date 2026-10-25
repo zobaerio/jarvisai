@@ -63,9 +63,9 @@ Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvi
 
 ## Approved foreground application actions
 
-The agent can list visible application window titles, paste text into a named window, and send a small allow-list of editing/navigation shortcuts. Every paste or shortcut asks for approval and names the target window; the paste action does not press Enter or submit a form. `Enter`, `Alt+F4`, `Windows+R` and arbitrary shortcut sequences are blocked. Text insertion is not independently verified, so check the target app after the action.
+The agent can list visible application window titles, paste text into a named window, send a small allow-list of editing/navigation shortcuts, and verify basic outcomes such as whether a file/folder exists or a matching window title is visible. Every paste or shortcut asks for approval and names the target window; the paste action does not press Enter or submit a form. `Enter`, `Alt+F4`, `Windows+R` and arbitrary shortcut sequences are blocked. Text insertion is not independently verified, so check the target app after the action.
 
-This is not full visual computer control. The agent cannot see screenshots or arbitrary app contents, and it does not have general-purpose mouse clicking. Keep the intended application/window visible and enter a distinctive window-title fragment when the model asks for a target.
+This is not full visual computer control. The agent cannot see screenshots or arbitrary app contents, and it does not have general-purpose mouse clicking. Verification is limited to file/folder existence and window titles; it does not validate document contents or prove that an overall external task succeeded. Keep the intended application/window visible and enter a distinctive window-title fragment when the model asks for a target.
 
 ## Safety and capabilities
 

@@ -450,6 +450,37 @@ def safe_child_path(location: str, name: str) -> Path:
     return path
 
 
+def verify_local_action(kind: str, target: str, location: str = "Desktop") -> str:
+    """Verify a visible window title or an exact file/folder name in an allowed user folder."""
+    action = str(kind).strip().casefold()
+    needle = str(target).strip()
+    if not needle:
+        return "Verification needs a target name."
+    if action == "window":
+        if os.name != "nt":
+            return "Visible-window verification is supported only on Windows."
+        try:
+            match = _find_window(needle, timeout=2.0)
+        except (OSError, ValueError) as exc:
+            return f"Window verification failed: {exc}"
+        if match is None:
+            return f"Not verified: no visible application window title matched '{needle}'."
+        return f"Verified: visible application window title is '{match[1]}'."
+    if action not in {"file", "folder"}:
+        return "Verification kind must be window, file, or folder."
+    try:
+        path = safe_child_path(location, needle)
+    except (ValueError, OSError) as exc:
+        return f"Verification blocked: {exc}"
+    if action == "file":
+        if path.is_file():
+            return f"Verified file exists: {path} ({path.stat().st_size} bytes)."
+        return f"Not verified: no file exists at {path}."
+    if path.is_dir():
+        return f"Verified folder exists: {path}."
+    return f"Not verified: no folder exists at {path}."
+
+
 def create_folder(location: str, name: str, approve) -> str:
     path = safe_child_path(location, name)
     if path.exists():
