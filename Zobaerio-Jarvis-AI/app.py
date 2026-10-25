@@ -43,8 +43,9 @@ class JarvisDesktop:
         except tk.TclError:
             pass
         try:
-            self.brand_logo_photo = tk.PhotoImage(file=str(self.brand_assets.png))
-            self.root.iconphoto(True, self.brand_logo_photo)
+            self.brand_logo_full = tk.PhotoImage(file=str(self.brand_assets.png))
+            self.root.iconphoto(True, self.brand_logo_full)
+            self.brand_logo_photo = self.brand_logo_full.subsample(12, 12)
         except tk.TclError:
             self.brand_logo_photo = None
         self.settings = load_settings()
@@ -443,6 +444,8 @@ class JarvisDesktop:
         self._refresh_stats()
         self._animate_core()
         self._responsive_after_id: str | None = None
+        self._right_rail_hidden = False
+        self._nav_collapsed = False
         self.root.bind("<Configure>", self._schedule_responsive_layout, add="+")
         self.root.after(120, self._apply_responsive_layout)
 
@@ -466,21 +469,22 @@ class JarvisDesktop:
             return
         width = self.root.winfo_width()
         # Give the conversation/agent workspace room on smaller laptop windows.
-        if width < 1180:
-            if self.right_rail.winfo_manager():
-                self.right_rail.grid_remove()
-        elif not self.right_rail.winfo_manager():
+        if width < 1180 and not self._right_rail_hidden:
+            self.right_rail.grid_remove()
+            self._right_rail_hidden = True
+        elif width >= 1180 and self._right_rail_hidden:
             self.right_rail.grid(row=0, column=2, sticky="ns", padx=(9, 0))
+            self._right_rail_hidden = False
 
         # Collapse decorative navigation labels on compact windows. Main controls remain.
-        if width < 1120:
+        if width < 1120 and not self._nav_collapsed:
             for item in self.nav_items:
-                if item.winfo_manager():
-                    item.pack_forget()
-        else:
+                item.pack_forget()
+            self._nav_collapsed = True
+        elif width >= 1120 and self._nav_collapsed:
             for item in self.nav_items:
-                if not item.winfo_manager():
-                    item.pack(side="left", pady=26)
+                item.pack(side="left", pady=26)
+            self._nav_collapsed = False
 
         if hasattr(self, "core_canvas"):
             self._render_core()
