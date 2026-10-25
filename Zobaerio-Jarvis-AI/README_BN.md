@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.7 — Safe Recycle Bin
+**সংস্করণ:** 1.5.8 — Safe Provider Response
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -31,6 +31,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 ## নতুন: Safe Recycle Bin Action
 
 এখন Desktop, Documents বা Downloads থেকে একবারে একটি regular file Windows Recycle Bin-এ পাঠানো যাবে। Approval dialog-এ exact path, file size ও type দেখাবে। Directory, symbolic link, path traversal, missing file এবং approval চলাকালে file বদলে গেলে operation block হবে। এটি permanent delete নয়; Recycle Bin খালি করা না হলে এবং Windows অনুমতি দিলে ফাইল recover করা যাবে।
+
+## নতুন: নিরাপদ AI Error Handling
+
+Provider-এর HTTP error body এখন সরাসরি chat-এ দেখানো হবে না—কারণ কোনো provider বা proxy ভুল করে private prompt, file excerpt বা credential ফিরিয়ে দিতে পারে। J.A.R.V.I.S সাধারণ HTTP status অনুযায়ী নিরাপদ ও কার্যকর পরামর্শ দেখাবে। পাশাপাশি invalid JSON, ভুল choices/message/tool-call structure এবং unexpected library/network error-কে neutral diagnostic-এ রূপান্তর করবে; raw error body বা exception message ইউজারকে দেখাবে না।
 
 ## নতুন: Secure API Endpoint ও Test Connection
 
