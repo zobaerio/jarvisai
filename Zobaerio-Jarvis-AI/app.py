@@ -190,7 +190,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.3", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.4", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -1098,8 +1098,12 @@ class JarvisDesktop:
         if cancel_event.is_set():
             status = "cancelled"
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
+        elif failed:
+            status = "failed"
         else:
-            status = "failed" if failed else "completed"
+            status = str(getattr(self.agent, "last_outcome", "completed"))
+            if status not in {"completed", "partial", "failed", "cancelled"}:
+                status = "failed"
         if task_id:
             try:
                 self.task_store.update_task(task_id, status=status, result=result)
