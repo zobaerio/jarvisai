@@ -37,7 +37,7 @@ class SpeechEngine:
             raise RuntimeError("I could not understand that speech. Please try again.") from exc
         except sr.RequestError as exc:
             raise RuntimeError("Speech recognition needs an internet connection. Check your connection and retry.") from exc
-        except (OSError, AttributeError) as exc:
+        except OSError as exc:
             raise RuntimeError("No usable microphone found. Check Windows microphone permissions and input device.") from exc
 
     def speak(self, text: str, voice: str = "bn-BD-PradeepNeural") -> None:
@@ -56,6 +56,7 @@ class SpeechEngine:
         import pygame
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
             out = Path(f.name)
+        loaded = False
         try:
             communicate = edge_tts.Communicate(text=text, voice=voice, rate="+0%", volume="+0%")
             await asyncio.wait_for(communicate.save(str(out)), timeout=45.0)
@@ -63,15 +64,23 @@ class SpeechEngine:
                 pygame.mixer.init()
                 self._pygame_ready = True
             pygame.mixer.music.load(str(out))
+            loaded = True
             pygame.mixer.music.play()
             deadline = time.monotonic() + _playback_timeout_seconds(len(text))
             while pygame.mixer.music.get_busy():
                 if time.monotonic() >= deadline:
-                    pygame.mixer.music.stop()
                     raise TimeoutError("Speech playback exceeded its safe time limit.")
                 await asyncio.sleep(0.12)
-            pygame.mixer.music.unload()
         finally:
+            if loaded:
+                try:
+                    pygame.mixer.music.stop()
+                except Exception:
+                    pass
+                try:
+                    pygame.mixer.music.unload()
+                except Exception:
+                    pass
             try:
                 out.unlink(missing_ok=True)
             except OSError:
