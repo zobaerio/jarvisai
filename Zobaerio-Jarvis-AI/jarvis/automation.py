@@ -170,10 +170,10 @@ SOCIAL_WEBSITE_ALIASES = {
 def _youtube_search_query(value: str) -> str | None:
     """Extract an explicit YouTube search request in English or Bangla."""
     patterns = (
-        r"^(?:search|find)\\s+(?:on\\s+)?youtube\\s+(?:for\\s+)?(.+)$",
-        r"^youtube\\s+(?:search|find)\\s+(?:for\\s+)?(.+)$",
-        r"^ইউটিউবে\\s+(.+?)(?:\\s+(?:সার্চ|খুঁজে)(?:\\s+করো|\\s+দাও)?)?$",
-        r"^ইউটিউব\\s+(?:এ|তে)\\s+(.+?)(?:\\s+(?:সার্চ|খুঁজে)(?:\\s+করো|\\s+দাও)?)?$",
+        r"^(?:search|find)\s+(?:on\s+)?youtube\s+(?:for\s+)?(.+)$",
+        r"^youtube\s+(?:search|find)\s+(?:for\s+)?(.+)$",
+        r"^ইউটিউবে\s+(.+?)(?:\s+(?:সার্চ|খুঁজে)(?:\s+করো|\s+দাও)?)?$",
+        r"^ইউটিউব\s+(?:এ|তে)\s+(.+?)(?:\s+(?:সার্চ|খুঁজে)(?:\s+করো|\s+দাও)?)?$",
     )
     for pattern in patterns:
         match = re.match(pattern, value, flags=re.IGNORECASE)
