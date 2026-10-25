@@ -15,7 +15,7 @@ from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
-from jarvis.task_store import TaskStore
+from jarvis.task_store import TaskStore, filter_task_records
 from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
@@ -190,7 +190,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.5", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.6", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -783,6 +783,22 @@ class JarvisDesktop:
         right.grid(row=0, column=1, sticky="nsew")
         tk.Label(left, text="RECENT RUNS", bg=PANEL, fg=ACCENT,
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=11, pady=(10, 5))
+        search_var = tk.StringVar(value="")
+        status_var = tk.StringVar(value="ALL")
+        filters = tk.Frame(left, bg=PANEL)
+        filters.pack(fill="x", padx=8, pady=(0, 7))
+        tk.Label(filters, text="Search", bg=PANEL, fg=MUTED,
+                 font=("Segoe UI", 8)).pack(side="left", padx=(0, 6))
+        search_entry = ttk.Entry(filters, textvariable=search_var)
+        search_entry.pack(side="left", fill="x", expand=True)
+        status_filter = ttk.Combobox(
+            filters,
+            textvariable=status_var,
+            values=("ALL", "QUEUED", "RUNNING", "CANCELLING", "COMPLETED", "PARTIAL", "FAILED", "CANCELLED"),
+            state="readonly",
+            width=12,
+        )
+        status_filter.pack(side="left", padx=(8, 0))
         tree_frame = tk.Frame(left, bg=PANEL)
         tree_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         columns = ("time", "status", "command")
@@ -847,7 +863,11 @@ class JarvisDesktop:
 
         def refresh() -> None:
             try:
-                records = self.task_store.list_tasks(limit=100)
+                records = filter_task_records(
+                    self.task_store.list_tasks(limit=100),
+                    query=search_var.get(),
+                    status=status_var.get(),
+                )
             except Exception as exc:
                 messagebox.showerror("Task history", f"Could not read task history: {exc}", parent=win)
                 return
@@ -932,6 +952,9 @@ class JarvisDesktop:
             refresh()
             if self._queue_armed and not self._busy and remaining > 0:
                 self.root.after(150, self._start_next_queued_task)
+
+        search_var.trace_add("write", lambda *_args: refresh())
+        status_var.trace_add("write", lambda *_args: refresh())
 
         def retry_selected() -> None:
             selected = tree.selection()
