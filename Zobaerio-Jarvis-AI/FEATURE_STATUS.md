@@ -13,6 +13,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Opt-in wake-word listening prototype.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
+- Persistent FIFO command queue: commands can be queued while another task runs; the user can arm saved queued commands after a restart.
 - Cooperative cancellation between AI request/tool steps; the approval dialog also offers a Cancel Task action.
 - New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion.
 
@@ -31,7 +32,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Natural humanoid motion, realistic hands/fingers, expressions, eye gaze, proper talking animation and real lip-sync.
 - Screen understanding with screenshot/accessibility-tree context and safe interaction with arbitrary applications.
 - Full integrations for Gmail/Outlook, Office document editing, calendar, social media, message sending or form submission.
-- Durable multi-task queue, retries, resumable execution after app restart, and automated verification that each real-world action achieved the intended result.
+- Multi-step AI plans with durable per-step state, automatic retry/backoff policies, resume of a partially executed task after restart, and automated verification that each real-world action achieved the intended result.
 - Fully offline speech recognition/TTS, bundled local LLM, native signed EXE/MSIX installer, app auto-update, rollback and crash reporting.
 - Automated Windows 11 hardware QA for actual microphones, speakers, WebGL/GPU acceleration, wake listening and each action.
 
@@ -39,7 +40,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 1. Stabilize the updated source tree and install workflow; run a clean install on Windows 11.
 2. Verify WebGL/CDN failure handling and connect character/task state from the desktop app to the browser studio.
 3. Build/license custom GLB/VRM models matching the supplied characters, embed idle/wave/talk clips, add facial rigging and phoneme lip-sync.
-4. Extend task history/cancellation into a durable multi-step task planner with retries, resume-after-restart, explicit step approvals and verified action logs.
+4. Extend the FIFO command queue into a durable multi-step task planner with automatic retries/backoff, resume-after-restart, explicit step approvals and verified action logs.
 5. Add one scoped Office/calendar/email integration at a time, using least-privilege permissions and confirmation before sending/submitting.
 6. Add screen-aware automation after threat modelling, allowlists, action confirmations and audit logging.
 7. Add automated tests, CI, signed package, uninstaller, updater and repeatable device-level tests.
