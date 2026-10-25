@@ -27,7 +27,8 @@ const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.186.1/build/three
 const {OrbitControls}=await import('https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/controls/OrbitControls.js');
 const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/loaders/GLTFLoader.js');
 const canvas=document.querySelector('#viewport');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});\ncanvas.addEventListener('webglcontextlost',event=>{event.preventDefault();setRuntimeError('The WebGL graphics context was lost. Reload the studio to restart the preview.');});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();setRuntimeError('The WebGL graphics context was lost. Reload the studio to restart the preview.');});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.shadowMap.enabled=true;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;
 const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x061020,.08);
 const camera=new THREE.PerspectiveCamera(34,1,.1,100);camera.position.set(0,2.3,7.7);
