@@ -646,16 +646,71 @@ def create_text_file(location: str, filename: str, content: str, approve) -> str
     return f"Created file: {path}"
 
 
-def read_text_file(location: str, filename: str) -> str:
-    path = safe_child_path(location, filename)
-    if path.suffix.lower() not in {".txt", ".md", ".csv", ".json", ".log", ".py", ".yaml", ".yml", ".xml"}:
+def read_text_file(location: str, filename: str, approve) -> str:
+    """Read a small text file only after explicit consent; disclose AI-provider transmission."""
+    allowed_suffixes = {".txt", ".md", ".csv", ".json", ".log", ".py", ".yaml", ".yml", ".xml"}
+    try:
+        path = _operation_child_path(location, filename)
+    except (ValueError, OSError) as exc:
+        return f"File read blocked: {exc}"
+    if path.suffix.lower() not in allowed_suffixes:
         return "For safety, I can read common text and source-code files only."
     if not path.is_file():
         return f"File not found: {path}"
-    if path.stat().st_size > 100_000:
+    try:
+        before = path.stat()
+    except OSError as exc:
+        return f"Could not inspect the file before reading: {exc}"
+    if before.st_size > 100_000:
         return "That file is larger than 100 KB, so I will not read it into the chat."
-    return f"Contents of {path}:\n\n{path.read_text(encoding='utf-8', errors='replace')}"
+    detail = (
+        f"Read this text file into the AI conversation?\n\n"
+        f"File: {path}\n"
+        f"Size: {before.st_size:,} bytes\n\n"
+        "The file contents will be sent into the current AI conversation and may be sent to the configured AI provider. "
+        "Review the path and avoid reading passwords, API keys, private credentials, or sensitive personal data. "
+        "No changes will be made to this file. Approve reading it?"
+    )
+    try:
+        if not approve("Confirm read file", detail):
+            return "Cancelled. No file contents were read."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No file contents were read."
 
+    try:
+        current = _operation_child_path(location, filename)
+        after_approval = current.stat()
+        identity_before = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        identity_after = (
+            after_approval.st_dev,
+            after_approval.st_ino,
+            after_approval.st_size,
+            after_approval.st_mtime_ns,
+        )
+        if current != path or identity_after != identity_before:
+            return "The file changed after confirmation. No contents were returned; review it and try again."
+        with current.open("rb") as stream:
+            opened_before = os.fstat(stream.fileno())
+            opened_identity = (
+                opened_before.st_dev, opened_before.st_ino, opened_before.st_size, opened_before.st_mtime_ns
+            )
+            if opened_identity != identity_after:
+                return "The file changed after confirmation. No contents were returned; review it and try again."
+            raw = stream.read(100_001)
+            opened_after = os.fstat(stream.fileno())
+        final_identity = (
+            opened_after.st_dev, opened_after.st_ino, opened_after.st_size, opened_after.st_mtime_ns
+        )
+        if final_identity != opened_identity:
+            return "The file changed while it was being read. No contents were returned."
+        if len(raw) > 100_000:
+            return "The file grew beyond 100 KB while being read, so no contents were returned."
+        if b"\x00" in raw:
+            return "For safety, this file appears to contain binary data and was not returned to the AI conversation."
+        text_content = raw.decode("utf-8", errors="replace")
+    except (OSError, ValueError) as exc:
+        return f"Could not read the file safely: {type(exc).__name__}: {exc}"
+    return f"Contents of {current}:\n\n{text_content}"
 
 
 def _operation_child_path(location: str, filename: str) -> Path:
