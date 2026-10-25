@@ -11,6 +11,9 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, safe text-file read/create and folder creation.
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
 - Opt-in wake-word listening prototype.
+- Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
+- Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
+- Cooperative cancellation between AI request/tool steps; the approval dialog also offers a Cancel Task action.
 - New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion.
 
 ## Prototype / partial
@@ -19,6 +22,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required.
 - Wake word is based on repeated speech recognition, not a dedicated low-latency offline wake-word engine.
 - AI Agent can plan only with declared tools; no general screen vision, arbitrary mouse/keyboard automation, or guaranteed completion of multi-app workflows.
+- Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
 
@@ -27,7 +31,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Natural humanoid motion, realistic hands/fingers, expressions, eye gaze, proper talking animation and real lip-sync.
 - Screen understanding with screenshot/accessibility-tree context and safe interaction with arbitrary applications.
 - Full integrations for Gmail/Outlook, Office document editing, calendar, social media, message sending or form submission.
-- Durable task plan/queue, cancellation, retries, resumable execution, persistent history and step-by-step result verification.
+- Durable multi-task queue, retries, resumable execution after app restart, and automated verification that each real-world action achieved the intended result.
 - Fully offline speech recognition/TTS, bundled local LLM, native signed EXE/MSIX installer, app auto-update, rollback and crash reporting.
 - Automated Windows 11 hardware QA for actual microphones, speakers, WebGL/GPU acceleration, wake listening and each action.
 
@@ -35,10 +39,10 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 1. Stabilize the updated source tree and install workflow; run a clean install on Windows 11.
 2. Verify WebGL/CDN failure handling and connect character/task state from the desktop app to the browser studio.
 3. Build/license custom GLB/VRM models matching the supplied characters, embed idle/wave/talk clips, add facial rigging and phoneme lip-sync.
-4. Add a task planner with explicit step approvals, cancellation, retries, persistence and verified action logs.
+4. Extend task history/cancellation into a durable multi-step task planner with retries, resume-after-restart, explicit step approvals and verified action logs.
 5. Add one scoped Office/calendar/email integration at a time, using least-privilege permissions and confirmation before sending/submitting.
 6. Add screen-aware automation after threat modelling, allowlists, action confirmations and audit logging.
 7. Add automated tests, CI, signed package, uninstaller, updater and repeatable device-level tests.
 
 ## Safety/privacy
-The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access.
+The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access. Task history is stored locally as JSON under the app's APPDATA folder and is not encrypted by this feature; avoid entering passwords, API keys or other secrets as commands.

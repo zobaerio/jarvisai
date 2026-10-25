@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.2.2 — Procedural 3D Avatar Studio prototype
+**Version:** 1.3.0 — Task history and cooperative cancellation
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -47,6 +47,14 @@ For the end-to-end image → 3D model → rig → GLB import process, see [3D_CH
 
 If installation fails, open PowerShell in the project folder and run `python --version`, then share the full installation error. Do not run `python pip install ...`; use `python -m pip install ...`.
 
+## Task history and cancellation (v1.3.0)
+
+The right-side **ACTIVE TASKS** panel now includes **CANCEL CURRENT TASK** and **TASK HISTORY**. J.A.R.V.I.S keeps the newest 100 task records, including the command, status, timestamps, result summary and progress events. Select a row and use **Retry Selected Task** to run its saved command again after a confirmation warning; it uses current settings and creates a new record. File/folder approval dialogs include a **Cancel Task** option.
+
+Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
+
+Task history is stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. This JSON history is not encrypted by this feature. Do not use commands to store passwords, API keys or other secrets.
+
 ## Safety and capabilities
 
 - Only explicitly allow-listed app and website actions are supported by default.
@@ -60,7 +68,7 @@ If installation fails, open PowerShell in the project folder and run `python --v
 Syntax check:
 
 ```powershell
-python -m compileall -q app.py jarvis
+python -m compileall -q app.py jarvis tests
 ```
 
 The repository owner should also test microphone, speaker output, character selection, and each desktop command on the target Windows 11 machine before treating the project as production-ready.

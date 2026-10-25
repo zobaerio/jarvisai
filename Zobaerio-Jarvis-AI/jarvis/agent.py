@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -32,10 +33,35 @@ class JarvisAgent:
     def update_settings(self, settings: dict[str, Any]) -> None:
         self.settings = settings
 
-    def respond(self, user_text: str) -> str:
+    def respond(
+        self,
+        user_text: str,
+        cancel_event: threading.Event | None = None,
+        progress: Callable[[str], None] | None = None,
+    ) -> str:
+        """Answer a user request; cancellation is cooperative between blocking operations."""
+        def cancelled() -> bool:
+            return cancel_event is not None and cancel_event.is_set()
+
+        def report(step: str) -> None:
+            if progress is not None:
+                try:
+                    progress(step)
+                except Exception:
+                    # Progress/history UI must never break the actual assistant workflow.
+                    pass
+
+        if cancelled():
+            return "কাজটি বাতিল করা হয়েছে। বাতিলের অনুরোধ পাওয়ার পর নতুন কোনো action শুরু করা হয়নি।"
+
+        report("Checking supported local commands")
         direct = automation.direct_command(user_text)
         if direct is not None:
+            if cancelled():
+                return "বাতিলের অনুরোধ local command চলার সময় এসেছে। Command-এর ফল ইতিমধ্যে ঘটতে পারে: " + direct
             return direct
+        if cancelled():
+            return "কাজটি বাতিল করা হয়েছে। কোনো নতুন AI tool action চালানো হয়নি।"
 
         base_url = str(self.settings.get("api_base_url", "")).strip().rstrip("/")
         model = str(self.settings.get("model", "")).strip()
@@ -55,13 +81,20 @@ class JarvisAgent:
             headers["Authorization"] = f"Bearer {key}"
         url = base_url + "/chat/completions"
         try:
-            for _ in range(5):
+            for turn in range(5):
+                if cancelled():
+                    return "কাজটি বাতিল করা হয়েছে। আর কোনো tool action চালানো হবে না।"
+                report(f"Contacting AI model (turn {turn + 1}/5)")
                 response = requests.post(
                     url,
                     headers=headers,
                     json={"model": model, "messages": messages, "tools": TOOLS, "tool_choice": "auto", "temperature": 0.4},
-                    timeout=90,
+                    timeout=(10, 45),
                 )
+                # requests cannot interrupt an already-blocked network read; after it
+                # returns, cancellation is checked before any model-requested tool runs.
+                if cancelled():
+                    return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। বর্তমান AI request শেষ হওয়ার পরে কোনো নতুন tool action চালানো হয়নি।"
                 if response.status_code >= 400:
                     details = response.text[:500]
                     if response.status_code in (401, 403):
@@ -79,15 +112,20 @@ class JarvisAgent:
                     self.history.append({"role": "assistant", "content": answer})
                     return answer
                 for call in tool_calls:
+                    if cancelled():
+                        return "কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।"
                     function = call.get("function", {})
                     name = function.get("name", "")
                     raw_args = function.get("arguments", "{}")
+                    report(f"Running tool: {name or 'unknown'}")
                     try:
                         args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                         result = self._execute_tool(name, args)
                     except Exception as exc:
                         result = f"Tool failed safely: {type(exc).__name__}: {exc}"
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
+                    if cancelled():
+                        return "কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।"
             return "আমি কয়েকটি পদক্ষেপ চেষ্টা করেছি, কিন্তু কাজটি এই রানেই শেষ করতে পারিনি। কাজটি ছোট ছোট নির্দেশনায় ভাগ করে বলো।"
         except requests.exceptions.ConnectionError:
             return "AI model-এ সংযোগ করা যাচ্ছে না। Local Ollama ব্যবহার করলে Ollama চালু আছে কি না ও model pull করা হয়েছে কি না দেখো; cloud provider হলে internet, endpoint ও API key যাচাই করো।"
