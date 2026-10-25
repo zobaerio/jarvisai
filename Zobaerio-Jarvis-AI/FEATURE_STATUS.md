@@ -47,7 +47,7 @@ Audit date: 2026-10-25. Version focus: v1.6.9 reproducible unsigned Windows port
 - Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
-- An unsigned Windows one-folder portable package is now defined by a PyInstaller spec, isolated build script, and Windows GitHub Actions artifact workflow. It is not code-signed, is not MSIX, and has no built-in updater.
+- An unsigned Windows one-folder portable package is now defined by a PyInstaller spec, isolated build script, and Windows GitHub Actions artifact workflow. It is not code-signed, is not MSIX, and has no built-in updater. The package includes `version.json`, and CI verifies the manifest matches the central source version.
 - The UI is responsive for resizable desktop windows; this release is not yet a mobile/phone app and has no Android installer.
 
 ## Not implemented yet
