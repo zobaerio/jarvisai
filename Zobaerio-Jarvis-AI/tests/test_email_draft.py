@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import unquote
 
-from jarvis import automation
+from jarvis import agent, automation
 
 
 class EmailDraftTests(unittest.TestCase):
@@ -41,6 +41,18 @@ class EmailDraftTests(unittest.TestCase):
         open_url.assert_not_called()
         self.assertIn("200", subject_result)
         self.assertIn("5,000", body_result)
+
+    def test_agent_dispatches_email_draft_tool(self) -> None:
+        jarvis_agent = agent.JarvisAgent({}, lambda _title, _details: True)
+        with patch("jarvis.agent.automation.prepare_email_draft", return_value="draft opened") as draft:
+            result = jarvis_agent._execute_tool(
+                "prepare_email_draft",
+                {"recipient": "engineer@example.com", "subject": "Update", "body": "Review this"},
+            )
+        self.assertEqual(result, "draft opened")
+        draft.assert_called_once_with("engineer@example.com", "Update", "Review this")
+        tool = next(item["function"] for item in agent.TOOLS if item["function"]["name"] == "prepare_email_draft")
+        self.assertEqual(tool["parameters"]["required"], ["recipient", "subject", "body"])
 
     def test_header_control_characters_are_rejected(self) -> None:
         with patch("jarvis.automation.webbrowser.open") as open_url:
