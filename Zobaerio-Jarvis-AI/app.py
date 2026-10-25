@@ -16,6 +16,7 @@ from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
+from jarvis.health import collect_system_health, summarize_system_health
 from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
 from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
@@ -446,6 +447,10 @@ class JarvisDesktop:
                   bg="#13344a", fg=ACCENT, activebackground="#1d4d67", activeforeground=TEXT,
                   relief="flat", bd=0, font=("Segoe UI", 8, "bold"), padx=10, pady=9,
                   cursor="hand2").pack(fill="x", padx=11, pady=(0, 12))
+        tk.Button(llm_panel, text="RUN SYSTEM HEALTH CHECK  ↗", command=self._open_system_health,
+                  bg="#102538", fg="#a8bacd", activebackground="#19405a", activeforeground=TEXT,
+                  relief="flat", bd=0, font=("Segoe UI", 8, "bold"), padx=10, pady=8,
+                  cursor="hand2").pack(fill="x", padx=11, pady=(0, 12))
 
         safety_panel = self._panel(right)
         safety_panel.pack(fill="x", pady=(0, 9))
@@ -748,6 +753,119 @@ class JarvisDesktop:
                 self._approval_dialog.after(0, self._dismiss_approval_dialog)
             except tk.TclError:
                 pass
+
+    def _open_system_health(self) -> None:
+        """Show local preflight checks; never make network requests or inspect user files."""
+        win = tk.Toplevel(self.root)
+        win.title(f"{APP_NAME} — System Health")
+        win.configure(bg=BG)
+        win.geometry("850x560")
+        win.minsize(680, 430)
+        win.transient(self.root)
+
+        header = tk.Frame(win, bg="#050b17")
+        header.pack(fill="x")
+        tk.Label(
+            header,
+            text="SYSTEM HEALTH CHECK",
+            bg="#050b17",
+            fg=ACCENT,
+            font=("Segoe UI Semibold", 15, "bold"),
+        ).pack(anchor="w", padx=18, pady=(16, 5))
+        tk.Label(
+            header,
+            text="Local preflight only — no API requests, microphone recording, or user-file scanning.",
+            bg="#050b17",
+            fg=MUTED,
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", padx=18, pady=(0, 14))
+
+        summary = tk.Label(
+            win,
+            text="Checking local prerequisites…",
+            bg=BG,
+            fg=TEXT,
+            font=("Segoe UI Semibold", 10, "bold"),
+            anchor="w",
+        )
+        summary.pack(fill="x", padx=16, pady=(12, 8))
+
+        table_frame = tk.Frame(win, bg=BG)
+        table_frame.pack(fill="both", expand=True, padx=16, pady=(0, 10))
+        columns = ("component", "status", "detail")
+        tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
+        tree.heading("component", text="COMPONENT")
+        tree.heading("status", text="STATUS")
+        tree.heading("detail", text="DETAIL")
+        tree.column("component", width=155, minwidth=130, stretch=False)
+        tree.column("status", width=86, minwidth=75, stretch=False, anchor="center")
+        tree.column("detail", width=510, minwidth=250, stretch=True)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        tree.tag_configure("PASS", foreground="#34d399")
+        tree.tag_configure("WARN", foreground="#fbbf24")
+        tree.tag_configure("FAIL", foreground="#fb7185")
+
+        def refresh_checks() -> None:
+            checks = collect_system_health(self.settings)
+            totals = summarize_system_health(checks)
+            summary.configure(
+                text=(
+                    f"OVERALL: {totals['overall']}   ·   "
+                    f"{totals['PASS']} PASS   ·   {totals['WARN']} WARN   ·   {totals['FAIL']} FAIL"
+                ),
+                fg=(
+                    "#34d399" if totals["overall"] == "PASS"
+                    else "#fb7185" if totals["overall"] == "FAIL"
+                    else "#fbbf24"
+                ),
+            )
+            for item in tree.get_children():
+                tree.delete(item)
+            for check in checks:
+                tree.insert(
+                    "",
+                    "end",
+                    values=(check.component, check.status, check.detail),
+                    tags=(check.status,),
+                )
+
+        footer = tk.Frame(win, bg="#050b17")
+        footer.pack(fill="x", side="bottom")
+        tk.Button(
+            footer,
+            text="REFRESH CHECKS",
+            command=refresh_checks,
+            bg="#13344a",
+            fg=ACCENT,
+            activebackground="#1d4d67",
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 8, "bold"),
+            padx=12,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left", padx=16, pady=12)
+        tk.Button(
+            footer,
+            text="CLOSE",
+            command=win.destroy,
+            bg="#263449",
+            fg=TEXT,
+            activebackground="#334660",
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 8, "bold"),
+            padx=14,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="right", padx=16, pady=12)
+
+        refresh_checks()
 
     def _open_task_history(self) -> None:
         if self._task_history_window is not None:
