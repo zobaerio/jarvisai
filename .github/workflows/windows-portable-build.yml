@@ -1,0 +1,62 @@
+name: Windows Portable Package
+
+on:
+  pull_request:
+    paths:
+      - "Zobaerio-Jarvis-AI/**"
+      - ".github/workflows/windows-portable-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Zobaerio-Jarvis-AI/**"
+      - ".github/workflows/windows-portable-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-portable:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - name: Build the portable Windows package
+        shell: cmd
+        working-directory: Zobaerio-Jarvis-AI
+        run: build_portable.bat
+
+      - name: Verify package contents
+        shell: pwsh
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          if (!(Test-Path "dist/JARVIS/JARVIS.exe")) {
+            throw "The expected JARVIS.exe was not produced."
+          }
+          if (!(Test-Path "dist/JARVIS/_internal/assets/avatar_studio.html")) {
+            throw "The 3D Character Studio page is missing from the packaged assets."
+          }
+          if (!(Test-Path "dist/JARVIS-Windows-Portable.zip")) {
+            throw "The portable ZIP artifact was not produced."
+          }
+          $zip = Get-Item "dist/JARVIS-Windows-Portable.zip"
+          if ($zip.Length -lt 1MB) {
+            throw "The portable ZIP unexpectedly looks too small ($($zip.Length) bytes)."
+          }
+          Write-Host "Verified portable ZIP size: $($zip.Length) bytes"
+
+      - name: Upload unsigned portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-Windows-Portable
+          path: Zobaerio-Jarvis-AI/dist/JARVIS-Windows-Portable.zip
+          if-no-files-found: error
+          retention-days: 14
