@@ -107,7 +107,7 @@ class AgentOutcomeTests(unittest.TestCase):
         self.assertEqual(agent.last_outcome, "partial")
         self.assertEqual(execute.call_count, 12)
         post.assert_called_once()
-        self.assertIn("Task action budget reached", progress)
+        self.assertTrue(any("Task action budget reached" in item for item in progress))
 
     def test_partial_task_status_is_persisted_as_terminal(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
