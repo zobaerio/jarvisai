@@ -3,7 +3,8 @@
 Audit date: 2026-10-25. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
-- Dark Windows desktop command-center UI, clock and CPU/memory indicators.
+- Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
+- Responsive desktop layout: the right-side rail hides on narrow windows, decorative top navigation collapses, and the main workspace grows; minimum window size is 820×560.
 - Selectable LUNA, RUBY and MAYA reference profiles.
 - One-shot microphone input using SpeechRecognition + Google speech recognition (internet required).
 - Spoken responses using Edge TTS with pyttsx3 fallback.
@@ -26,6 +27,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
+- The UI is responsive for resizable desktop windows; this release is not yet a mobile/phone app and has no Android installer.
 
 ## Not implemented yet
 - Custom rigged GLB/VRM assets that match the supplied character designs closely are not bundled; the new import button only loads a model the user already has. Asset ownership/licensing must be confirmed.

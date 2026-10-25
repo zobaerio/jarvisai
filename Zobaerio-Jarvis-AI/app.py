@@ -16,6 +16,7 @@ from jarvis.settings import get_api_key, load_settings, save_settings, set_api_k
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.task_store import TaskStore
+from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -36,6 +37,17 @@ class JarvisDesktop:
         self.root.geometry("1100x760")
         self.root.minsize(900, 620)
         self.root.configure(bg=BG)
+        self.brand_assets = ensure_brand_assets()
+        try:
+            self.root.iconbitmap(str(self.brand_assets.ico))
+        except tk.TclError:
+            pass
+        try:
+            self.brand_logo_full = tk.PhotoImage(file=str(self.brand_assets.png))
+            self.root.iconphoto(True, self.brand_logo_full)
+            self.brand_logo_photo = self.brand_logo_full.subsample(12, 12)
+        except tk.TclError:
+            self.brand_logo_photo = None
         self.settings = load_settings()
         self.speech = SpeechEngine()
         self.events: queue.Queue = queue.Queue()
@@ -138,7 +150,7 @@ class JarvisDesktop:
         initial_w = min(1480, max(980, screen_w - 24))
         initial_h = min(900, max(620, screen_h - 60))
         self.root.geometry(f"{initial_w}x{initial_h}+0+0")
-        self.root.minsize(min(980, max(820, screen_w - 24)), min(620, max(560, screen_h - 60)))
+        self.root.minsize(820, 560)
         self.root.configure(bg=BG)
 
         # Top command bar
@@ -150,21 +162,27 @@ class JarvisDesktop:
         brand.pack(side="left", padx=20, fill="y")
         logo = tk.Canvas(brand, width=43, height=43, bg="#050b17", highlightthickness=0)
         logo.pack(side="left", pady=12)
-        logo.create_oval(3, 3, 40, 40, outline=ACCENT, width=2)
-        logo.create_oval(10, 10, 33, 33, outline="#1b6a94", width=1)
-        logo.create_text(21, 21, text="J", fill="#d9fbff", font=("Segoe UI Black", 20, "bold"))
+        if self.brand_logo_photo is not None:
+            logo.create_image(21, 21, image=self.brand_logo_photo)
+        else:
+            logo.create_oval(3, 3, 40, 40, outline=ACCENT, width=2)
+            logo.create_text(21, 21, text="J", fill="#d9fbff", font=("Segoe UI Black", 20, "bold"))
         word = tk.Frame(brand, bg="#050b17")
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="PERSONAL AI COMMAND CENTER · V1.3.0", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.4.0", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
         nav.pack(side="left", padx=(24, 10), fill="y")
-        for text, color in [("COMMAND CENTER", ACCENT), ("AI CORE", MUTED), ("VOICE", MUTED)]:
-            tk.Label(nav, text=text, bg="#050b17", fg=color,
-                     font=("Segoe UI", 8, "bold"), padx=10).pack(side="left", pady=26)
+        self.nav_items: list[tk.Widget] = []
+        for label_text, color in [("AGENT", ACCENT), ("TASKS", MUTED), ("VOICE", MUTED)]:
+            label = tk.Label(nav, text=label_text, bg="#050b17", fg=color,
+                             font=("Segoe UI", 8, "bold"), padx=10)
+            label.pack(side="left", pady=26)
+            self.nav_items.append(label)
+        self.nav_bar = nav
 
         self.clock_label = tk.Label(top, text="--:--:--", bg="#050b17", fg="#d8eafa",
                                     font=("Consolas", 13, "bold"))
@@ -190,6 +208,7 @@ class JarvisDesktop:
 
         # Left rail — system status and selectable humanoid characters
         left = tk.Frame(body, bg=BG, width=226)
+        self.left_rail = left
         left.grid(row=0, column=0, sticky="ns", padx=(0, 9))
         left.grid_propagate(False)
 
@@ -269,6 +288,7 @@ class JarvisDesktop:
 
         # Center workspace
         center = tk.Frame(body, bg=BG)
+        self.center_workspace = center
         center.grid(row=0, column=1, sticky="nsew")
         center.grid_rowconfigure(1, weight=1)
         center.grid_columnconfigure(0, weight=1)
@@ -279,9 +299,9 @@ class JarvisDesktop:
         hero.configure(height=min(386, max(300, int(self.root.winfo_height() * 0.44))))
         hero_head = tk.Frame(hero, bg="#061020")
         hero_head.pack(fill="x", padx=15, pady=(11, 4))
-        tk.Label(hero_head, text="J.A.R.V.I.S  /  AI CORE", bg="#061020", fg=TEXT,
+        tk.Label(hero_head, text="J.A.R.V.I.S  /  AI AGENT CORE", bg="#061020", fg=TEXT,
                  font=("Segoe UI Semibold", 10, "bold")).pack(side="left")
-        tk.Label(hero_head, text="SECURE SESSION · LOCAL CONTROL", bg="#061020", fg="#7291b3",
+        tk.Label(hero_head, text="PLAN · ACT · VERIFY", bg="#061020", fg="#7291b3",
                  font=("Segoe UI", 7, "bold")).pack(side="right")
         self.core_canvas = tk.Canvas(hero, bg="#061020", highlightthickness=0, height=320)
         self.core_canvas.pack(fill="both", expand=True, padx=5, pady=(0, 5))
@@ -298,7 +318,7 @@ class JarvisDesktop:
         chat_card.pack(fill="both", expand=True, pady=(0, 9))
         chat_header = tk.Frame(chat_card, bg=PANEL)
         chat_header.pack(fill="x", padx=14, pady=(10, 6))
-        tk.Label(chat_header, text="LIVE CONVERSATION", bg=PANEL, fg=TEXT,
+        tk.Label(chat_header, text="AI AGENT · TASK EXECUTION", bg=PANEL, fg=TEXT,
                  font=("Segoe UI Semibold", 9, "bold")).pack(side="left")
         self.status_dot = tk.Label(chat_header, text="● READY", bg=PANEL, fg=GREEN,
                                    font=("Segoe UI", 8, "bold"))
@@ -334,6 +354,7 @@ class JarvisDesktop:
 
         # Right rail — actual quick commands, activity and AI setup
         right = tk.Frame(body, bg=BG, width=250)
+        self.right_rail = right
         right.grid(row=0, column=2, sticky="ns", padx=(9, 0))
         right.grid_propagate(False)
         actions = self._panel(right)
@@ -422,13 +443,57 @@ class JarvisDesktop:
         self._update_clock()
         self._refresh_stats()
         self._animate_core()
+        self._responsive_after_id: str | None = None
+        self._right_rail_hidden = False
+        self._nav_collapsed = False
+        self.root.bind("<Configure>", self._schedule_responsive_layout, add="+")
+        self.root.after(120, self._apply_responsive_layout)
 
+    def _schedule_responsive_layout(self, event: tk.Event | None = None) -> None:
+        if event is not None and getattr(event, "widget", self.root) is not self.root:
+            return
+        pending = getattr(self, "_responsive_after_id", None)
+        if pending is not None:
+            try:
+                self.root.after_cancel(pending)
+            except tk.TclError:
+                pass
+        try:
+            self._responsive_after_id = self.root.after(90, self._apply_responsive_layout)
+        except tk.TclError:
+            self._responsive_after_id = None
+
+    def _apply_responsive_layout(self) -> None:
+        self._responsive_after_id = None
+        if not self.root.winfo_exists():
+            return
+        width = self.root.winfo_width()
+        # Give the conversation/agent workspace room on smaller laptop windows.
+        if width < 1180 and not self._right_rail_hidden:
+            self.right_rail.grid_remove()
+            self._right_rail_hidden = True
+        elif width >= 1180 and self._right_rail_hidden:
+            self.right_rail.grid(row=0, column=2, sticky="ns", padx=(9, 0))
+            self._right_rail_hidden = False
+
+        # Collapse decorative navigation labels on compact windows. Main controls remain.
+        if width < 1120 and not self._nav_collapsed:
+            for item in self.nav_items:
+                item.pack_forget()
+            self._nav_collapsed = True
+        elif width >= 1120 and self._nav_collapsed:
+            for item in self.nav_items:
+                item.pack(side="left", pady=26)
+            self._nav_collapsed = False
+
+        if hasattr(self, "core_canvas"):
+            self._render_core()
     def _render_core(self) -> None:
         if not hasattr(self, "core_canvas") or not self.core_canvas.winfo_exists():
             return
         canvas = self.core_canvas
-        width = max(canvas.winfo_width(), 560)
-        height = max(canvas.winfo_height(), 290)
+        width = max(canvas.winfo_width(), 360)
+        height = max(canvas.winfo_height(), 260)
         canvas.delete("all")
         # Subtle technical grid
         grid_color = "#10213a"
@@ -475,10 +540,12 @@ class JarvisDesktop:
             canvas.create_oval(px-3, py-3, px+3, py+3, fill=ACCENT if idx % 2 else ORANGE, outline="")
         # Core callout
         text_x = min(width - 20, int(width * 0.62))
-        canvas.create_text(text_x, int(height * 0.28), text="ONE COMMAND.", anchor="w",
-                           fill="#f3f8ff", font=("Segoe UI Semibold", 17, "bold"))
-        canvas.create_text(text_x, int(height * 0.28) + 27, text="EVERYTHING IN REACH.", anchor="w",
-                           fill=ACCENT, font=("Segoe UI Semibold", 10, "bold"))
+        compact_canvas = width < 520
+        canvas.create_text(text_x, int(height * 0.28), text="AI AGENT" if compact_canvas else "PLAN. ACT.", anchor="w",
+                           fill="#f3f8ff", font=("Segoe UI Semibold", 14 if compact_canvas else 17, "bold"))
+        canvas.create_text(text_x, int(height * 0.28) + 27,
+                           text="THINK · DO · VERIFY" if compact_canvas else "VERIFY. COMPLETE.",
+                           anchor="w", fill=ACCENT, font=("Segoe UI Semibold", 9 if compact_canvas else 10, "bold"))
         char = self.characters[self.selected_character]
         canvas.create_text(text_x, int(height * 0.28) + 60,
                            text=f"{char['name']}  ·  {char['role']}", anchor="w",
