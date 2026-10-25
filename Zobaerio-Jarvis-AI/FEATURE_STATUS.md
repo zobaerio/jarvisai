@@ -14,8 +14,8 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - New 3D Character Studio prototype: Three.js builds genuine 3D meshes with separate head/torso/upper arms/forearms/thighs/lower legs and eyes, plus idle motion, waving, periodic blink and simulated speech-mouth motion.
 
 ## Prototype / partial
-- 3D design: stylized procedural mesh characters inspired by the references, not photorealistic or a pixel-perfect 1:1 conversion.
-- Animation: separate limb parts animate, but no production-grade skeletal rig, hair/cloth physics, motion capture, natural walking cycle, emotion capture or phoneme-level lip-sync.
+- 3D design: stylized procedural mesh characters inspired by the references, not photorealistic or a pixel-perfect 1:1 conversion. The viewer now accepts a user-selected local rigged `.glb` model and can play embedded animation clips.
+- Animation: procedural characters have independent limb parts and simulated motion. A user-provided rigged `.glb` can replace the selected procedural character; if the file contains embedded clips, the viewer can play an idle/default clip and clips named like wave/hello/gesture or talk/speak. There is still no built-in production skeletal rig, generated custom model, hair/cloth physics, motion capture, natural walking, emotion capture or phoneme-level lip-sync.
 - 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required.
 - Wake word is based on repeated speech recognition, not a dedicated low-latency offline wake-word engine.
 - AI Agent can plan only with declared tools; no general screen vision, arbitrary mouse/keyboard automation, or guaranteed completion of multi-app workflows.
@@ -23,7 +23,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Settings and permissions are basic; there is no roles/teams/account system.
 
 ## Not implemented yet
-- Custom rigged GLB/VRM assets that match the supplied character designs closely; asset ownership/licensing must be confirmed.
+- Custom rigged GLB/VRM assets that match the supplied character designs closely are not bundled; the new import button only loads a model the user already has. Asset ownership/licensing must be confirmed.
 - Natural humanoid motion, realistic hands/fingers, expressions, eye gaze, proper talking animation and real lip-sync.
 - Screen understanding with screenshot/accessibility-tree context and safe interaction with arbitrary applications.
 - Full integrations for Gmail/Outlook, Office document editing, calendar, social media, message sending or form submission.
@@ -34,7 +34,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 ## Delivery order
 1. Stabilize the updated source tree and install workflow; run a clean install on Windows 11.
 2. Verify WebGL/CDN failure handling and connect character/task state from the desktop app to the browser studio.
-3. Replace procedural characters with licensed custom rigged GLB/VRM models; add facial rigging and phoneme lip-sync.
+3. Build/license custom GLB/VRM models matching the supplied characters, embed idle/wave/talk clips, add facial rigging and phoneme lip-sync.
 4. Add a task planner with explicit step approvals, cancellation, retries, persistence and verified action logs.
 5. Add one scoped Office/calendar/email integration at a time, using least-privilege permissions and confirmation before sending/submitting.
 6. Add screen-aware automation after threat modelling, allowlists, action confirmations and audit logging.
