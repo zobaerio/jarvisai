@@ -70,6 +70,9 @@ class JarvisDesktop:
         self._active_task_command = ""
         self._queue_armed = False
         self._task_history_window: tk.Toplevel | None = None
+        self._tray_icon = None
+        self._tray_thread: threading.Thread | None = None
+        self._background_mode = False
         self._approval_dialog: tk.Toplevel | None = None
         self.wake_enabled = False
         self._wake_thread: threading.Thread | None = None
@@ -1804,22 +1807,96 @@ class JarvisDesktop:
             self.root.after(100, self._drain_events)
 
     def _on_close(self) -> None:
-        if messagebox.askyesno("Close J.A.R.V.I.S", "Close the assistant?", parent=self.root):
-            # Ask the agent to stop before it starts any further tool calls.
-            if self._active_task_cancel_event is not None:
-                self._active_task_cancel_event.set()
-            if self._active_task_id:
-                try:
-                    self.task_store.update_task(
-                        self._active_task_id,
-                        status="cancelling",
-                        step="Application closing; cancellation requested",
-                    )
-                except Exception:
-                    pass
-            self.wake_enabled = False
-            self._queue_armed = False
-            self.root.destroy()
+        choice = messagebox.askyesnocancel(
+            "J.A.R.V.I.S — Background Mode",
+            "Yes: keep J.A.R.V.I.S running in the system tray so tasks can continue.\n\n"
+            "No: exit J.A.R.V.I.S now. An active task may stop part-way through.\n\n"
+            "Cancel: return to the assistant.",
+            parent=self.root,
+            icon="question",
+        )
+        if choice is True:
+            self._enter_background_mode()
+        elif choice is False:
+            self._exit_application()
+
+    def _enter_background_mode(self) -> None:
+        if self._background_mode:
+            self.root.withdraw()
+            return
+        try:
+            import pystray
+            from PIL import Image
+
+            with Image.open(self.brand_assets.ico) as source:
+                tray_image = source.convert("RGBA").copy()
+            menu = pystray.Menu(
+                pystray.MenuItem("Open J.A.R.V.I.S", lambda icon, item: self.root.after(0, self._restore_from_tray), default=True),
+                pystray.MenuItem("Exit J.A.R.V.I.S", lambda icon, item: self.root.after(0, self._exit_from_tray)),
+            )
+            self._tray_icon = pystray.Icon("Zobaerio-JARVIS", tray_image, "J.A.R.V.I.S — running in background", menu)
+            self._tray_thread = threading.Thread(
+                target=self._tray_icon.run,
+                name="jarvis-system-tray",
+                daemon=True,
+            )
+            self._tray_thread.start()
+            self._background_mode = True
+            self.root.withdraw()
+            self._write_message("SYSTEM", "Background Mode চালু: J.A.R.V.I.S system tray-তে চলছে; চলমান task চালু থাকবে।", "system")
+        except Exception as exc:
+            self._tray_icon = None
+            self._background_mode = False
+            messagebox.showerror(
+                "Background Mode unavailable",
+                f"Could not start the system tray ({type(exc).__name__}). J.A.R.V.I.S will stay open.",
+                parent=self.root,
+            )
+
+    def _restore_from_tray(self) -> None:
+        self._background_mode = False
+        self.root.deiconify()
+        self.root.lift()
+        try:
+            if self._tray_icon is not None:
+                self._tray_icon.stop()
+        except Exception:
+            pass
+        self._tray_icon = None
+        self._tray_thread = None
+
+    def _exit_from_tray(self) -> None:
+        if self._busy and not messagebox.askyesno(
+            "Exit while a task is running?",
+            "A task is still running. Exiting may stop it part-way through or leave an external action incomplete. Exit anyway?",
+            parent=self.root,
+            icon="warning",
+        ):
+            return
+        self._exit_application()
+
+    def _exit_application(self) -> None:
+        # Cancellation is requested only for a real exit, never for hide-to-tray.
+        if self._active_task_cancel_event is not None:
+            self._active_task_cancel_event.set()
+        if self._active_task_id:
+            try:
+                self.task_store.update_task(
+                    self._active_task_id,
+                    status="cancelling",
+                    step="Application exiting; cancellation requested",
+                )
+            except Exception:
+                pass
+        self.wake_enabled = False
+        self._queue_armed = False
+        try:
+            if self._tray_icon is not None:
+                self._tray_icon.stop()
+        except Exception:
+            pass
+        self._tray_icon = None
+        self.root.destroy()
 
     def run(self) -> None:
         self.root.mainloop()
