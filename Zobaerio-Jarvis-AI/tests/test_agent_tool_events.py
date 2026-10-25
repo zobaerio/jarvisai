@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -78,16 +79,23 @@ class AgentToolEventTests(unittest.TestCase):
             events.append((name, status, action_id, note))
             return "audit-02" if status == "running" else action_id
 
+        progress: list[str] = []
         with patch("jarvis.agent.automation.direct_command", return_value=None), patch(
             "jarvis.agent.get_api_key", return_value=""
-        ), patch("jarvis.agent.requests.post", side_effect=[first, second]), patch.object(
+        ), patch("jarvis.agent.requests.post", side_effect=[first, second]) as post, patch.object(
             agent, "_execute_tool", side_effect=RuntimeError("sensitive details should not enter audit metadata")
         ):
-            result = agent.respond("Run a tool", tool_event=on_tool_event)
+            result = agent.respond("Run a tool", tool_event=on_tool_event, progress=progress.append)
 
         self.assertEqual(result, "Stopped")
+        self.assertEqual(agent.last_outcome, "partial")
         self.assertEqual(events[-1][1:], ("failed", "audit-02", "RuntimeError"))
         self.assertNotIn("sensitive details", repr(events))
+        self.assertNotIn("sensitive details", repr(progress))
+        self.assertIn("Tool returned: get_system_info", progress)
+        provider_payload = json.dumps(post.call_args_list[1].kwargs["json"]["messages"])
+        self.assertIn("Sensitive exception details were withheld", provider_payload)
+        self.assertNotIn("sensitive details should not enter audit metadata", provider_payload)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,14 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.3 — Tool action audit
+**সংস্করণ:** 1.7.3 — voice timeout reliability
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
+
+## Voice reliability
+
+Speech recognition-এর network operation ১৫ সেকেন্ডে সীমাবদ্ধ। Edge TTS-এর audio তৈরি ও playback-এরও সময়সীমা আছে; online speech service আটকে গেলে available থাকলে local `pyttsx3` fallback ব্যবহার করার চেষ্টা হবে। তবুও বাস্তব microphone, speaker ও Windows device-এ পরীক্ষা করা জরুরি।
 
 ## Character
 - **LUNA:** বেগুনি চুলের full-body artwork
@@ -97,3 +101,45 @@ AI Agent এখন visible app window-এর title list করতে পার�
 - File create/copy/move/rename করার আগে নির্দিষ্ট action দেখিয়ে confirmation চাওয়ার নিরাপত্তা flow রাখা হয়েছে; destination overwrite করা হয় না।
 - arbitrary shell command স্বয়ংক্রিয়ভাবে চালানো যায় না।
 - এটিকে production-ready বলার আগে নিজের Windows 11 PC-তে microphone, speaker, character selection এবং প্রতিটি command পরীক্ষা করবে।
+
+
+## নতুন: কাজের ফলাফলের সঠিক Status
+
+Task History-তে `COMPLETED`, `PARTIAL`, `FAILED` ও `CANCELLED` আলাদা করে দেখা যাবে। পরিচিত provider/configuration error বা ভুল response format হলে `FAILED`; কোনো tool exception বা execution limit-এ থামলে `PARTIAL` দেখাবে। এটি execution-এর জানা status—ব্যবহারকারীর পুরো লক্ষ্য বা document-এর মান নিশ্চিতভাবে পূরণ হয়েছে, তার প্রমাণ নয়।
+
+
+## নতুন: Queue-তে থাকা Command Cancel
+
+Task History থেকে `QUEUED` status-এর command নির্বাচন করে **Cancel Selected Queued Task** চাপলে confirmation নেওয়া হবে। এরপর command-টি `CANCELLED` হবে এবং execute করা হবে না। ইতিমধ্যে চলতে শুরু করেছে এমন task এই control দিয়ে cancel করা যায় না। বাকি queued task আগের FIFO order-এ থাকবে; app restart-এর পর queue চালাতে এখনও আলাদা confirmation লাগবে।
+
+
+## নতুন: Task History Search ও Status Filter
+
+Search box-এ command, result, progress step, task ID বা tool-action metadata লিখে task খুঁজে পাবে। Status dropdown থেকে `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` ইত্যাদি filter করা যাবে। এটি এই PC-তে থাকা সর্বশেষ ১০০টি history record-এর ওপর local search; এতে task record পরিবর্তন হয় না এবং কোনো command execute হয় না।
+
+
+## নতুন: Privacy-safe Diagnostics Export
+
+Task History থেকে **Export Safe Diagnostics** চাপলে আগে privacy notice দেখাবে এবং confirmation নেবে। JSON report-এ শুধু মোট task/status/action-এর সংখ্যা, UTC date ও elapsed duration-এর সারাংশ, app version, OS family এবং Python version থাকবে। Task ID, command/prompt, result text, file path/name, progress text, tool name/arguments/output এবং exception details export হবে না। ফাইলটি নিজের PC-তে নির্বাচিত জায়গায় save হবে; অন্য কাউকে পাঠানোর আগে নিজে review করবে।
+
+
+## নতুন: Safe Exception Redaction
+
+কোনো tool বা desktop worker-এ অপ্রত্যাশিত error হলে user-facing message ও AI model-এ পাঠানো tool result-এ শুধু সীমিত error type এবং পরবর্তী করণীয় থাকবে; raw exception message পাঠানো হবে না। কারণ exception-এর ভেতরে local file path, URL, account identifier বা user data থাকতে পারে। Tool result-এর text-ও progress history-তে কপি করা হবে না—সেখানে status থাকবে, content নয়।
+
+
+## নতুন: Windows Portable Build
+
+**যা লাগবে:** Windows 10/11, Python 3.12 x64, dependency download করার জন্য internet এবং পর্যাপ্ত disk space।
+
+১. `Zobaerio-Jarvis-AI` folder খুলে `build_portable.bat` চালাও।
+২. Build শেষ হলে `dist/JARVIS-Windows-Portable.zip` পাবে।
+৩. ZIP ফাইলটি কোনো folder-এ extract করো এবং পুরো `JARVIS` folder একসঙ্গে রাখো।
+৪. `JARVIS/JARVIS.exe` চালাও; `_internal` folder মুছে ফেলবে না, কারণ এর মধ্যে runtime library ও 3D asset থাকে।
+
+Build script আলাদা `.packaging-venv` ব্যবহার করে, তাই app-এর runtime environment-এ PyInstaller যোগ হয় না। Package-এ `version.json` থাকবে; এতে app version, Python version, architecture এবং unsigned portable package-এর ধরন লেখা থাকবে। Windows CI manifest-এর version source-এর version constant-এর সঙ্গে মিলে কি না যাচাই করে। GitHub Actions executable, 3D page ও ZIP যাচাই করে artifact ১৪ দিনের জন্য রাখে। এই build **unsigned**—এটি signed installer/MSIX নয় এবং auto-update নেই; Windows SmartScreen warning দিতে পারে। 3D Studio-এর Three.js CDN, AI provider ও speech service-এর কারণে app পুরোপুরি offline নয়।
+
+
+## নতুন: Local System Health Check
+
+AI model status panel থেকে **RUN SYSTEM HEALTH CHECK** চাপলে Python runtime, Windows platform, local 3D/branding asset, dependency, endpoint/model configuration এবং cloud API key আছে কি না পরীক্ষা করবে। Key-এর মান কখনও দেখাবে না—শুধু পাওয়া গেছে কি না জানাবে। Local Ollama endpoint-এর জন্য API key বাধ্যতামূলক নয়। প্রতিটি আইটেমে `PASS`, `WARN` বা `FAIL` দেখা যাবে এবং Refresh button থাকবে। এই check কোনো AI request পাঠায় না, microphone/speaker hardware test করে না, user file scan করে না এবং endpoint/key value দেখায় না। Network connection যাচাই করতে Settings-এর আলাদা provider connection test ব্যবহার করো।

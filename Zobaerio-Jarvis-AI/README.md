@@ -2,9 +2,13 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.3 — Structured tool-action audit
+**Version:** 1.7.3 — bounded voice timeouts
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
+
+## Voice reliability
+
+Network-backed speech recognition has a 15-second operation timeout. Edge TTS synthesis and playback are bounded; a stalled online speech service falls back to the local `pyttsx3` engine when available. These bounds prevent the primary network-backed voice path from waiting indefinitely, but do not replace microphone/speaker tests on the target Windows device.
 
 ## Branding and responsive layout
 
@@ -140,3 +144,45 @@ Transient provider connection failures and HTTP 408, 429, 500, 502, 503 or 504 r
 ## Tool-action audit history
 
 Task History records each declared tool action as `RUNNING`, `RESULT_RECEIVED`, `FAILED` or `INTERRUPTED`. The audit stores tool names, timestamps and a bounded diagnostic note only; it does not copy tool arguments or result payloads. If the app restarts while a tool is running, recovery marks the outcome unknown and does not automatically replay the action.
+
+
+## Honest task outcome status
+
+Task History distinguishes `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED`. Known provider/configuration failures and malformed responses are marked failed; tool exceptions and execution-budget limits are marked partial. This status reflects known execution signals and is not semantic proof that an overall user goal or document quality has been achieved.
+
+
+## Cancel a saved queued command
+
+In Task History, select a row whose status is `QUEUED` and choose **Cancel Selected Queued Task**. The app confirms the command and marks that queue entry `CANCELLED` without executing it. A running or already-finished task cannot be cancelled through this control. Remaining queued commands retain FIFO order and still require the user to arm the saved queue after an app restart.
+
+
+## Search and filter Task History
+
+Use the search box to find a task by its command, recorded result, progress step, task ID or tool-action metadata. Use the status drop-down to filter to `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` or another recorded state. Search is performed locally against the latest 100 history entries; filtering does not change task records or start any command.
+
+
+## Privacy-safe diagnostics export
+
+Choose **Export Safe Diagnostics** from Task History and confirm the privacy notice. The generated JSON includes aggregate task/status/action counts, UTC dates and elapsed durations, app version, OS family and Python version. It deliberately excludes task IDs, commands/prompts, results, file paths/names, progress text, tool names/arguments/output payloads and exception details. The file is saved to a path you select on your PC; inspect it before sharing it with support.
+
+
+## Safe exception redaction
+
+When a tool or desktop worker raises an unexpected exception, user-facing messages and model tool results contain only a bounded exception type and guidance; raw `str(exception)` details are not forwarded. Those details can accidentally contain local file paths, URLs, account identifiers or returned data. Tool outputs are also omitted from progress-history text so that progress logs carry status rather than content. This does not replace operating-system permissions or the separate approval gates for actions.
+
+
+## Build a Windows portable package
+
+Requirements: Windows 10/11, Python 3.12 x64, internet access for dependency installation, and enough disk space for a separate build environment.
+
+1. Open `Zobaerio-Jarvis-AI` in File Explorer or a terminal.
+2. Run `build_portable.bat`.
+3. After the build finishes, find `dist/JARVIS-Windows-Portable.zip` and extract it to a folder you choose.
+4. Launch `JARVIS/JARVIS.exe` from the extracted package. Keep the whole `JARVIS` folder together because `_internal` contains runtime libraries and the 3D page/assets.
+
+The script uses an isolated `.packaging-venv` instead of adding PyInstaller to the runtime `.venv`. The package includes `version.json` with the app version, Python version, architecture and the fact that this is an unsigned portable build; Windows CI checks that this manifest matches the version constant in source. The workflow verifies the executable, packaged 3D page and ZIP, then uploads the artifact for 14 days. This package is **unsigned**; Windows SmartScreen may warn until a trusted code-signing identity is configured. It is not an MSIX installer and does not auto-update. The 3D studio still loads Three.js from a CDN, and AI/speech features depend on the configured provider or external services, so the package is not fully offline.
+
+
+## Local system health check
+
+Use **RUN SYSTEM HEALTH CHECK** in the AI model status panel to inspect the supported Python runtime, Windows platform, local 3D/branding assets, dependency availability, endpoint/model configuration and cloud API-key presence. It only reports whether a key appears available; it never displays the value. Local Ollama endpoints are treated as not requiring an API key. The report shows `PASS`, `WARN` or `FAIL` and provides a refresh action. This is a local preflight only: it does not contact the configured provider, test microphone/speaker hardware, or scan user files. To check network reachability, use the separate provider connection test in Settings.

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .settings import APP_DIR
+from .version import APP_VERSION
 
 DEFAULT_HISTORY_FILE = APP_DIR / "task_history.json"
 MAX_TASKS = 100
@@ -17,6 +18,169 @@ MAX_STEPS = 40
 MAX_COMMAND_LENGTH = 600
 MAX_RESULT_LENGTH = 6000
 MAX_ACTIONS_PER_TASK = 16
+
+TASK_HISTORY_STATUSES = (
+    "all",
+    "queued",
+    "running",
+    "cancelling",
+    "completed",
+    "partial",
+    "failed",
+    "cancelled",
+)
+
+
+def _parse_diagnostic_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def build_safe_diagnostics(
+    records: list[dict[str, Any]],
+    *,
+    app_version: str = APP_VERSION,
+    os_name: str = "unknown",
+    python_version: str = "unknown",
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a shareable aggregate report without user commands or content-bearing fields."""
+    rows = [record for record in records if isinstance(record, dict)][:MAX_TASKS]
+    status_counts = {status: 0 for status in TASK_HISTORY_STATUSES if status != "all"}
+    status_counts["unknown"] = 0
+    action_status_counts: dict[str, int] = {
+        "running": 0,
+        "result_received": 0,
+        "failed": 0,
+        "interrupted": 0,
+        "unknown": 0,
+    }
+    task_summaries: list[dict[str, Any]] = []
+    progress_total = 0
+    action_total = 0
+
+    for ordinal, record in enumerate(rows, start=1):
+        raw_status = str(record.get("status", "unknown")).strip().lower()
+        status = raw_status if raw_status in status_counts else "unknown"
+        status_counts[status] += 1
+        steps = record.get("steps")
+        actions = record.get("actions")
+        valid_steps = [step for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
+        valid_actions = [action for action in actions if isinstance(action, dict)] if isinstance(actions, list) else []
+        progress_count = min(len(valid_steps), MAX_STEPS)
+        action_count = min(len(valid_actions), MAX_ACTIONS_PER_TASK)
+        progress_total += progress_count
+        action_total += action_count
+
+        per_task_action_statuses = {"running": 0, "result_received": 0, "failed": 0, "interrupted": 0, "unknown": 0}
+        for action in valid_actions[:MAX_ACTIONS_PER_TASK]:
+            action_status = str(action.get("status", "unknown")).strip().lower()
+            if action_status not in per_task_action_statuses:
+                action_status = "unknown"
+            per_task_action_statuses[action_status] += 1
+            action_status_counts[action_status] += 1
+
+        created = _parse_diagnostic_timestamp(record.get("created_at"))
+        finished = _parse_diagnostic_timestamp(record.get("finished_at"))
+        elapsed: float | None = None
+        if created is not None and finished is not None and finished >= created:
+            elapsed = round((finished - created).total_seconds(), 2)
+
+        task_summaries.append({
+            "task_number": ordinal,
+            "status": status,
+            "created_date_utc": created.date().isoformat() if created is not None else None,
+            "duration_seconds": elapsed,
+            "progress_event_count": progress_count,
+            "tool_action_count": action_count,
+            "tool_action_status_counts": per_task_action_statuses,
+        })
+
+    return {
+        "schema_version": 1,
+        "generated_at_utc": generated_at or datetime.now(timezone.utc).isoformat(),
+        "app_version": str(app_version)[:32],
+        "runtime": {
+            "operating_system_family": str(os_name)[:40],
+            "python_version": str(python_version)[:40],
+        },
+        "summary": {
+            "task_count": len(rows),
+            "status_counts": status_counts,
+            "progress_event_count": progress_total,
+            "tool_action_count": action_total,
+            "tool_action_status_counts": action_status_counts,
+        },
+        "tasks": task_summaries,
+        "privacy": {
+            "excluded": [
+                "task IDs",
+                "commands and prompts",
+                "task result text",
+                "file paths and file names",
+                "progress text",
+                "tool names and arguments",
+                "tool result payloads",
+                "exception details",
+            ],
+            "note": "Aggregate execution metadata only; no user task text or tool payloads are exported.",
+        },
+    }
+
+
+def filter_task_records(
+    records: list[dict[str, Any]],
+    *,
+    query: str = "",
+    status: str = "all",
+) -> list[dict[str, Any]]:
+    """Filter an already bounded history snapshot without mutating or persisting it."""
+    normalized_status = str(status or "all").strip().lower()
+    if normalized_status not in TASK_HISTORY_STATUSES:
+        raise ValueError("Unsupported task-history status filter")
+    needle = " ".join(str(query or "").split())[:300].casefold()
+    filtered: list[dict[str, Any]] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_status = str(record.get("status", "unknown")).casefold()
+        if normalized_status != "all" and record_status != normalized_status:
+            continue
+        if needle:
+            parts = [
+                str(record.get("id", "")),
+                str(record.get("command", "")),
+                str(record.get("result", "")),
+                record_status,
+            ]
+            steps = record.get("steps")
+            if isinstance(steps, list):
+                parts.extend(
+                    str(step.get("text", ""))
+                    for step in steps
+                    if isinstance(step, dict)
+                )
+            actions = record.get("actions")
+            if isinstance(actions, list):
+                for action in actions:
+                    if isinstance(action, dict):
+                        parts.extend([
+                            str(action.get("name", "")),
+                            str(action.get("status", "")),
+                            str(action.get("note", "")),
+                        ])
+            if needle not in " ".join(parts).casefold():
+                continue
+        filtered.append(record)
+    return filtered
+
 
 _PATH_LOCKS_GUARD = threading.Lock()
 _PATH_LOCKS: dict[str, Any] = {}
@@ -141,7 +305,7 @@ class TaskStore:
         result: str | None = None,
         step: str | None = None,
     ) -> dict[str, Any] | None:
-        allowed_statuses = {"queued", "running", "cancelling", "completed", "failed", "cancelled"}
+        allowed_statuses = {"queued", "running", "cancelling", "completed", "partial", "failed", "cancelled"}
         if status is not None and status not in allowed_statuses:
             raise ValueError(f"Unsupported task status: {status}")
         with self._lock:
@@ -155,7 +319,7 @@ class TaskStore:
                 target["status"] = status
                 if status == "running":
                     target["process_id"] = os.getpid()
-                if status in {"completed", "failed", "cancelled"}:
+                if status in {"completed", "partial", "failed", "cancelled"}:
                     target["finished_at"] = now
             if result is not None:
                 target["result"] = str(result)[:MAX_RESULT_LENGTH]
@@ -166,6 +330,29 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
+
+    def cancel_queued_task(self, task_id: str) -> dict[str, Any] | None:
+        """Cancel a queued command without executing it; active or terminal tasks are untouched."""
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None or target.get("status") != "queued":
+                return None
+            now = _now()
+            target["status"] = "cancelled"
+            target["updated_at"] = now
+            target["finished_at"] = now
+            target["result"] = "Queued command cancelled before execution. It was not run."
+            steps = target.get("steps")
+            if not isinstance(steps, list):
+                steps = []
+            steps.append({
+                "time": now,
+                "text": "Queued command cancelled by user before execution",
+            })
+            target["steps"] = steps[-MAX_STEPS:]
+            self._write(rows[-MAX_TASKS:])
+            return dict(target)
 
     def start_action(self, task_id: str, name: str) -> str | None:
         """Record a tool start without persisting its arguments or returned content."""

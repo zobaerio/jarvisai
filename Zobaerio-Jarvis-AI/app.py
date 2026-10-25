@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import queue
@@ -7,7 +8,7 @@ import re
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 from typing import Callable
 
@@ -15,7 +16,10 @@ from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
-from jarvis.task_store import TaskStore
+from jarvis.health import collect_system_health, summarize_system_health
+from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
+from jarvis.safe_errors import safe_worker_error
+from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
@@ -33,7 +37,7 @@ BORDER = "#203650"
 class JarvisDesktop:
     def __init__(self) -> None:
         self.root = tk.Tk()
-        self.root.title("J.A.R.V.I.S — Desktop AI Assistant")
+        self.root.title(f"{APP_NAME} — Desktop AI Assistant")
         self.root.geometry("1100x760")
         self.root.minsize(900, 620)
         self.root.configure(bg=BG)
@@ -190,7 +194,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.3", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text=f"AI AGENT ASSISTANT · V{APP_VERSION}", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -442,6 +446,10 @@ class JarvisDesktop:
         tk.Button(llm_panel, text="CONFIGURE AI MODEL  →", command=self._open_settings,
                   bg="#13344a", fg=ACCENT, activebackground="#1d4d67", activeforeground=TEXT,
                   relief="flat", bd=0, font=("Segoe UI", 8, "bold"), padx=10, pady=9,
+                  cursor="hand2").pack(fill="x", padx=11, pady=(0, 12))
+        tk.Button(llm_panel, text="RUN SYSTEM HEALTH CHECK  ↗", command=self._open_system_health,
+                  bg="#102538", fg="#a8bacd", activebackground="#19405a", activeforeground=TEXT,
+                  relief="flat", bd=0, font=("Segoe UI", 8, "bold"), padx=10, pady=8,
                   cursor="hand2").pack(fill="x", padx=11, pady=(0, 12))
 
         safety_panel = self._panel(right)
@@ -746,6 +754,119 @@ class JarvisDesktop:
             except tk.TclError:
                 pass
 
+    def _open_system_health(self) -> None:
+        """Show local preflight checks; never make network requests or inspect user files."""
+        win = tk.Toplevel(self.root)
+        win.title(f"{APP_NAME} — System Health")
+        win.configure(bg=BG)
+        win.geometry("850x560")
+        win.minsize(680, 430)
+        win.transient(self.root)
+
+        header = tk.Frame(win, bg="#050b17")
+        header.pack(fill="x")
+        tk.Label(
+            header,
+            text="SYSTEM HEALTH CHECK",
+            bg="#050b17",
+            fg=ACCENT,
+            font=("Segoe UI Semibold", 15, "bold"),
+        ).pack(anchor="w", padx=18, pady=(16, 5))
+        tk.Label(
+            header,
+            text="Local preflight only — no API requests, microphone recording, or user-file scanning.",
+            bg="#050b17",
+            fg=MUTED,
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", padx=18, pady=(0, 14))
+
+        summary = tk.Label(
+            win,
+            text="Checking local prerequisites…",
+            bg=BG,
+            fg=TEXT,
+            font=("Segoe UI Semibold", 10, "bold"),
+            anchor="w",
+        )
+        summary.pack(fill="x", padx=16, pady=(12, 8))
+
+        table_frame = tk.Frame(win, bg=BG)
+        table_frame.pack(fill="both", expand=True, padx=16, pady=(0, 10))
+        columns = ("component", "status", "detail")
+        tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
+        tree.heading("component", text="COMPONENT")
+        tree.heading("status", text="STATUS")
+        tree.heading("detail", text="DETAIL")
+        tree.column("component", width=155, minwidth=130, stretch=False)
+        tree.column("status", width=86, minwidth=75, stretch=False, anchor="center")
+        tree.column("detail", width=510, minwidth=250, stretch=True)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        tree.tag_configure("PASS", foreground="#34d399")
+        tree.tag_configure("WARN", foreground="#fbbf24")
+        tree.tag_configure("FAIL", foreground="#fb7185")
+
+        def refresh_checks() -> None:
+            checks = collect_system_health(self.settings)
+            totals = summarize_system_health(checks)
+            summary.configure(
+                text=(
+                    f"OVERALL: {totals['overall']}   ·   "
+                    f"{totals['PASS']} PASS   ·   {totals['WARN']} WARN   ·   {totals['FAIL']} FAIL"
+                ),
+                fg=(
+                    "#34d399" if totals["overall"] == "PASS"
+                    else "#fb7185" if totals["overall"] == "FAIL"
+                    else "#fbbf24"
+                ),
+            )
+            for item in tree.get_children():
+                tree.delete(item)
+            for check in checks:
+                tree.insert(
+                    "",
+                    "end",
+                    values=(check.component, check.status, check.detail),
+                    tags=(check.status,),
+                )
+
+        footer = tk.Frame(win, bg="#050b17")
+        footer.pack(fill="x", side="bottom")
+        tk.Button(
+            footer,
+            text="REFRESH CHECKS",
+            command=refresh_checks,
+            bg="#13344a",
+            fg=ACCENT,
+            activebackground="#1d4d67",
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 8, "bold"),
+            padx=12,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="left", padx=16, pady=12)
+        tk.Button(
+            footer,
+            text="CLOSE",
+            command=win.destroy,
+            bg="#263449",
+            fg=TEXT,
+            activebackground="#334660",
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 8, "bold"),
+            padx=14,
+            pady=9,
+            cursor="hand2",
+        ).pack(side="right", padx=16, pady=12)
+
+        refresh_checks()
+
     def _open_task_history(self) -> None:
         if self._task_history_window is not None:
             try:
@@ -783,6 +904,22 @@ class JarvisDesktop:
         right.grid(row=0, column=1, sticky="nsew")
         tk.Label(left, text="RECENT RUNS", bg=PANEL, fg=ACCENT,
                  font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=11, pady=(10, 5))
+        search_var = tk.StringVar(value="")
+        status_var = tk.StringVar(value="ALL")
+        filters = tk.Frame(left, bg=PANEL)
+        filters.pack(fill="x", padx=8, pady=(0, 7))
+        tk.Label(filters, text="Search", bg=PANEL, fg=MUTED,
+                 font=("Segoe UI", 8)).pack(side="left", padx=(0, 6))
+        search_entry = ttk.Entry(filters, textvariable=search_var)
+        search_entry.pack(side="left", fill="x", expand=True)
+        status_filter = ttk.Combobox(
+            filters,
+            textvariable=status_var,
+            values=("ALL", "QUEUED", "RUNNING", "CANCELLING", "COMPLETED", "PARTIAL", "FAILED", "CANCELLED"),
+            state="readonly",
+            width=12,
+        )
+        status_filter.pack(side="left", padx=(8, 0))
         tree_frame = tk.Frame(left, bg=PANEL)
         tree_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         columns = ("time", "status", "command")
@@ -847,7 +984,11 @@ class JarvisDesktop:
 
         def refresh() -> None:
             try:
-                records = self.task_store.list_tasks(limit=100)
+                records = filter_task_records(
+                    self.task_store.list_tasks(limit=100),
+                    query=search_var.get(),
+                    status=status_var.get(),
+                )
             except Exception as exc:
                 messagebox.showerror("Task history", f"Could not read task history: {exc}", parent=win)
                 return
@@ -875,6 +1016,117 @@ class JarvisDesktop:
                     tree.selection_set(first_id)
                     tree.focus(first_id)
             selection_changed()
+
+        def cancel_queued_selected() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Cancel queued task", "Select a task from the history list first.", parent=win)
+                return
+            if record.get("status") != "queued":
+                messagebox.showinfo(
+                    "Cancel queued task",
+                    "Only a task with QUEUED status can be cancelled here. A task that has started may already have side effects.",
+                    parent=win,
+                )
+                return
+            task_id = str(record.get("id", ""))
+            command = str(record.get("command", "")).strip()
+            if not messagebox.askyesno(
+                "Cancel queued task?",
+                f"Cancel this command before execution?\n\nCommand:\n{command}\n\n"
+                "The selected queued command will be marked CANCELLED and will not be run.",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                cancelled_record = self.task_store.cancel_queued_task(task_id)
+            except Exception as exc:
+                messagebox.showerror(
+                    "Cancel queued task",
+                    f"Could not update task history ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            if cancelled_record is None:
+                messagebox.showinfo(
+                    "Cancel queued task",
+                    "This task is no longer queued. Refresh the list and check its current status.",
+                    parent=win,
+                )
+                refresh()
+                return
+            try:
+                remaining = self.task_store.queued_count()
+            except Exception:
+                remaining = 0
+            if remaining == 0:
+                self._queue_armed = False
+            self._write_message(
+                "SYSTEM",
+                f"Queued command #{task_id} was cancelled before execution.",
+                "system",
+            )
+            self._push_activity("Cancelled queued command: " + command)
+            self._refresh_queue_button()
+            refresh()
+            if self._queue_armed and not self._busy and remaining > 0:
+                self.root.after(150, self._start_next_queued_task)
+
+        search_var.trace_add("write", lambda *_args: refresh())
+        status_var.trace_add("write", lambda *_args: refresh())
+
+        def export_safe_diagnostics() -> None:
+            if not messagebox.askyesno(
+                "Export privacy-safe diagnostics",
+                "Export aggregate task counts and execution timings only?\n\n"
+                "Commands, results, file paths, progress text, tool names, arguments, output payloads, "
+                "and exception details are excluded.",
+                parent=win,
+            ):
+                return
+            path = filedialog.asksaveasfilename(
+                parent=win,
+                title="Save privacy-safe J.A.R.V.I.S diagnostics",
+                defaultextension=".json",
+                initialfile="jarvis-safe-diagnostics.json",
+                filetypes=(("JSON diagnostics", "*.json"),),
+            )
+            if not path:
+                return
+            destination = Path(path)
+            if destination.exists() and not messagebox.askyesno(
+                "Overwrite diagnostics file?",
+                "The selected file already exists. Replace it with this privacy-safe diagnostics report?",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                report_data = build_safe_diagnostics(
+                    self.task_store.list_tasks(limit=100),
+                    app_version=APP_VERSION,
+                    os_name=platform.system(),
+                    python_version=platform.python_version(),
+                )
+                destination.write_text(
+                    json.dumps(report_data, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                messagebox.showerror(
+                    "Export diagnostics",
+                    f"Could not save diagnostics ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            messagebox.showinfo(
+                "Diagnostics exported",
+                "The privacy-safe diagnostics file was saved. It contains counts/status/timing metadata only; "
+                "task text, paths, tool names, and tool payloads were not exported.",
+                parent=win,
+            )
 
         def retry_selected() -> None:
             selected = tree.selection()
@@ -906,6 +1158,8 @@ class JarvisDesktop:
         footer.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Export Safe Diagnostics", command=export_safe_diagnostics).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
         refresh()
 
@@ -1094,12 +1348,16 @@ class JarvisDesktop:
             )
         except Exception as exc:
             failed = True
-            result = f"একটি সমস্যা হয়েছে: {type(exc).__name__}: {exc}"
+            result = safe_worker_error(exc)
         if cancel_event.is_set():
             status = "cancelled"
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
+        elif failed:
+            status = "failed"
         else:
-            status = "failed" if failed else "completed"
+            status = str(getattr(self.agent, "last_outcome", "completed"))
+            if status not in {"completed", "partial", "failed", "cancelled"}:
+                status = "failed"
         if task_id:
             try:
                 self.task_store.update_task(task_id, status=status, result=result)
