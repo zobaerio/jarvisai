@@ -220,7 +220,7 @@ def search_file_contents(query: str, location: str, approve) -> str:
     term = str(query).strip()
     if len(term) < 2:
         return "Give me a search phrase with at least 2 characters."
-    if len(term) > 120 or any(ord(char) < 32 and char not in "\\t" for char in term):
+    if len(term) > 120 or any(ord(char) < 32 and char not in "\t" for char in term):
         return "Search phrase must be 2–120 characters and cannot contain control characters."
 
     label = str(location).strip()
@@ -242,8 +242,8 @@ def search_file_contents(query: str, location: str, approve) -> str:
 
     scope_names = ", ".join(name for name, _root in selected_roots)
     details = (
-        f"Search for this text: {term}\\n"
-        f"Folders: {scope_names}\\n\\n"
+        f"Search for this text: {term}\n"
+        f"Folders: {scope_names}\n\n"
         f"J.A.R.V.I.S will inspect only common text/source files, skip files larger than "
         f"{MAX_CONTENT_SEARCH_FILE_BYTES:,} bytes, scan at most {MAX_CONTENT_SEARCH_FILES:,} files, "
         f"and return at most {MAX_CONTENT_SEARCH_MATCHES} short matching-line excerpts. "
@@ -301,7 +301,7 @@ def search_file_contents(query: str, location: str, approve) -> str:
                         continue
                     with path.open("rb") as stream:
                         raw = stream.read(MAX_CONTENT_SEARCH_FILE_BYTES + 1)
-                    if len(raw) > MAX_CONTENT_SEARCH_FILE_BYTES or b"\\x00" in raw:
+                    if len(raw) > MAX_CONTENT_SEARCH_FILE_BYTES or b"\x00" in raw:
                         skipped_large += 1
                         continue
                     text_content = raw.decode("utf-8", errors="replace")
@@ -327,8 +327,8 @@ def search_file_contents(query: str, location: str, approve) -> str:
     if not matches:
         summary = f"No matching lines found in {scope_names}. Scanned {scanned:,} file(s)."
     else:
-        summary = f"Found {len(matches)} matching line(s) in {scope_names} after scanning {scanned:,} file(s):\\n"
-        summary += "\\n".join(f"- {item}" for item in matches)
+        summary = f"Found {len(matches)} matching line(s) in {scope_names} after scanning {scanned:,} file(s):\n"
+        summary += "\n".join(f"- {item}" for item in matches)
     notes = []
     if skipped_large:
         notes.append(f"skipped {skipped_large:,} large/binary file(s)")
@@ -337,7 +337,7 @@ def search_file_contents(query: str, location: str, approve) -> str:
     if match_limit_hit:
         notes.append(f"returned only the first {MAX_CONTENT_SEARCH_MATCHES} matching lines")
     if notes:
-        summary += "\\n\\nSearch limits: " + "; ".join(notes) + "."
+        summary += "\n\nSearch limits: " + "; ".join(notes) + "."
     return summary
 
 
@@ -460,7 +460,7 @@ def get_active_window_title() -> str:
 
 def _find_window(expected_app: str, timeout: float = 0.0):
     target = expected_app.strip()
-    if not target or len(target) > 100 or any(ch in target for ch in "\\r\\n\\x00"):
+    if not target or len(target) > 100 or any(ch in target for ch in "\r\n\x00"):
         raise ValueError("Provide a short application/window-title fragment.")
     deadline = __import__("time").monotonic() + max(0.0, min(timeout, 5.0))
     while True:
@@ -716,10 +716,10 @@ def open_file(location: str, filename: str, approve) -> str:
     except OSError as exc:
         return f"Could not inspect the file before opening: {exc}"
     detail = (
-        f"Open this file in its default Windows application?\\n\\n"
-        f"File: {path}\\n"
-        f"Type: {path.suffix.lower()}\\n"
-        f"Size: {before.st_size:,} bytes\\n\\n"
+        f"Open this file in its default Windows application?\n\n"
+        f"File: {path}\n"
+        f"Type: {path.suffix.lower()}\n"
+        f"Size: {before.st_size:,} bytes\n\n"
         "J.A.R.V.I.S will not edit or submit the file. The associated application may have its own behavior."
     )
     try:
