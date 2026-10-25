@@ -27,7 +27,6 @@ class SafeDuplicateFinderTests(unittest.TestCase):
     def test_finds_identical_content_and_never_returns_file_contents(self) -> None:
         first = self.roots["documents"] / "estimate.txt"
         second = self.roots["documents"] / "estimate-copy.txt"
-        distinct = self.roots["documents"] / "secured construction estimate 12345"
         first.write_text("private construction estimate 12345", encoding="utf-8")
         second.write_text("private construction estimate 12345", encoding="utf-8")
         # Same-size content but different bytes must not be called a duplicate.
