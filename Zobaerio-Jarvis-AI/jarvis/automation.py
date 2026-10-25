@@ -750,6 +750,50 @@ def _launch_file_with_default_app(path: Path) -> None:
     os.startfile(str(path))  # type: ignore[attr-defined]
 
 
+def move_file_to_recycle_bin(location: str, filename: str, approve) -> str:
+    """Send one approved regular file to the OS recycle bin/trash, never permanent-delete."""
+    try:
+        path = _operation_child_path(location, filename)
+    except (ValueError, OSError) as exc:
+        return f"Recycle Bin operation blocked: {exc}"
+    if not _is_windows_platform():
+        return "Sending files to the Windows Recycle Bin is supported only on Windows."
+    if not path.is_file():
+        return f"File not found or not a regular file: {path}"
+    try:
+        before = path.stat()
+    except OSError as exc:
+        return f"Could not inspect the file before recycle: {exc}"
+    detail = (
+        f"Send this file to the Windows Recycle Bin? It will not be permanently deleted.\n\n"
+        f"File: {path}\n"
+        f"Size: {before.st_size:,} bytes\n"
+        f"Type: {path.suffix.lower() or 'no extension'}\n\n"
+        "The file should remain recoverable from the Recycle Bin until it is emptied. "
+        "Approve moving this exact file to the Recycle Bin?"
+    )
+    try:
+        if not approve("Move file to Recycle Bin", detail):
+            return "Cancelled. The file was not moved to the Recycle Bin."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). The file was not moved."
+
+    try:
+        current = _operation_child_path(location, filename)
+        after = current.stat()
+        identity_before = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        identity_after = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        if current != path or identity_after != identity_before:
+            return "The file changed after confirmation. Nothing was moved; review it and try again."
+        from send2trash import send2trash
+        send2trash(str(current))
+    except (OSError, ValueError) as exc:
+        return f"Could not move the file to the Recycle Bin: {type(exc).__name__}: {exc}"
+    except Exception as exc:
+        return f"Recycle Bin operation failed safely ({type(exc).__name__}). The app cannot confirm that the file was moved."
+    return f"Moved to the Windows Recycle Bin: {path}. Verify it in the Recycle Bin if needed."
+
+
 def open_file(location: str, filename: str, approve) -> str:
     """Open one allow-listed document/image from an approved user folder after confirmation."""
     try:
