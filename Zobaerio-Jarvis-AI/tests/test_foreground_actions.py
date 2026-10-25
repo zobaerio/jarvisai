@@ -31,7 +31,10 @@ class ForegroundActionPolicyTests(unittest.TestCase):
         if os.name != "nt":
             self.assertIn("only on Windows", result)
         else:
-            self.assertIn("titles only", result)
+            self.assertTrue(
+                "Visible window titles" in result or "No titled application windows" in result,
+                result,
+            )
 
 
 if __name__ == "__main__":
