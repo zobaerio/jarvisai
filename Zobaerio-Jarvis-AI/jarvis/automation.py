@@ -209,6 +209,236 @@ def get_system_info() -> str:
     )
 
 
+WINDOW_SHORTCUTS: dict[str, tuple[str, ...]] = {
+    "CTRL+S": ("ctrl", "s"),
+    "CTRL+A": ("ctrl", "a"),
+    "CTRL+C": ("ctrl", "c"),
+    "CTRL+V": ("ctrl", "v"),
+    "CTRL+Z": ("ctrl", "z"),
+    "CTRL+Y": ("ctrl", "y"),
+    "CTRL+F": ("ctrl", "f"),
+    "TAB": ("tab",),
+    "SHIFT+TAB": ("shift", "tab"),
+    "ESC": ("esc",),
+    "HOME": ("home",),
+    "END": ("end",),
+    "PAGEUP": ("pageup",),
+    "PAGEDOWN": ("pagedown",),
+}
+
+
+def normalize_allowed_shortcut(shortcut: str) -> tuple[str, ...]:
+    """Return a mapped keystroke sequence; never pass arbitrary keys to the OS."""
+    key = "+".join(part.strip().upper() for part in str(shortcut).split("+") if part.strip())
+    if key not in WINDOW_SHORTCUTS:
+        raise ValueError(
+            "Shortcut is not allow-listed. Supported shortcuts: "
+            + ", ".join(WINDOW_SHORTCUTS)
+            + ". Enter, Alt+F4, Windows+R and arbitrary key sequences are blocked."
+        )
+    return WINDOW_SHORTCUTS[key]
+
+
+def _windows_api():
+    if os.name != "nt":
+        raise OSError("Foreground-window automation is supported only on Windows.")
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    user32.GetForegroundWindow.restype = ctypes.c_void_p
+    user32.IsWindowVisible.argtypes = [ctypes.c_void_p]
+    user32.IsWindowVisible.restype = ctypes.c_bool
+    user32.GetWindowTextLengthW.argtypes = [ctypes.c_void_p]
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int]
+    user32.GetWindowTextW.restype = ctypes.c_int
+    user32.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
+    user32.SetForegroundWindow.restype = ctypes.c_bool
+    return ctypes, user32
+
+
+def _window_title(user32, hwnd) -> str:
+    length = int(user32.GetWindowTextLengthW(hwnd))
+    if length <= 0:
+        return ""
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(min(length + 1, 1024))
+    user32.GetWindowTextW(hwnd, buffer, len(buffer))
+    return buffer.value.strip()
+
+
+def _enumerate_windows() -> list[tuple[object, str]]:
+    ctypes, user32 = _windows_api()
+    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    found: list[tuple[object, str]] = []
+
+    @callback_type
+    def callback(hwnd, _lparam) -> bool:
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        title = _window_title(user32, hwnd)
+        if title:
+            found.append((hwnd, title[:240]))
+        return True
+
+    user32.EnumWindows.argtypes = [callback_type, ctypes.c_void_p]
+    user32.EnumWindows.restype = ctypes.c_bool
+    user32.EnumWindows(callback, 0)
+    return found
+
+
+def list_open_windows() -> str:
+    """List titles of visible top-level windows; does not capture their contents."""
+    if os.name != "nt":
+        return "Listing desktop windows is supported only on Windows."
+    try:
+        rows = _enumerate_windows()
+    except Exception as exc:
+        return f"Could not list visible windows: {type(exc).__name__}: {exc}"
+    if not rows:
+        return "No titled application windows were found."
+    titles = list(dict.fromkeys(title for _hwnd, title in rows))
+    return "Visible window titles (titles only; no screen contents captured):\n" + "\n".join(
+        f"- {title}" for title in titles[:30]
+    )
+
+
+def get_active_window_title() -> str:
+    """Return the foreground application's title only, without reading its content."""
+    if os.name != "nt":
+        return "Active-window titles are supported only on Windows."
+    try:
+        _ctypes, user32 = _windows_api()
+        title = _window_title(user32, user32.GetForegroundWindow())
+        return f"Active window title: {title}" if title else "The active window has no readable title."
+    except Exception as exc:
+        return f"Could not read active window title: {type(exc).__name__}: {exc}"
+
+
+def _find_window(expected_app: str, timeout: float = 0.0):
+    target = expected_app.strip()
+    if not target or len(target) > 100 or any(ch in target for ch in "\\r\\n\\x00"):
+        raise ValueError("Provide a short application/window-title fragment.")
+    deadline = __import__("time").monotonic() + max(0.0, min(timeout, 5.0))
+    while True:
+        for hwnd, title in _enumerate_windows():
+            if target.casefold() in title.casefold():
+                return hwnd, title
+        if __import__("time").monotonic() >= deadline:
+            return None
+        __import__("time").sleep(0.15)
+
+
+def _activate_window(expected_app: str):
+    _ctypes, user32 = _windows_api()
+    result = _find_window(expected_app, timeout=0.8)
+    if result is None:
+        return None
+    hwnd, title = result
+    # SW_RESTORE also brings minimized target apps back to a usable state.
+    user32.ShowWindow(hwnd, 9)
+    user32.SetForegroundWindow(hwnd)
+    import time
+
+    deadline = time.monotonic() + 1.2
+    while time.monotonic() < deadline:
+        if user32.GetForegroundWindow() == hwnd:
+            return hwnd, title
+        time.sleep(0.05)
+    return None
+
+
+def paste_text_into_window(text: str, expected_app: str, approve) -> str:
+    """Paste user-approved text into a specific visible Windows window title."""
+    if os.name != "nt":
+        return "Typing into other applications is supported only on Windows."
+    value = str(text)
+    if not value.strip():
+        return "There is no text to paste."
+    if len(value) > 8000:
+        return "For safety, a single paste is limited to 8,000 characters."
+    try:
+        found = _find_window(expected_app, timeout=1.0)
+    except (OSError, ValueError) as exc:
+        return str(exc)
+    if found is None:
+        return f"No visible window title matched '{expected_app}'. Nothing was typed."
+    _hwnd, title = found
+    preview = value[:1200] + ("… [preview truncated]" if len(value) > 1200 else "")
+    detail = (
+        f"Target window: {title}\n\n"
+        f"Paste {len(value)} character(s) into the target application's current field?\n"
+        "This action does not press Enter or submit a form. Verify the target and text before approving.\n\n"
+        f"Text preview:\n{preview}"
+    )
+    if not approve("Confirm text entry", detail):
+        return "Cancelled. No text was pasted."
+    try:
+        activated = _activate_window(expected_app)
+        if activated is None:
+            return f"Could not bring '{title}' to the foreground after approval. Nothing was pasted."
+        import pyautogui
+        import pyperclip
+
+        previous_clipboard = None
+        try:
+            previous_clipboard = pyperclip.paste()
+        except Exception:
+            pass
+        try:
+            pyperclip.copy(value)
+            pyautogui.hotkey("ctrl", "v")
+            __import__("time").sleep(0.2)
+        finally:
+            if previous_clipboard is not None:
+                try:
+                    pyperclip.copy(previous_clipboard)
+                except Exception:
+                    pass
+        return (
+            f"Paste keystroke sent to '{activated[1]}' for {len(value)} character(s). "
+            "Check the target field visually; this feature does not independently verify the final document contents."
+        )
+    except Exception as exc:
+        return f"Text entry failed safely: {type(exc).__name__}: {exc}"
+
+
+def press_allowed_shortcut(shortcut: str, expected_app: str, approve) -> str:
+    """Send one allow-listed editing/navigation shortcut after explicit approval."""
+    try:
+        keys = normalize_allowed_shortcut(shortcut)
+    except ValueError as exc:
+        return str(exc)
+    if os.name != "nt":
+        return "Foreground-window shortcut automation is supported only on Windows."
+    try:
+        found = _find_window(expected_app, timeout=1.0)
+    except (OSError, ValueError) as exc:
+        return str(exc)
+    if found is None:
+        return f"No visible window title matched '{expected_app}'. No shortcut was sent."
+    _hwnd, title = found
+    key_label = "+".join(keys).upper()
+    if not approve(
+        "Confirm keyboard shortcut",
+        f"Target window: {title}\n\nSend shortcut {key_label}?\n\n"
+        "This can change the active document or app state. Shortcuts that submit forms, close windows, or launch system commands are not allow-listed.",
+    ):
+        return "Cancelled. No shortcut was sent."
+    try:
+        activated = _activate_window(expected_app)
+        if activated is None:
+            return f"Could not bring '{title}' to the foreground after approval. No shortcut was sent."
+        import pyautogui
+
+        pyautogui.hotkey(*keys) if len(keys) > 1 else pyautogui.press(keys[0])
+        return f"Sent allow-listed shortcut {key_label} to '{activated[1]}'. Verify the resulting state in that app."
+    except Exception as exc:
+        return f"Shortcut failed safely: {type(exc).__name__}: {exc}"
+
+
 def safe_child_path(location: str, name: str) -> Path:
     base = normalize_location(location)
     raw = name.strip()
