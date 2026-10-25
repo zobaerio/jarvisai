@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import queue
@@ -7,7 +8,7 @@ import re
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 from typing import Callable
 
@@ -15,7 +16,7 @@ from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
-from jarvis.task_store import TaskStore, filter_task_records
+from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
 from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
@@ -190,7 +191,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.6", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.7", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -956,6 +957,57 @@ class JarvisDesktop:
         search_var.trace_add("write", lambda *_args: refresh())
         status_var.trace_add("write", lambda *_args: refresh())
 
+        def export_safe_diagnostics() -> None:
+            if not messagebox.askyesno(
+                "Export privacy-safe diagnostics",
+                "Export aggregate task counts and execution timings only?\n\n"
+                "Commands, results, file paths, progress text, tool names, arguments, output payloads, "
+                "and exception details are excluded.",
+                parent=win,
+            ):
+                return
+            path = filedialog.asksaveasfilename(
+                parent=win,
+                title="Save privacy-safe J.A.R.V.I.S diagnostics",
+                defaultextension=".json",
+                initialfile="jarvis-safe-diagnostics.json",
+                filetypes=(("JSON diagnostics", "*.json"),),
+            )
+            if not path:
+                return
+            destination = Path(path)
+            if destination.exists() and not messagebox.askyesno(
+                "Overwrite diagnostics file?",
+                "The selected file already exists. Replace it with this privacy-safe diagnostics report?",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                report_data = build_safe_diagnostics(
+                    self.task_store.list_tasks(limit=100),
+                    app_version="1.6.7",
+                    os_name=platform.system(),
+                    python_version=platform.python_version(),
+                )
+                destination.write_text(
+                    json.dumps(report_data, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                messagebox.showerror(
+                    "Export diagnostics",
+                    f"Could not save diagnostics ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            messagebox.showinfo(
+                "Diagnostics exported",
+                "The privacy-safe diagnostics file was saved. It contains counts/status/timing metadata only; "
+                "task text, paths, tool names, and tool payloads were not exported.",
+                parent=win,
+            )
+
         def retry_selected() -> None:
             selected = tree.selection()
             record = rows_by_id.get(selected[0]) if selected else None
@@ -987,6 +1039,7 @@ class JarvisDesktop:
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Export Safe Diagnostics", command=export_safe_diagnostics).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
         refresh()
 
