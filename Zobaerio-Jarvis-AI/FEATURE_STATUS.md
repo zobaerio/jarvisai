@@ -12,6 +12,7 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, consent-gated text-file read/create, folder creation, and approval-gated single-file copy/move/rename.
 - Social web navigation via voice/AI tool calls: open WhatsApp Web, Facebook, YouTube, Instagram and Messenger, plus explicit English/Bangla YouTube search commands.
 - WhatsApp message-draft preparation: validate an international phone number and bounded message text, open WhatsApp Web with the message prefilled, and leave final recipient review and sending to the user; the app does not click Send or claim delivery.
+- Email draft preparation: validate a single recipient address and bounded subject/body, open the default email app through a `mailto:` draft, and leave final review and sending to the user; this does not authenticate to Gmail/Outlook or send messages.
 - Foreground desktop actions: list visible window titles (title-only), paste text into a named Windows window and send allow-listed editing/navigation shortcuts—each interaction requires explicit user approval.
 - Deterministic local verification: check whether an exact filename/folder exists inside an allowed user folder or a visible window title matches a target; brief tool outcome lines are persisted to task history.
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
