@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .settings import APP_DIR
+from .version import APP_VERSION
 
 DEFAULT_HISTORY_FILE = APP_DIR / "task_history.json"
 MAX_TASKS = 100
@@ -45,7 +46,7 @@ def _parse_diagnostic_timestamp(value: object) -> datetime | None:
 def build_safe_diagnostics(
     records: list[dict[str, Any]],
     *,
-    app_version: str = "1.6.7",
+    app_version: str = APP_VERSION,
     os_name: str = "unknown",
     python_version: str = "unknown",
     generated_at: str | None = None,
