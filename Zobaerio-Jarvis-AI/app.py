@@ -190,7 +190,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.2", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.3", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -825,6 +825,17 @@ class JarvisDesktop:
                         f"[{step.get('time', '')}] {step.get('text', '')}"
                         for step in steps if isinstance(step, dict)
                     ])
+                actions = record.get("actions") if isinstance(record.get("actions"), list) else []
+                if actions:
+                    lines.extend(["", "TOOL ACTION AUDIT (arguments and output payloads are not stored)"])
+                    for action in actions:
+                        if not isinstance(action, dict):
+                            continue
+                        started = str(action.get("started_at", ""))
+                        name = str(action.get("name", "unknown"))
+                        status = str(action.get("status", "unknown")).upper()
+                        note = str(action.get("note", "")).strip()
+                        lines.append(f"[{started}] {name}: {status}" + (f" — {note}" if note else ""))
                 detail.insert("1.0", "\n".join(lines))
             detail.configure(state="disabled")
 
@@ -1032,6 +1043,33 @@ class JarvisDesktop:
         except Exception:
             pass
 
+
+    def _record_tool_action(
+        self,
+        task_id: str | None,
+        name: str,
+        status: str,
+        action_id: str | None,
+        note: str = "",
+    ) -> str | None:
+        """Persist the tool lifecycle without recording arguments or output payloads."""
+        if not task_id:
+            return None
+        try:
+            if status == "running":
+                return self.task_store.start_action(task_id, name)
+            if action_id:
+                self.task_store.finish_action(
+                    task_id,
+                    action_id,
+                    status=status,
+                    note=note,
+                )
+        except Exception:
+            # Action telemetry must not fail the task itself.
+            pass
+        return action_id
+
     def _show_task_progress(self, task_id: str, step: str) -> None:
         # This callback runs on Tk's main thread via the event queue.
         if task_id != self._active_task_id or not self.root.winfo_exists():
@@ -1050,6 +1088,9 @@ class JarvisDesktop:
                 text,
                 cancel_event=cancel_event,
                 progress=lambda step: self._record_task_step(task_id, step),
+                tool_event=lambda name, status, action_id, note: self._record_tool_action(
+                    task_id, name, status, action_id, note
+                ),
             )
         except Exception as exc:
             failed = True

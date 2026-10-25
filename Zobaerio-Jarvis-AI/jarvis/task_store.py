@@ -16,6 +16,7 @@ MAX_TASKS = 100
 MAX_STEPS = 40
 MAX_COMMAND_LENGTH = 600
 MAX_RESULT_LENGTH = 6000
+MAX_ACTIONS_PER_TASK = 16
 
 _PATH_LOCKS_GUARD = threading.Lock()
 _PATH_LOCKS: dict[str, Any] = {}
@@ -111,6 +112,7 @@ class TaskStore:
             "finished_at": None,
             "result": "",
             "steps": [],
+            "actions": [],
             "process_id": os.getpid(),
         }
         with self._lock:
@@ -164,6 +166,72 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
+
+    def start_action(self, task_id: str, name: str) -> str | None:
+        """Record a tool start without persisting its arguments or returned content."""
+        safe_name = " ".join(str(name).split())[:80] or "unknown"
+        action_id = uuid.uuid4().hex[:12]
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None:
+                return None
+            now = _now()
+            actions = target.get("actions")
+            if not isinstance(actions, list):
+                actions = []
+            actions.append({
+                "id": action_id,
+                "name": safe_name,
+                "status": "running",
+                "started_at": now,
+                "finished_at": None,
+                "note": "",
+            })
+            target["actions"] = actions[-MAX_ACTIONS_PER_TASK:]
+            target["updated_at"] = now
+            self._write(rows[-MAX_TASKS:])
+            return action_id
+
+    def finish_action(
+        self,
+        task_id: str,
+        action_id: str,
+        *,
+        status: str,
+        note: str = "",
+    ) -> dict[str, Any] | None:
+        """Finish a running action with a bounded, non-content-bearing diagnostic note."""
+        if status not in {"result_received", "failed"}:
+            raise ValueError(f"Unsupported action status: {status}")
+        safe_note = " ".join(str(note).split())[:120]
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None:
+                return None
+            actions = target.get("actions")
+            if not isinstance(actions, list):
+                return None
+            action = next(
+                (
+                    item for item in reversed(actions)
+                    if isinstance(item, dict)
+                    and item.get("id") == action_id
+                    and item.get("status") == "running"
+                ),
+                None,
+            )
+            if action is None:
+                return None
+            now = _now()
+            action["status"] = status
+            action["finished_at"] = now
+            action["note"] = safe_note
+            target["updated_at"] = now
+            self._write(rows[-MAX_TASKS:])
+            return dict(action)
+
     def recover_interrupted_tasks(self) -> int:
         """Mark abandoned active tasks failed without automatically replaying risky actions."""
         recovery_note = (
@@ -196,6 +264,18 @@ class TaskStore:
                     steps = []
                 steps.append({"time": now, "text": recovery_step[:240]})
                 row["steps"] = steps[-MAX_STEPS:]
+                actions = row.get("actions")
+                if not isinstance(actions, list):
+                    actions = []
+                for action in actions[-MAX_ACTIONS_PER_TASK:]:
+                    if isinstance(action, dict) and action.get("status") == "running":
+                        action["status"] = "interrupted"
+                        action["finished_at"] = now
+                        action["note"] = (
+                            "App restarted while this action was in progress; outcome is unknown. "
+                            "It was not replayed."
+                        )
+                row["actions"] = actions[-MAX_ACTIONS_PER_TASK:]
                 recovered += 1
             if recovered:
                 self._write(rows[-MAX_TASKS:])
