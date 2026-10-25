@@ -2,9 +2,13 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.7.2 — API-key readiness fix
+**Version:** 1.7.3 — bounded voice timeouts
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
+
+## Voice reliability
+
+Network-backed speech recognition has a 15-second operation timeout. Edge TTS synthesis and playback are bounded; a stalled online speech service falls back to the local `pyttsx3` engine when available. These bounds prevent the primary network-backed voice path from waiting indefinitely, but do not replace microphone/speaker tests on the target Windows device.
 
 ## Branding and responsive layout
 
