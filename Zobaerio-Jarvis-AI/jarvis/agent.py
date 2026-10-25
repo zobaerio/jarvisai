@@ -184,6 +184,13 @@ class JarvisAgent:
         tool_event: Callable[[str, str, str | None, str], str | None] | None = None,
     ) -> str:
         """Answer a user request; cancellation is cooperative between blocking operations."""
+        self.last_outcome = "completed"
+        had_tool_failure = False
+
+        def invalid_response(message: str = "AI provider returned an invalid or unsupported response format.") -> str:
+            self.last_outcome = "failed"
+            return _invalid_provider_response(message)
+
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
@@ -225,6 +232,7 @@ class JarvisAgent:
         base_url = str(self.settings.get("api_base_url", "")).strip().rstrip("/")
         model = str(self.settings.get("model", "")).strip()
         if not base_url or not model:
+            self.last_outcome = "failed"
             return "AI model সেট করা নেই। Settings-এ API endpoint ও model দিন, অথবা local AI চাইলে Ollama ইনস্টল করে সেটি চালু করুন। সাধারণ app/website কমান্ড API ছাড়াও কাজ করবে।"
 
         key = get_api_key()
@@ -232,8 +240,10 @@ class JarvisAgent:
             base_url = validate_api_key_transport(base_url, key)
             is_local = is_local_api_endpoint(base_url)
         except ValueError as exc:
+            self.last_outcome = "failed"
             return f"AI endpoint setting blocked for security: {exc}"
         if not is_local and not key:
+            self.last_outcome = "failed"
             return "AI API key পাওয়া যায়নি। Settings খুলে provider-এর API key দিন। Local Ollama ব্যবহার করলে API key ফাঁকা রাখা যাবে।"
 
         self.history.append({"role": "user", "content": user_text})
@@ -266,50 +276,55 @@ class JarvisAgent:
                 if cancelled():
                     return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। বর্তমান AI request শেষ হওয়ার পরে কোনো নতুন tool action চালানো হয়নি।"
                 if response.status_code >= 400:
+                    self.last_outcome = "failed"
                     return _safe_provider_http_error(int(response.status_code))
                 try:
                     payload = response.json()
                 except (ValueError, requests.RequestException):
-                    return _invalid_provider_response(
+                    return invalid_response(
                         "AI provider returned invalid JSON. Check endpoint compatibility; response content was hidden."
                     )
                 if not isinstance(payload, dict):
-                    return _invalid_provider_response()
+                    return invalid_response()
                 choices = payload.get("choices")
                 if not isinstance(choices, list):
-                    return _invalid_provider_response("AI provider response is missing a valid choices list.")
+                    return invalid_response("AI provider response is missing a valid choices list.")
                 if not choices:
+                    self.last_outcome = "failed"
                     return "AI provider কোনো উত্তর দেয়নি। Model/endpoint Settings-এ যাচাই করো।"
                 choice = choices[0]
                 if not isinstance(choice, dict):
-                    return _invalid_provider_response("AI provider returned a malformed choice object.")
+                    return invalid_response("AI provider returned a malformed choice object.")
                 message = choice.get("message")
                 if not isinstance(message, dict):
-                    return _invalid_provider_response("AI provider response is missing a valid message object.")
+                    return invalid_response("AI provider response is missing a valid message object.")
                 tool_calls = message.get("tool_calls") or []
                 if not isinstance(tool_calls, list):
-                    return _invalid_provider_response("AI provider returned malformed tool-call data.")
+                    return invalid_response("AI provider returned malformed tool-call data.")
                 for tool_call in tool_calls:
                     if not isinstance(tool_call, dict) or not isinstance(tool_call.get("function", {}), dict):
-                        return _invalid_provider_response("AI provider returned malformed tool-call data.")
+                        return invalid_response("AI provider returned malformed tool-call data.")
                     arguments = tool_call["function"].get("arguments", "{}")
                     if not isinstance(arguments, (str, dict)):
-                        return _invalid_provider_response("AI provider returned malformed tool arguments.")
+                        return invalid_response("AI provider returned malformed tool arguments.")
                 messages.append(message)
                 if not tool_calls:
                     content = message.get("content")
                     if content is None or content == "":
                         answer = "আমি উত্তর তৈরি করতে পারিনি। আরেকবার বলো।"
+                        self.last_outcome = "failed"
                     elif isinstance(content, str):
                         answer = content
+                        self.last_outcome = "partial" if had_tool_failure else "completed"
                     else:
-                        return _invalid_provider_response("AI provider returned an unsupported answer content type.")
+                        return invalid_response("AI provider returned an unsupported answer content type.")
                     self.history.append({"role": "assistant", "content": answer})
                     return answer
                 for call in tool_calls:
                     if cancelled():
                         return "কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।"
                     if tool_call_count >= max_tool_calls:
+                        self.last_outcome = "partial"
                         report("Task action budget reached; no further tools will start")
                         return (
                             "Partially completed: নিরাপত্তার জন্য এই task-এ ১২টি tool action-এর সীমা পৌঁছেছে। "
@@ -325,6 +340,7 @@ class JarvisAgent:
                         args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                         result = self._execute_tool(name, args)
                     except Exception as exc:
+                        had_tool_failure = True
                         result = f"Tool failed safely: {type(exc).__name__}: {exc}"
                         notify_tool_event(name or "unknown", "failed", audit_id, type(exc).__name__)
                     else:
@@ -336,18 +352,23 @@ class JarvisAgent:
                     report(f"Tool result: {name or 'unknown'} — {outcome}")
                     if cancelled():
                         return "কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।"
+            self.last_outcome = "partial"
             return "Partially completed: এই task-এ ৮টি AI action round-এর সীমা পৌঁছেছে। Task History ও progress দেখো; বাকি কাজ নতুন নির্দেশনায় চালাও।"
         except requests.exceptions.ConnectionError:
+            self.last_outcome = "failed"
             return "AI model-এ সংযোগ করা যাচ্ছে না। Local Ollama ব্যবহার করলে Ollama চালু আছে কি না ও model pull করা হয়েছে কি না দেখো; cloud provider হলে internet, endpoint ও API key যাচাই করো।"
         except requests.exceptions.Timeout:
+            self.last_outcome = "failed"
             return "AI model উত্তর দিতে বেশি সময় নিয়েছে। আবার চেষ্টা করো অথবা ছোট নির্দেশনা দাও।"
         except requests.RequestException as exc:
             # Network exception strings can include URLs or provider-controlled text; never echo them.
+            self.last_outcome = "failed"
             return f"AI request failed safely ({type(exc).__name__}). Check your network and endpoint settings."
         except (ValueError, KeyError, TypeError, AttributeError):
-            return _invalid_provider_response()
+            return invalid_response()
         except Exception as exc:
             # Keep an unexpected adapter/library failure from escaping into the Tkinter worker.
+            self.last_outcome = "failed"
             report(f"Unexpected AI request failure: {type(exc).__name__}")
             return f"AI request failed safely ({type(exc).__name__}). Check endpoint settings and try again."
 
