@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.0 — Safe ZIP Archive
+**সংস্করণ:** 1.6.1 — Duplicate File Finder
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -31,6 +31,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 ## নতুন: Safe Recycle Bin Action
 
 এখন Desktop, Documents বা Downloads থেকে একবারে একটি regular file Windows Recycle Bin-এ পাঠানো যাবে। Approval dialog-এ exact path, file size ও type দেখাবে। Directory, symbolic link, path traversal, missing file এবং approval চলাকালে file বদলে গেলে operation block হবে। এটি permanent delete নয়; Recycle Bin খালি করা না হলে এবং Windows অনুমতি দিলে ফাইল recover করা যাবে।
+
+## নতুন: Duplicate File Finder
+
+J.A.R.V.I.S Desktop, Documents, Downloads অথবা তিনটি folder-এই একই content-এর file খুঁজে বের করতে পারবে। আগে অনুমতি নেবে, তারপর একই size-এর candidate file-এর SHA-256 locally হিসাব করবে। সর্বোচ্চ ৫,০০০টি file entry scan, মোট ২৫৬ MiB পর্যন্ত hashing এবং ১০০ MiB-এর বড় individual file skip করা হবে। Hidden/generated folder, symbolic link ও hashing চলাকালে বদলে যাওয়া file বাদ থাকবে। AI conversation-এ কেবল matching path, size ও ছোট hash fingerprint যাবে—file content যাবে না। কোনো file পরিবর্তন বা delete হবে না; কোন copy মুছবে তা tool নিজে সিদ্ধান্ত নেবে।
 
 ## নতুন: নিরাপদ ZIP Archive তৈরি
 
