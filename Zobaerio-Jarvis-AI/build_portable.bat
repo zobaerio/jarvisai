@@ -76,5 +76,4 @@ exit /b 0
 :failed
 echo.
 echo Portable package build failed. Review the error above.
-echo Please review the error above.
 exit /b 1
