@@ -141,7 +141,7 @@ class TaskStore:
         result: str | None = None,
         step: str | None = None,
     ) -> dict[str, Any] | None:
-        allowed_statuses = {"queued", "running", "cancelling", "completed", "failed", "cancelled"}
+        allowed_statuses = {"queued", "running", "cancelling", "completed", "partial", "failed", "cancelled"}
         if status is not None and status not in allowed_statuses:
             raise ValueError(f"Unsupported task status: {status}")
         with self._lock:
@@ -155,7 +155,7 @@ class TaskStore:
                 target["status"] = status
                 if status == "running":
                     target["process_id"] = os.getpid()
-                if status in {"completed", "failed", "cancelled"}:
+                if status in {"completed", "partial", "failed", "cancelled"}:
                     target["finished_at"] = now
             if result is not None:
                 target["result"] = str(result)[:MAX_RESULT_LENGTH]
