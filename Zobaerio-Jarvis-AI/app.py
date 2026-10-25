@@ -1682,7 +1682,7 @@ class JarvisDesktop:
     def _open_settings(self) -> None:
         win = tk.Toplevel(self.root)
         win.title("J.A.R.V.I.S Settings")
-        win.geometry("600x625")
+        win.geometry("600x700")
         win.resizable(False, False)
         win.configure(bg=BG)
         win.transient(self.root)
