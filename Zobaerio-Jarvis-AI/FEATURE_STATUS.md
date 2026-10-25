@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.7.0 local system health preflight checks. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.7.1 cloud API-key readiness without secret disclosure. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -48,7 +48,7 @@ Audit date: 2026-10-25. Version focus: v1.7.0 local system health preflight chec
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
 - An unsigned Windows one-folder portable package is now defined by a PyInstaller spec, isolated build script, and Windows GitHub Actions artifact workflow. It is not code-signed, is not MSIX, and has no built-in updater. The package includes `version.json`, and CI verifies the manifest matches the central source version.
-- An interactive local system-health dialog reports Python/OS compatibility, required 3D/branding assets, dependency availability and AI endpoint/model configuration presence without sending network requests or displaying endpoint/API-key values.
+- An interactive local system-health dialog reports Python/OS compatibility, required 3D/branding assets, dependency availability and AI endpoint/model configuration presence without sending network requests or displaying endpoint/API-key values. For cloud endpoints it also detects whether a key is available through secure storage; it never displays the key, and local endpoints do not require one.
 - The UI is responsive for resizable desktop windows; this release is not yet a mobile/phone app and has no Android installer.
 
 ## Not implemented yet
