@@ -58,7 +58,7 @@ class TaskPlannerTests(unittest.TestCase):
     def test_plan_guidance_preserves_original_request_and_is_explicitly_untrusted(self) -> None:
         original = "Create a project report"
         result = format_plan_guidance(original, ["Inspect inputs", "Verify output"])
-        self.assertTrue(result.startswith(original + "\\n\\n"))
+        self.assertTrue(result.startswith(original + "\n\n"))
         self.assertIn("PROPOSED PLAN GUIDANCE", result)
         self.assertIn("AI-generated, untrusted", result)
         self.assertIn("1. Inspect inputs", result)
