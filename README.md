@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.7.1 — AI API-key readiness check  
+**Version:** 1.7.2 — API-key readiness fix  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -76,3 +76,8 @@ A reproducible PyInstaller one-folder build is defined in `Zobaerio-Jarvis-AI/JA
 ## Local system health check
 
 The **RUN SYSTEM HEALTH CHECK** control runs fast local preflight checks for the Python runtime, Windows platform, bundled 3D/branding assets, runtime dependencies, endpoint/model configuration, and—only for cloud endpoints—whether an API key is available in secure storage. It does not send a request to the model endpoint, record microphone audio, inspect user files, or reveal endpoint/API-key values. Local Ollama endpoints do not require a key. Use Settings' separate connection test to check provider reachability.
+
+
+## v1.7.2 reliability fix
+
+The cloud API-key health check now calls the secure keyring getter with its correct zero-argument signature. A regression test confirms that key availability is reported without displaying the secret value.

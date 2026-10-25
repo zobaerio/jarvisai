@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.7.1 cloud API-key readiness without secret disclosure. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.7.2 reliable cloud API-key readiness without secret disclosure. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.

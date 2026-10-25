@@ -110,7 +110,7 @@ def collect_system_health(
             if local_check is None or key_resolver is None:
                 from .settings import get_api_key, is_local_api_endpoint
                 local_check = local_check or is_local_api_endpoint
-                key_resolver = key_resolver or get_api_key
+                key_resolver = key_resolver or (lambda _settings: get_api_key())
             is_local = bool(local_check(endpoint))
         except Exception:
             # Do not surface provider URLs, keyring errors, or configuration exception text.

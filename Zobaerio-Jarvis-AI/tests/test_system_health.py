@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from jarvis.health import collect_system_health, summarize_system_health
@@ -88,6 +89,21 @@ class SystemHealthCheckTests(unittest.TestCase):
             key_check = next(item for item in report if item.component == "AI API key")
             self.assertEqual(key_check.status, "WARN")
             self.assertIn("not found", key_check.detail)
+
+
+    def test_default_cloud_key_resolver_uses_secure_store_without_exposing_value(self) -> None:
+        secret = "SECURE_KEY_SHOULD_NEVER_APPEAR"
+        with patch("jarvis.settings.get_api_key", return_value=secret):
+            report = collect_system_health(
+                {"api_base_url": "https://cloud.example/v1", "model": "cloud-model"},
+                python_version=(3, 12, 3),
+                os_name="Windows",
+                module_available=lambda _name: True,
+                local_endpoint=lambda _endpoint: False,
+            )
+        key_check = next(item for item in report if item.component == "AI API key")
+        self.assertEqual(key_check.status, "PASS")
+        self.assertNotIn(secret, key_check.detail)
 
     def test_api_key_store_error_is_sanitized(self) -> None:
         secret = "PRIVATE_KEYRING_ERROR_SENTINEL"

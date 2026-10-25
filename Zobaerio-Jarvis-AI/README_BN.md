@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.7.1 — AI API-key readiness check
+**সংস্করণ:** 1.7.2 — API-key readiness fix
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
