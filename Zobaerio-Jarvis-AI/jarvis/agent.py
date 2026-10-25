@@ -191,6 +191,10 @@ class JarvisAgent:
             self.last_outcome = "failed"
             return _invalid_provider_response(message)
 
+        def cancelled_response(answer: str) -> str:
+            self.last_outcome = "cancelled"
+            return answer
+
         def cancelled() -> bool:
             return cancel_event is not None and cancel_event.is_set()
 
@@ -218,16 +222,16 @@ class JarvisAgent:
                 return action_id
 
         if cancelled():
-            return "কাজটি বাতিল করা হয়েছে। বাতিলের অনুরোধ পাওয়ার পর নতুন কোনো action শুরু করা হয়নি।"
+            return cancelled_response("কাজটি বাতিল করা হয়েছে। বাতিলের অনুরোধ পাওয়ার পর নতুন কোনো action শুরু করা হয়নি।")
 
         report("Checking supported local commands")
         direct = automation.direct_command(user_text)
         if direct is not None:
             if cancelled():
-                return "বাতিলের অনুরোধ local command চলার সময় এসেছে। Command-এর ফল ইতিমধ্যে ঘটতে পারে: " + direct
+                return cancelled_response("বাতিলের অনুরোধ local command চলার সময় এসেছে। Command-এর ফল ইতিমধ্যে ঘটতে পারে: " + direct)
             return direct
         if cancelled():
-            return "কাজটি বাতিল করা হয়েছে। কোনো নতুন AI tool action চালানো হয়নি।"
+            return cancelled_response("কাজটি বাতিল করা হয়েছে। কোনো নতুন AI tool action চালানো হয়নি।")
 
         base_url = str(self.settings.get("api_base_url", "")).strip().rstrip("/")
         model = str(self.settings.get("model", "")).strip()
@@ -259,7 +263,7 @@ class JarvisAgent:
         try:
             for turn in range(max_rounds):
                 if cancelled():
-                    return "কাজটি বাতিল করা হয়েছে। আর কোনো tool action চালানো হবে না।"
+                    return cancelled_response("কাজটি বাতিল করা হয়েছে। আর কোনো tool action চালানো হবে না।")
                 report(f"Contacting AI model (turn {turn + 1}/{max_rounds})")
                 response = _post_with_bounded_retry(
                     url,
@@ -270,11 +274,11 @@ class JarvisAgent:
                     progress=report,
                 )
                 if response is None and cancelled():
-                    return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। নতুন কোনো tool action চালানো হয়নি।"
+                    return cancelled_response("কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। নতুন কোনো tool action চালানো হয়নি।")
                 # requests cannot interrupt an already-blocked network read; after it
                 # returns, cancellation is checked before any model-requested tool runs.
                 if cancelled():
-                    return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। বর্তমান AI request শেষ হওয়ার পরে কোনো নতুন tool action চালানো হয়নি।"
+                    return cancelled_response("কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। বর্তমান AI request শেষ হওয়ার পরে কোনো নতুন tool action চালানো হয়নি।")
                 if response.status_code >= 400:
                     self.last_outcome = "failed"
                     return _safe_provider_http_error(int(response.status_code))
@@ -322,7 +326,7 @@ class JarvisAgent:
                     return answer
                 for call in tool_calls:
                     if cancelled():
-                        return "কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।"
+                        return cancelled_response("কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।")
                     if tool_call_count >= max_tool_calls:
                         self.last_outcome = "partial"
                         report("Task action budget reached; no further tools will start")
@@ -351,7 +355,7 @@ class JarvisAgent:
                     outcome = str(result).splitlines()[0][:150] if str(result).splitlines() else "No result text"
                     report(f"Tool result: {name or 'unknown'} — {outcome}")
                     if cancelled():
-                        return "কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।"
+                        return cancelled_response("কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।")
             self.last_outcome = "partial"
             return "Partially completed: এই task-এ ৮টি AI action round-এর সীমা পৌঁছেছে। Task History ও progress দেখো; বাকি কাজ নতুন নির্দেশনায় চালাও।"
         except requests.exceptions.ConnectionError:
