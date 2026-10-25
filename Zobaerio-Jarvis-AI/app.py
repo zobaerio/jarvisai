@@ -951,10 +951,28 @@ class JarvisDesktop:
             detail.delete("1.0", "end")
             if record is not None:
                 steps = record.get("steps") if isinstance(record.get("steps"), list) else []
+                actions = record.get("actions") if isinstance(record.get("actions"), list) else []
+                valid_actions = [item for item in actions if isinstance(item, dict)]
+                action_counts = {"result_received": 0, "failed": 0, "running": 0, "interrupted": 0}
+                for action in valid_actions:
+                    action_status = str(action.get("status", "unknown")).lower()
+                    if action_status in action_counts:
+                        action_counts[action_status] += 1
+                    else:
+                        action_counts["interrupted"] += 1
+                plan = record.get("plan") if isinstance(record.get("plan"), list) else []
+                plan_counts = {"completed": 0, "failed": 0, "skipped": 0, "unverified": 0, "pending": 0, "running": 0}
+                for plan_step in plan:
+                    if isinstance(plan_step, dict):
+                        plan_status = str(plan_step.get("status", "pending")).lower()
+                        if plan_status in plan_counts:
+                            plan_counts[plan_status] += 1
                 lines = [
                     f"Status: {str(record.get('status', 'unknown')).upper()}",
                     f"Started: {record.get('created_at', '')}",
                     f"Finished: {record.get('finished_at') or 'Not finished'}",
+                    f"Execution evidence: {action_counts['result_received']} action result(s), {action_counts['failed']} failed, {action_counts['running']} still running/interrupted",
+                    f"Plan progress: {plan_counts['completed']} completed, {plan_counts['failed']} failed, {plan_counts['skipped']} skipped, {plan_counts['unverified']} unverified, {plan_counts['pending']} pending, {plan_counts['running']} running",
                     "",
                     "COMMAND",
                     str(record.get("command", "")),
@@ -981,7 +999,6 @@ class JarvisDesktop:
                         f"[{step.get('time', '')}] {step.get('text', '')}"
                         for step in steps if isinstance(step, dict)
                     ])
-                actions = record.get("actions") if isinstance(record.get("actions"), list) else []
                 if actions:
                     lines.extend(["", "TOOL ACTION AUDIT (arguments and output payloads are not stored)"])
                     for action in actions:
