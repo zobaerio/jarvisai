@@ -216,6 +216,28 @@ def open_website(url_or_query: str) -> str:
     return f"Searched the web for: {value}."
 
 
+
+def prepare_whatsapp_message(phone_number: str, message: str) -> str:
+    """Open WhatsApp Web with a validated recipient and prefilled draft; never send it."""
+    raw_phone = str(phone_number).strip()
+    digits = re.sub(r"[\s()+.-]", "", raw_phone)
+    if not digits.isdigit() or not 8 <= len(digits) <= 15:
+        return "WhatsApp draft blocked: provide an international phone number with 8–15 digits, including country code (for example, +8801XXXXXXXXX)."
+    text = str(message).strip()
+    if not text:
+        return "WhatsApp draft not opened: message text is empty."
+    if len(text) > 4000:
+        return "WhatsApp draft blocked: message must be 4,000 characters or fewer."
+    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in text):
+        return "WhatsApp draft blocked: message contains unsupported control characters."
+    url = "https://web.whatsapp.com/send?phone=" + digits + "&text=" + quote(text, safe="")
+    webbrowser.open(url)
+    return (
+        "Opened WhatsApp Web with a prefilled message draft for the supplied number. "
+        "Nothing was sent. Review the recipient and message in WhatsApp, then click Send yourself."
+    )
+
+
 def open_folder(location: str) -> str:
     path = normalize_location(location)
     os.startfile(str(path))  # type: ignore[attr-defined]
