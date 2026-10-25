@@ -56,7 +56,7 @@ if errorlevel 1 (
 )
 
 echo [4/5] Checking Python files...
-".venv\Scripts\python.exe" -m compileall -q app.py jarvis
+".venv\Scripts\python.exe" -m compileall -q app.py jarvis tests
 if errorlevel 1 goto failed
 
 echo [5/5] Creating a Desktop shortcut (if Windows allows it)...
