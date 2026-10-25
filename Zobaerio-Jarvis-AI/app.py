@@ -961,6 +961,18 @@ class JarvisDesktop:
                     "RESULT",
                     str(record.get("result", "") or "(No result recorded yet.)"),
                 ]
+                plan = record.get("plan") if isinstance(record.get("plan"), list) else []
+                if plan:
+                    lines.extend(["", "STRUCTURED PLAN (stored progress; not an automatic replay queue)"])
+                    for ordinal, plan_step in enumerate(plan, start=1):
+                        if not isinstance(plan_step, dict):
+                            continue
+                        title = " ".join(str(plan_step.get("title", "Untitled step")).split())[:240]
+                        step_status = str(plan_step.get("status", "unknown")).upper()
+                        attempts = plan_step.get("attempts", 0)
+                        if type(attempts) is not int or attempts < 0:
+                            attempts = 0
+                        lines.append(f"{ordinal}. [{step_status}] {title} (attempts: {attempts})")
                 if steps:
                     lines.extend(["", "ACTIVITY LOG"] + [
                         f"[{step.get('time', '')}] {step.get('text', '')}"
