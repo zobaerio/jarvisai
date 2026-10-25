@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
+from jarvis.task_planner import generate_task_plan
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
@@ -1406,6 +1407,29 @@ class JarvisDesktop:
 
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
+        # Generate and persist a side-effect-free plan before normal execution. Planning
+        # failure is non-fatal: the existing agent workflow still handles the request.
+        if task_id and not cancel_event.is_set():
+            try:
+                self._record_task_step(task_id, "Generating a proposed task plan")
+                plan_titles = generate_task_plan(self.settings, text, cancel_event=cancel_event)
+                if cancel_event.is_set():
+                    self._record_task_step(task_id, "Task cancelled before execution began")
+                else:
+                    saved_plan = self.task_store.set_task_plan(task_id, plan_titles)
+                    if saved_plan is not None:
+                        self._record_task_step(
+                            task_id,
+                            f"Saved proposed plan with {len(plan_titles)} step(s) to Task History",
+                        )
+            except InterruptedError:
+                pass
+            except Exception as exc:
+                # Avoid leaking provider response bodies, URLs, prompts, or credentials.
+                self._record_task_step(
+                    task_id,
+                    f"Optional plan generation unavailable ({type(exc).__name__}); continuing with normal execution",
+                )
         try:
             result = self.agent.respond(
                 text,
