@@ -21,7 +21,7 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 
 ## নতুন: Task History ও Cancel Task
 
-ডান পাশের **ACTIVE TASKS** প্যানেল থেকে **CANCEL CURRENT TASK** চাপলে চলমান AI task-কে পরের tool action শুরু করা থেকে থামানোর অনুরোধ পাঠানো হয়। **TASK HISTORY**-তে শেষ ১০০টি task-এর command, status, সময়, result ও progress দেখা যায়। File/folder approval dialog-এও **Cancel Task** আছে।
+ডান পাশের **ACTIVE TASKS** প্যানেল থেকে **CANCEL CURRENT TASK** চাপলে চলমান AI task-কে পরের tool action শুরু করা থেকে থামানোর অনুরোধ পাঠানো হয়। **TASK HISTORY**-তে শেষ ১০০টি task-এর command, status, সময়, result ও progress দেখা যায়। নির্বাচিত command আবার চালাতে **Retry Selected Task** চাপবে; আগে confirmation দেখাবে এবং নতুন task record তৈরি করবে। এটি বর্তমান AI settings দিয়ে আবার চালাবে। File/folder approval dialog-এও **Cancel Task** আছে।
 
 এটি cooperative cancellation: model-এর network request ইতিমধ্যে আটকে থাকলে সেটি return না করা পর্যন্ত অপেক্ষা লাগতে পারে (read timeout ৪৫ সেকেন্ড), আর ইতিমধ্যে শুরু হওয়া external action স্বয়ংক্রিয়ভাবে undo করা যায় না। Cancel শনাক্ত হওয়ার পরে নতুন AI tool action শুরু করা হয় না।
 
