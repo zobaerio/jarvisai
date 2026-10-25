@@ -1077,6 +1077,58 @@ class JarvisDesktop:
         search_var.trace_add("write", lambda *_args: refresh())
         status_var.trace_add("write", lambda *_args: refresh())
 
+        def export_selected_task() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Export task", "Select a task from the history list first.", parent=win)
+                return
+            if not messagebox.askyesno(
+                "Export selected task record",
+                "Export the full selected task record as JSON?\n\n"
+                "Unlike Safe Diagnostics, this file can contain the command, result, progress text, "
+                "task ID and local file paths mentioned in the record. Store and share it carefully.",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            task_id = str(record.get("id", "task"))
+            safe_id = "".join(ch for ch in task_id if ch.isalnum() or ch in "-_")[:40] or "task"
+            path = filedialog.asksaveasfilename(
+                parent=win,
+                title="Export selected J.A.R.V.I.S task",
+                defaultextension=".json",
+                initialfile=f"jarvis-task-{safe_id}.json",
+                filetypes=(("Task record JSON", "*.json"),),
+            )
+            if not path:
+                return
+            destination = Path(path)
+            if destination.exists() and not messagebox.askyesno(
+                "Overwrite task export?",
+                "The selected file already exists. Replace it with this task record?",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                destination.write_text(
+                    json.dumps(record, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+            except Exception as exc:
+                messagebox.showerror(
+                    "Export task",
+                    f"Could not export task ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            messagebox.showinfo(
+                "Task exported",
+                "The selected task record was exported. Review it for private command text or file paths before sharing.",
+                parent=win,
+            )
+
         def export_safe_diagnostics() -> None:
             if not messagebox.askyesno(
                 "Export privacy-safe diagnostics",
@@ -1159,6 +1211,7 @@ class JarvisDesktop:
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Export Selected Task", command=export_selected_task).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Export Safe Diagnostics", command=export_safe_diagnostics).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
         refresh()
