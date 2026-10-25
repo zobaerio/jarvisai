@@ -137,3 +137,24 @@ def format_plan_guidance(user_text: str, step_titles: list[str]) -> str:
         "existing safety/approval rules if there is any conflict. Do not claim a step is complete "
         "unless you actually performed and checked the relevant work."
     )
+
+
+_MULTI_STEP_MARKERS = (
+    "and then", "then ", "after that", "step by step", "first ", "next ",
+    "tarpor", "erpor", "dhape dhape", "ekta ekta kore",
+    "তারপর", "এরপর", "ধাপে ধাপে", "একটার পর একটা", "প্রথমে", "এর পরে",
+)
+_COMPLEX_TASK_MARKERS = (
+    "create a website", "build a website", "build an app", "create an app",
+    "prepare a report", "research and summarize", "compare and recommend",
+    "plan and execute", "analyze and report", "design and implement",
+    "website বানাও", "অ্যাপ বানাও", "রিপোর্ট তৈরি", "বিশ্লেষণ করে রিপোর্ট",
+)
+
+
+def should_generate_task_plan(user_text: str) -> bool:
+    """Avoid an extra model round-trip for short questions and single-step commands."""
+    text = " ".join(str(user_text or "").casefold().split())
+    if len(text) < 45:
+        return False
+    return any(marker in text for marker in _MULTI_STEP_MARKERS + _COMPLEX_TASK_MARKERS)
