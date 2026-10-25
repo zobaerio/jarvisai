@@ -345,15 +345,17 @@ class JarvisAgent:
                         result = self._execute_tool(name, args)
                     except Exception as exc:
                         had_tool_failure = True
-                        result = f"Tool failed safely: {type(exc).__name__}: {exc}"
+                        result = (
+                            f"Tool failed safely ({type(exc).__name__}). "
+                            "Sensitive exception details were withheld; check permissions/settings and try again."
+                        )
                         notify_tool_event(name or "unknown", "failed", audit_id, type(exc).__name__)
                     else:
                         # Store only the fact that the tool returned; never copy its arguments or payload.
                         notify_tool_event(name or "unknown", "result_received", audit_id)
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
-                    # Persist a brief, useful outcome line without copying full file contents.
-                    outcome = str(result).splitlines()[0][:150] if str(result).splitlines() else "No result text"
-                    report(f"Tool result: {name or 'unknown'} — {outcome}")
+                    # Do not copy tool output into progress history; it may contain paths or user data.
+                    report(f"Tool returned: {name or 'unknown'}")
                     if cancelled():
                         return cancelled_response("কাজটি বাতিল করা হয়েছে। বর্তমানে চলমান action ফিরিয়ে নেওয়া যায় না, তবে এরপর আর কোনো tool action শুরু করা হয়নি।")
             self.last_outcome = "partial"
