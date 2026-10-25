@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.3 — Tool action audit
+**সংস্করণ:** 1.6.5 — Queued task controls
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
@@ -97,3 +97,13 @@ AI Agent এখন visible app window-এর title list করতে পার�
 - File create/copy/move/rename করার আগে নির্দিষ্ট action দেখিয়ে confirmation চাওয়ার নিরাপত্তা flow রাখা হয়েছে; destination overwrite করা হয় না।
 - arbitrary shell command স্বয়ংক্রিয়ভাবে চালানো যায় না।
 - এটিকে production-ready বলার আগে নিজের Windows 11 PC-তে microphone, speaker, character selection এবং প্রতিটি command পরীক্ষা করবে।
+
+
+## নতুন: কাজের ফলাফলের সঠিক Status
+
+Task History-তে `COMPLETED`, `PARTIAL`, `FAILED` ও `CANCELLED` আলাদা করে দেখা যাবে। পরিচিত provider/configuration error বা ভুল response format হলে `FAILED`; কোনো tool exception বা execution limit-এ থামলে `PARTIAL` দেখাবে। এটি execution-এর জানা status—ব্যবহারকারীর পুরো লক্ষ্য বা document-এর মান নিশ্চিতভাবে পূরণ হয়েছে, তার প্রমাণ নয়।
+
+
+## নতুন: Queue-তে থাকা Command Cancel
+
+Task History থেকে `QUEUED` status-এর command নির্বাচন করে **Cancel Selected Queued Task** চাপলে confirmation নেওয়া হবে। এরপর command-টি `CANCELLED` হবে এবং execute করা হবে না। ইতিমধ্যে চলতে শুরু করেছে এমন task এই control দিয়ে cancel করা যায় না। বাকি queued task আগের FIFO order-এ থাকবে; app restart-এর পর queue চালাতে এখনও আলাদা confirmation লাগবে।

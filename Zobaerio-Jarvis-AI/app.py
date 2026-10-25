@@ -190,7 +190,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.3", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="AI AGENT ASSISTANT · V1.6.4", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -876,6 +876,63 @@ class JarvisDesktop:
                     tree.focus(first_id)
             selection_changed()
 
+        def cancel_queued_selected() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Cancel queued task", "Select a task from the history list first.", parent=win)
+                return
+            if record.get("status") != "queued":
+                messagebox.showinfo(
+                    "Cancel queued task",
+                    "Only a task with QUEUED status can be cancelled here. A task that has started may already have side effects.",
+                    parent=win,
+                )
+                return
+            task_id = str(record.get("id", ""))
+            command = str(record.get("command", "")).strip()
+            if not messagebox.askyesno(
+                "Cancel queued task?",
+                f"Cancel this command before execution?\n\nCommand:\n{command}\n\n"
+                "The selected queued command will be marked CANCELLED and will not be run.",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                cancelled_record = self.task_store.cancel_queued_task(task_id)
+            except Exception as exc:
+                messagebox.showerror(
+                    "Cancel queued task",
+                    f"Could not update task history ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            if cancelled_record is None:
+                messagebox.showinfo(
+                    "Cancel queued task",
+                    "This task is no longer queued. Refresh the list and check its current status.",
+                    parent=win,
+                )
+                refresh()
+                return
+            try:
+                remaining = self.task_store.queued_count()
+            except Exception:
+                remaining = 0
+            if remaining == 0:
+                self._queue_armed = False
+            self._write_message(
+                "SYSTEM",
+                f"Queued command #{task_id} was cancelled before execution.",
+                "system",
+            )
+            self._push_activity("Cancelled queued command: " + command)
+            self._refresh_queue_button()
+            refresh()
+            if self._queue_armed and not self._busy and remaining > 0:
+                self.root.after(150, self._start_next_queued_task)
+
         def retry_selected() -> None:
             selected = tree.selection()
             record = rows_by_id.get(selected[0]) if selected else None
@@ -906,6 +963,7 @@ class JarvisDesktop:
         footer.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
         refresh()
 
@@ -1098,8 +1156,12 @@ class JarvisDesktop:
         if cancel_event.is_set():
             status = "cancelled"
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
+        elif failed:
+            status = "failed"
         else:
-            status = "failed" if failed else "completed"
+            status = str(getattr(self.agent, "last_outcome", "completed"))
+            if status not in {"completed", "partial", "failed", "cancelled"}:
+                status = "failed"
         if task_id:
             try:
                 self.task_store.update_task(task_id, status=status, result=result)

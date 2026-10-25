@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.3 — Structured tool-action audit
+**Version:** 1.6.5 — Queued task controls
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -140,3 +140,13 @@ Transient provider connection failures and HTTP 408, 429, 500, 502, 503 or 504 r
 ## Tool-action audit history
 
 Task History records each declared tool action as `RUNNING`, `RESULT_RECEIVED`, `FAILED` or `INTERRUPTED`. The audit stores tool names, timestamps and a bounded diagnostic note only; it does not copy tool arguments or result payloads. If the app restarts while a tool is running, recovery marks the outcome unknown and does not automatically replay the action.
+
+
+## Honest task outcome status
+
+Task History distinguishes `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED`. Known provider/configuration failures and malformed responses are marked failed; tool exceptions and execution-budget limits are marked partial. This status reflects known execution signals and is not semantic proof that an overall user goal or document quality has been achieved.
+
+
+## Cancel a saved queued command
+
+In Task History, select a row whose status is `QUEUED` and choose **Cancel Selected Queued Task**. The app confirms the command and marks that queue entry `CANCELLED` without executing it. A running or already-finished task cannot be cancelled through this control. Remaining queued commands retain FIFO order and still require the user to arm the saved queue after an app restart.

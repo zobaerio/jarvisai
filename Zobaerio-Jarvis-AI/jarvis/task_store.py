@@ -141,7 +141,7 @@ class TaskStore:
         result: str | None = None,
         step: str | None = None,
     ) -> dict[str, Any] | None:
-        allowed_statuses = {"queued", "running", "cancelling", "completed", "failed", "cancelled"}
+        allowed_statuses = {"queued", "running", "cancelling", "completed", "partial", "failed", "cancelled"}
         if status is not None and status not in allowed_statuses:
             raise ValueError(f"Unsupported task status: {status}")
         with self._lock:
@@ -155,7 +155,7 @@ class TaskStore:
                 target["status"] = status
                 if status == "running":
                     target["process_id"] = os.getpid()
-                if status in {"completed", "failed", "cancelled"}:
+                if status in {"completed", "partial", "failed", "cancelled"}:
                     target["finished_at"] = now
             if result is not None:
                 target["result"] = str(result)[:MAX_RESULT_LENGTH]
@@ -166,6 +166,29 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
+
+    def cancel_queued_task(self, task_id: str) -> dict[str, Any] | None:
+        """Cancel a queued command without executing it; active or terminal tasks are untouched."""
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None or target.get("status") != "queued":
+                return None
+            now = _now()
+            target["status"] = "cancelled"
+            target["updated_at"] = now
+            target["finished_at"] = now
+            target["result"] = "Queued command cancelled before execution. It was not run."
+            steps = target.get("steps")
+            if not isinstance(steps, list):
+                steps = []
+            steps.append({
+                "time": now,
+                "text": "Queued command cancelled by user before execution",
+            })
+            target["steps"] = steps[-MAX_STEPS:]
+            self._write(rows[-MAX_TASKS:])
+            return dict(target)
 
     def start_action(self, task_id: str, name: str) -> str | None:
         """Record a tool start without persisting its arguments or returned content."""
