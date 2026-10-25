@@ -181,6 +181,7 @@ class JarvisAgent:
         user_text: str,
         cancel_event: threading.Event | None = None,
         progress: Callable[[str], None] | None = None,
+        tool_event: Callable[[str, str, str | None, str], str | None] | None = None,
     ) -> str:
         """Answer a user request; cancellation is cooperative between blocking operations."""
         def cancelled() -> bool:
@@ -193,6 +194,21 @@ class JarvisAgent:
                 except Exception:
                     # Progress/history UI must never break the actual assistant workflow.
                     pass
+
+        def notify_tool_event(
+            name: str,
+            status: str,
+            action_id: str | None = None,
+            note: str = "",
+        ) -> str | None:
+            if tool_event is None:
+                return action_id
+            try:
+                return tool_event(name, status, action_id, note)
+            except Exception as exc:
+                # Audit/history failures must never interrupt the actual tool workflow.
+                report(f"Tool action audit update failed ({type(exc).__name__})")
+                return action_id
 
         if cancelled():
             return "কাজটি বাতিল করা হয়েছে। বাতিলের অনুরোধ পাওয়ার পর নতুন কোনো action শুরু করা হয়নি।"
@@ -301,14 +317,19 @@ class JarvisAgent:
                         )
                     tool_call_count += 1
                     function = call.get("function", {})
-                    name = function.get("name", "")
+                    name = str(function.get("name", "") or "")
                     raw_args = function.get("arguments", "{}")
                     report(f"Running tool: {name or 'unknown'}")
+                    audit_id = notify_tool_event(name or "unknown", "running")
                     try:
                         args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                         result = self._execute_tool(name, args)
                     except Exception as exc:
                         result = f"Tool failed safely: {type(exc).__name__}: {exc}"
+                        notify_tool_event(name or "unknown", "failed", audit_id, type(exc).__name__)
+                    else:
+                        # Store only the fact that the tool returned; never copy its arguments or payload.
+                        notify_tool_event(name or "unknown", "result_received", audit_id)
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
                     # Persist a brief, useful outcome line without copying full file contents.
                     outcome = str(result).splitlines()[0][:150] if str(result).splitlines() else "No result text"
