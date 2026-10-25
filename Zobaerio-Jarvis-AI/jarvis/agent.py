@@ -30,6 +30,8 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "copy_file", "description": "Copy one regular file between Desktop, Documents, or Downloads. Requires explicit approval, blocks symbolic links, and never overwrites an existing destination.", "parameters": {"type": "object", "properties": {"source_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "destination_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "destination_filename": {"type": "string"}}, "required": ["source_location", "filename", "destination_location", "destination_filename"]}}},
     {"type": "function", "function": {"name": "move_file", "description": "Move one regular file between Desktop, Documents, or Downloads. Requires explicit approval; destination is created with no-overwrite protection, and the source is removed only after the copy succeeds.", "parameters": {"type": "object", "properties": {"source_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "destination_location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "destination_filename": {"type": "string"}}, "required": ["source_location", "filename", "destination_location", "destination_filename"]}}},
     {"type": "function", "function": {"name": "rename_file", "description": "Rename one regular file inside Desktop, Documents, or Downloads. Requires explicit approval and never overwrites an existing destination.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "new_filename": {"type": "string"}}, "required": ["location", "filename", "new_filename"]}}},
+
+    {"type": "function", "function": {"name": "open_file", "description": "Open one existing document/data/image file from Desktop, Documents, or Downloads in its default Windows app. Requires explicit approval; scripts and executables are blocked.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}}, "required": ["location", "filename"]}}},
 ]
 
 
@@ -191,6 +193,12 @@ class JarvisAgent:
             return automation.create_text_file(str(args.get("location", "")), str(args.get("filename", "")), str(args.get("content", "")), self.approval)
         if name == "read_text_file":
             return automation.read_text_file(str(args.get("location", "")), str(args.get("filename", "")))
+        if name == "open_file":
+            return automation.open_file(
+                str(args.get("location", "")),
+                str(args.get("filename", "")),
+                self.approval,
+            )
         if name == "copy_file":
             return automation.copy_file(
                 str(args.get("source_location", "")),
