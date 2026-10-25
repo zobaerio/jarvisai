@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.7.0 — Local system health checks
+**Version:** 1.7.1 — AI API-key readiness check
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -181,4 +181,4 @@ The script uses an isolated `.packaging-venv` instead of adding PyInstaller to t
 
 ## Local system health check
 
-Use **RUN SYSTEM HEALTH CHECK** in the AI model status panel to inspect the supported Python runtime, Windows platform, local 3D/branding assets, dependency availability and AI configuration presence. The report shows `PASS`, `WARN` or `FAIL` and provides a refresh action. This is a local preflight only: it does not contact the configured provider, test microphone/speaker hardware, or scan user files. The endpoint and API key are not displayed in the health report. To check network reachability, use the separate provider connection test in Settings.
+Use **RUN SYSTEM HEALTH CHECK** in the AI model status panel to inspect the supported Python runtime, Windows platform, local 3D/branding assets, dependency availability, endpoint/model configuration and cloud API-key presence. It only reports whether a key appears available; it never displays the value. Local Ollama endpoints are treated as not requiring an API key. The report shows `PASS`, `WARN` or `FAIL` and provides a refresh action. This is a local preflight only: it does not contact the configured provider, test microphone/speaker hardware, or scan user files. To check network reachability, use the separate provider connection test in Settings.
