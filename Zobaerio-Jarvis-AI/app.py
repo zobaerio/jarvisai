@@ -15,6 +15,7 @@ from jarvis.agent import JarvisAgent
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
+from jarvis.task_store import TaskStore
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -40,6 +41,12 @@ class JarvisDesktop:
         self.events: queue.Queue = queue.Queue()
         self.agent = JarvisAgent(self.settings, self._request_approval)
         self._busy = False
+        self.task_store = TaskStore()
+        self._active_task_id: str | None = None
+        self._active_task_cancel_event: threading.Event | None = None
+        self._active_task_command = ""
+        self._task_history_window: tk.Toplevel | None = None
+        self._approval_dialog: tk.Toplevel | None = None
         self.wake_enabled = False
         self._wake_thread: threading.Thread | None = None
         self._speech_active = threading.Event()
@@ -149,7 +156,7 @@ class JarvisDesktop:
         word.pack(side="left", padx=(9, 0), pady=13)
         tk.Label(word, text="J.A.R.V.I.S", bg="#050b17", fg=TEXT,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(word, text="PERSONAL AI COMMAND CENTER · V1.2.2", bg="#050b17", fg=ACCENT,
+        tk.Label(word, text="PERSONAL AI COMMAND CENTER · V1.3.0", bg="#050b17", fg=ACCENT,
                  font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(1, 0))
 
         nav = tk.Frame(top, bg="#050b17")
@@ -359,6 +366,21 @@ class JarvisDesktop:
             label.pack(fill="x", anchor="w", pady=5)
             self.activity_labels.append(label)
         self._refresh_activity()
+        task_buttons = tk.Frame(task_panel, bg=PANEL)
+        task_buttons.pack(fill="x", padx=10, pady=(0, 10))
+        self.cancel_task_btn = tk.Button(
+            task_buttons, text="■  CANCEL CURRENT TASK", command=self._cancel_current_task,
+            bg="#4a2430", fg="#fecaca", activebackground="#702b3b", activeforeground="#ffffff",
+            relief="flat", bd=0, font=("Segoe UI Semibold", 8, "bold"), padx=8, pady=8,
+            cursor="hand2", state="disabled"
+        )
+        self.cancel_task_btn.pack(fill="x", pady=(0, 5))
+        tk.Button(
+            task_buttons, text="▤  TASK HISTORY", command=self._open_task_history,
+            bg="#102b40", fg=ACCENT, activebackground="#194661", activeforeground=TEXT,
+            relief="flat", bd=0, font=("Segoe UI Semibold", 8, "bold"), padx=8, pady=8,
+            cursor="hand2"
+        ).pack(fill="x")
 
         llm_panel = self._panel(right)
         llm_panel.pack(fill="x", pady=(0, 9))
@@ -595,27 +617,70 @@ class JarvisDesktop:
         self._send_text(text)
 
     def _send_text(self, text: str) -> None:
-        if not text.strip():
+        command = text.strip()
+        if not command:
             return
         if self._busy:
             self._write_message("SYSTEM", "একটি কাজ এখনও চলছে। সেটি শেষ হলে পরের নির্দেশনা দাও।", "system")
             return
-        self._write_message("YOU", text, "user")
-        self._push_activity("Working on: " + text)
+        self._write_message("YOU", command, "user")
+        self._push_activity("Working on: " + command)
+        cancel_event = threading.Event()
+        try:
+            record = self.task_store.create_task(command)
+            task_id = str(record["id"])
+        except Exception as exc:
+            task_id = None
+            self._write_message("SYSTEM", f"Task history could not be saved: {type(exc).__name__}: {exc}", "system")
+        self._active_task_id = task_id
+        self._active_task_command = command
+        self._active_task_cancel_event = cancel_event
         self._busy = True
         self._set_busy(True, "● THINKING")
-        threading.Thread(target=self._work, args=(text,), daemon=True).start()
+        threading.Thread(target=self._work, args=(command, task_id, cancel_event), daemon=True).start()
 
-    def _work(self, text: str) -> None:
+    def _record_task_step(self, task_id: str | None, step: str) -> None:
+        if not task_id:
+            return
         try:
-            result = self.agent.respond(text)
-        except Exception as exc:
-            result = f"একটি সমস্যা হয়েছে: {type(exc).__name__}: {exc}"
-        self.root.after(0, self._finish_response, result)
+            self.task_store.update_task(task_id, step=step)
+        except Exception:
+            # A history disk error should not crash a task that is already underway.
+            pass
 
-    def _finish_response(self, result: str) -> None:
+    def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
+        failed = False
+        try:
+            result = self.agent.respond(
+                text,
+                cancel_event=cancel_event,
+                progress=lambda step: self._record_task_step(task_id, step),
+            )
+        except Exception as exc:
+            failed = True
+            result = f"একটি সমস্যা হয়েছে: {type(exc).__name__}: {exc}"
+        if cancel_event.is_set():
+            status = "cancelled"
+            self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
+        else:
+            status = "failed" if failed else "completed"
+        if task_id:
+            try:
+                self.task_store.update_task(task_id, status=status, result=result)
+            except Exception:
+                pass
+        try:
+            self.root.after(0, self._finish_response, result, task_id, status)
+        except tk.TclError:
+            pass
+
+    def _finish_response(self, result: str, task_id: str | None = None, task_status: str = "completed") -> None:
         self._write_message("J.A.R.V.I.S", result, "assistant")
-        self._push_activity("Response: " + result.splitlines()[0])
+        self._push_activity(f"{task_status.upper()}: " + (self._active_task_command or result).splitlines()[0])
+        if task_id is None or task_id == self._active_task_id:
+            self._active_task_id = None
+            self._active_task_cancel_event = None
+            self._active_task_command = ""
         self._set_busy(False, "● READY")
         if self.settings.get("speak_replies", True):
             threading.Thread(target=self._speak_safely, args=(result,), daemon=True).start()
@@ -674,6 +739,8 @@ class JarvisDesktop:
         self.send_btn.configure(state="disabled" if busy else "normal")
         self.entry.configure(state="disabled" if busy else "normal")
         self.mic_btn.configure(state="disabled" if busy else "normal")
+        if hasattr(self, "cancel_task_btn"):
+            self.cancel_task_btn.configure(state="normal" if busy and self._active_task_cancel_event is not None else "disabled")
         if not busy:
             self.entry.focus_set()
 
