@@ -11,7 +11,7 @@ class SafeDiagnosticsExportTests(unittest.TestCase):
     def test_diagnostics_uses_central_app_version_by_default(self) -> None:
         report = build_safe_diagnostics([])
         self.assertEqual(report["app_version"], APP_VERSION)
-        self.assertEqual(APP_VERSION, "1.7.2")
+        self.assertEqual(APP_VERSION, "1.7.3")
 
     def test_report_contains_aggregates_without_user_content_or_identifiers(self) -> None:
         records = [

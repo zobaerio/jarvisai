@@ -1,10 +1,14 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.7.2 — API-key readiness fix
+**সংস্করণ:** 1.7.3 — voice timeout reliability
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
+
+## Voice reliability
+
+Speech recognition-এর network operation ১৫ সেকেন্ডে সীমাবদ্ধ। Edge TTS-এর audio তৈরি ও playback-এরও সময়সীমা আছে; online speech service আটকে গেলে available থাকলে local `pyttsx3` fallback ব্যবহার করার চেষ্টা হবে। তবুও বাস্তব microphone, speaker ও Windows device-এ পরীক্ষা করা জরুরি।
 
 ## Character
 - **LUNA:** বেগুনি চুলের full-body artwork
