@@ -767,9 +767,36 @@ class JarvisDesktop:
                     tree.focus(first_id)
             selection_changed()
 
+        def retry_selected() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Retry task", "Select a task from the history list first.", parent=win)
+                return
+            if self._busy:
+                messagebox.showinfo("Retry task", "A task is already running. Wait for it to finish or cancel it first.", parent=win)
+                return
+            command = str(record.get("command", "")).strip()
+            if not command:
+                messagebox.showerror("Retry task", "This task has no saved command to retry.", parent=win)
+                return
+            status = str(record.get("status", "unknown")).upper()
+            if not messagebox.askyesno(
+                "Confirm task retry",
+                f"Run this command again using the current AI settings?\n\n"
+                f"Previous status: {status}\n\nCommand:\n{command}\n\n"
+                "This may repeat file or external actions. J.A.R.V.I.S will still ask for approval where required.",
+                parent=win,
+                icon="warning",
+            ):
+                return
+            self._write_message("SYSTEM", "Retry requested from Task History. A new task record will be created.", "system")
+            self._send_text(command)
+
         footer = tk.Frame(win, bg=BG)
         footer.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
+        ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
         refresh()
 
