@@ -49,11 +49,11 @@ If installation fails, open PowerShell in the project folder and run `python --v
 
 ## Task history and cancellation (v1.3.0)
 
-The right-side **ACTIVE TASKS** panel now includes **CANCEL CURRENT TASK** and **TASK HISTORY**. J.A.R.V.I.S keeps the newest 100 task records, including the command, status, timestamps, result summary and progress events. Select a row and use **Retry Selected Task** to run its saved command again after a confirmation warning; it uses current settings and creates a new record. File/folder approval dialogs include a **Cancel Task** option.
+The right-side **ACTIVE TASKS** panel now includes **RUN QUEUED TASKS**, **CANCEL CURRENT TASK** and **TASK HISTORY**. J.A.R.V.I.S keeps the newest 100 task records, including the command, status, timestamps, result summary and progress events. While a task is running, you can type another command and press **QUEUE**; J.A.R.V.I.S asks before saving it to the FIFO queue. Armed queue entries run one at a time after the active task finishes, with the normal file/folder approval checks still in place. Select a row and use **Retry Selected Task** to run its saved command again after a confirmation warning; it uses current settings and creates a new record. File/folder approval dialogs include a **Cancel Task** option.
 
 Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
 
-Task history is stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. This JSON history is not encrypted by this feature. Do not use commands to store passwords, API keys or other secrets.
+Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
 
 ## Safety and capabilities
 
