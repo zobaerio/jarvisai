@@ -23,6 +23,13 @@ class WhatsAppMessageDraftTests(unittest.TestCase):
                 open_url.assert_not_called()
                 self.assertIn("blocked", result)
 
+    def test_non_ascii_phone_digits_are_rejected(self) -> None:
+        for phone in ("+৮৮০১৭১২৩৪৫৬৭৮", "+880１７１２３４５６７８"):
+            with self.subTest(phone=phone), patch("jarvis.automation.webbrowser.open") as open_url:
+                result = automation.prepare_whatsapp_message(phone, "Hello")
+                open_url.assert_not_called()
+                self.assertIn("blocked", result)
+
     def test_empty_message_does_not_open_browser(self) -> None:
         with patch("jarvis.automation.webbrowser.open") as open_url:
             result = automation.prepare_whatsapp_message("+8801712345678", "  ")
