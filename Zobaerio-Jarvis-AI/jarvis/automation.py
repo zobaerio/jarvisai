@@ -239,6 +239,42 @@ def prepare_whatsapp_message(phone_number: str, message: str) -> str:
     )
 
 
+
+def prepare_email_draft(recipient: str, subject: str, body: str) -> str:
+    """Open the default email app with a validated mailto draft; never send it."""
+    address = str(recipient).strip()
+    # Keep this deliberately conservative: one address only, no display names or header syntax.
+    if len(address) > 254 or re.fullmatch(
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\\.[A-Za-z]{2,}",
+        address,
+    ) is None:
+        return "Email draft blocked: provide one valid recipient email address."
+    subject_text = str(subject).strip()
+    body_text = str(body).strip()
+    if len(subject_text) > 200:
+        return "Email draft blocked: subject must be 200 characters or fewer."
+    if any(ord(char) < 32 and char not in "\\t" for char in subject_text):
+        return "Email draft blocked: subject contains unsupported control characters."
+    if not body_text:
+        return "Email draft not opened: email body is empty."
+    if len(body_text) > 5000:
+        return "Email draft blocked: body must be 5,000 characters or fewer."
+    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in body_text):
+        return "Email draft blocked: body contains unsupported control characters."
+    url = "mailto:" + quote(address, safe="@.!#$%&'*+/=?^_`{|}~-")
+    params = []
+    if subject_text:
+        params.append("subject=" + quote(subject_text, safe=""))
+    params.append("body=" + quote(body_text, safe=""))
+    url += "?" + "&".join(params)
+    webbrowser.open(url)
+    return (
+        "Opened the default email app with a draft addressed to the supplied recipient. "
+        "Nothing was sent. Review the recipient, subject and message, then send it yourself."
+    )
+
+
+
 def open_folder(location: str) -> str:
     path = normalize_location(location)
     os.startfile(str(path))  # type: ignore[attr-defined]
