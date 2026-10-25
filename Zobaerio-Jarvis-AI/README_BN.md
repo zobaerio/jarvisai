@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.5 — Secure Endpoint Check
+**সংস্করণ:** 1.5.6 — Durable Settings
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -33,6 +33,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 Settings এখন API base URL যাচাই করে, URL-এর ভেতরে username/API key এবং query/fragment থাকলে block করে। Stored API key কোনো remote non-local endpoint-এ plain HTTP দিয়ে পাঠানো হবে না—remote provider-এর জন্য HTTPS ব্যবহার করবে; local Ollama/loopback address-এ HTTP চলতে পারে।
 
 **Test Connection** শুধু `/models` endpoint-এ GET request পাঠায়। Chat prompt পাঠায় না বা answer generate করে না। Result endpoint পাওয়া যাচ্ছে কি না এবং configured model তালিকায় আছে কি না জানায়; এটি সব provider-এ chat completion/tool calling কাজ করবে তার নিশ্চয়তা নয়।
+
+## নতুন: Settings Crash Recovery
+
+Settings এখন unique temporary file-এ লিখে flush/fsync ও atomic replace-এর মাধ্যমে save হয়। সফল save-এর পর `settings.json.bak` recovery copy আপডেট হয়; primary settings file নষ্ট/পড়া না গেলে backup থেকে restore করার চেষ্টা করবে। এতে অসম্পূর্ণ JSON হওয়ার ঝুঁকি কমে, কিন্তু settings encrypt হয় না এবং এটি নিয়মিত device backup-এর বিকল্প নয়। API key আগের মতো Windows credential store-এ থাকে—এই JSON-এ নয়।
 
 ## নতুন: Task History ও Cancel Task
 
