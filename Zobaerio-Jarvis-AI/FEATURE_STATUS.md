@@ -10,6 +10,8 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 - Spoken responses using Edge TTS with pyttsx3 fallback; online synthesis and primary playback paths have bounded timeouts.
 - Configurable OpenAI-compatible Chat Completions endpoint; optional local Ollama setup.
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, consent-gated text-file read/create, folder creation, and approval-gated single-file copy/move/rename.
+- Social web navigation via voice/AI tool calls: open WhatsApp Web, Facebook, YouTube, Instagram and Messenger, plus explicit English/Bangla YouTube search commands.
+- WhatsApp message-draft preparation: validate an international phone number and bounded message text, open WhatsApp Web with the message prefilled, and leave final recipient review and sending to the user; the app does not click Send or claim delivery.
 - Foreground desktop actions: list visible window titles (title-only), paste text into a named Windows window and send allow-listed editing/navigation shortcuts—each interaction requires explicit user approval.
 - Deterministic local verification: check whether an exact filename/folder exists inside an allowed user folder or a visible window title matches a target; brief tool outcome lines are persisted to task history.
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
@@ -55,7 +57,7 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 - Custom rigged GLB/VRM assets that match the supplied character designs closely are not bundled; the new import button only loads a model the user already has. Asset ownership/licensing must be confirmed.
 - Natural humanoid motion, realistic hands/fingers, expressions, eye gaze, proper talking animation and real lip-sync.
 - Screen understanding with screenshot/accessibility-tree context and safe interaction with arbitrary applications.
-- Full integrations for Gmail/Outlook, Office document editing, calendar, social media, message sending or form submission.
+- Full integrations for Gmail/Outlook, Office document editing, calendar, Facebook reactions/comments, automated WhatsApp sending, phone calls, or form submission. WhatsApp currently supports only opening a prefilled draft for the user to review and send manually.
 - Multi-step AI plans with durable per-step state, automatic retry/backoff policies, resume of a partially executed task after restart, and semantic verification that the user's overall goal was achieved. Current verification checks only local file/folder existence and visible window titles, not the contents/quality of a document or whether an external task is fully complete.
 - Fully offline speech recognition/TTS, bundled local LLM, native signed EXE/MSIX installer, app auto-update, rollback and crash reporting.
 - Automated Windows 11 hardware QA for actual microphones, speakers, WebGL/GPU acceleration, wake listening and each action.
