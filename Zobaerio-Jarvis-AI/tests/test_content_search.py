@@ -26,7 +26,7 @@ class LocalContentSearchTests(unittest.TestCase):
 
     def test_search_requires_approval_and_returns_only_matching_lines(self) -> None:
         target = self.roots["documents"] / "estimate.md"
-        target.write_text("# Estimate\\nConcrete volume = 12 m3\\nPrivate unrelated line", encoding="utf-8")
+        target.write_text("# Estimate\nConcrete volume = 12 m3\nPrivate unrelated line", encoding="utf-8")
         denied = Mock(return_value=False)
         result = automation.search_file_contents("concrete", "Documents", denied)
         self.assertIn("Cancelled", result)
@@ -51,6 +51,12 @@ class LocalContentSearchTests(unittest.TestCase):
         (self.roots["documents"] / "big.txt").write_text("needle " * 100, encoding="utf-8")
         with patch("jarvis.automation.MAX_CONTENT_SEARCH_FILE_BYTES", 32):
             result = automation.search_file_contents("needle", "Documents", lambda *_: True)
+        self.assertIn("No matching lines found", result)
+        self.assertIn("skipped 1 large/binary file", result)
+
+    def test_search_skips_null_byte_text_files(self) -> None:
+        (self.roots["documents"] / "binary.txt").write_bytes(b"needle\\x00payload")
+        result = automation.search_file_contents("needle", "Documents", lambda *_: True)
         self.assertIn("No matching lines found", result)
         self.assertIn("skipped 1 large/binary file", result)
 
