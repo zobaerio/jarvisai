@@ -3,7 +3,13 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import threading
+import time
 from pathlib import Path
+
+
+def _playback_timeout_seconds(text_length: int) -> float:
+    """Bound speech playback time while allowing longer responses extra time."""
+    return max(15.0, min(180.0, 10.0 + max(0, int(text_length)) / 20.0))
 
 
 class SpeechEngine:
@@ -18,6 +24,8 @@ class SpeechEngine:
             raise RuntimeError("SpeechRecognition is not installed. Run install.bat again.") from exc
         recognizer = sr.Recognizer()
         recognizer.pause_threshold = 0.8
+        # Bound network-backed recognition so a stalled provider cannot block the UI worker forever.
+        recognizer.operation_timeout = 15
         try:
             with sr.Microphone() as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.45)
@@ -29,7 +37,7 @@ class SpeechEngine:
             raise RuntimeError("I could not understand that speech. Please try again.") from exc
         except sr.RequestError as exc:
             raise RuntimeError("Speech recognition needs an internet connection. Check your connection and retry.") from exc
-        except OSError as exc:
+        except (OSError, AttributeError) as exc:
             raise RuntimeError("No usable microphone found. Check Windows microphone permissions and input device.") from exc
 
     def speak(self, text: str, voice: str = "bn-BD-PradeepNeural") -> None:
@@ -50,13 +58,17 @@ class SpeechEngine:
             out = Path(f.name)
         try:
             communicate = edge_tts.Communicate(text=text, voice=voice, rate="+0%", volume="+0%")
-            await communicate.save(str(out))
+            await asyncio.wait_for(communicate.save(str(out)), timeout=45.0)
             if not self._pygame_ready:
                 pygame.mixer.init()
                 self._pygame_ready = True
             pygame.mixer.music.load(str(out))
             pygame.mixer.music.play()
+            deadline = time.monotonic() + _playback_timeout_seconds(len(text))
             while pygame.mixer.music.get_busy():
+                if time.monotonic() >= deadline:
+                    pygame.mixer.music.stop()
+                    raise TimeoutError("Speech playback exceeded its safe time limit.")
                 await asyncio.sleep(0.12)
             pygame.mixer.music.unload()
         finally:
