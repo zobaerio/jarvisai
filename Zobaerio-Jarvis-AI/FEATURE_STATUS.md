@@ -10,6 +10,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Spoken responses using Edge TTS with pyttsx3 fallback.
 - Configurable OpenAI-compatible Chat Completions endpoint; optional local Ollama setup.
 - AI tool-call loop for a limited allow-list: launch selected apps, open websites, open common folders, filename search, basic system information, safe text-file read/create and folder creation.
+- Foreground desktop actions: list visible window titles (title-only), paste text into a named Windows window and send allow-listed editing/navigation shortcuts—each interaction requires explicit user approval.
 - Approval dialog for supported file/folder changes; API key stored with keyring when available.
 - Opt-in wake-word listening prototype.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
@@ -23,7 +24,7 @@ Audit date: 2026-10-25. This inventory describes code that exists; it does not c
 - Animation: procedural characters have independent limb parts and simulated motion. A user-provided rigged `.glb` can replace the selected procedural character; if the file contains embedded clips, the viewer can play an idle/default clip and clips named like wave/hello/gesture or talk/speak. There is still no built-in production skeletal rig, generated custom model, hair/cloth physics, motion capture, natural walking, emotion capture or phoneme-level lip-sync.
 - 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required.
 - Wake word is based on repeated speech recognition, not a dedicated low-latency offline wake-word engine.
-- AI Agent can plan only with declared tools; no general screen vision, arbitrary mouse/keyboard automation, or guaranteed completion of multi-app workflows.
+- AI Agent can plan only with declared tools. Foreground controls are limited to title-matched text paste and a small shortcut allow-list with approval; there is no screenshot/OCR context, arbitrary clicking, broad keyboard scripting, or guaranteed completion of multi-app workflows.
 - Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
