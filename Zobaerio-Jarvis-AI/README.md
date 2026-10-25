@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.1 — Safe duplicate-file finder
+**Version:** 1.6.2 — Bounded AI provider retry/backoff
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -130,3 +130,8 @@ python -m compileall -q app.py jarvis tests
 ```
 
 The repository owner should also test microphone, speaker output, character selection, and each desktop command on the target Windows 11 machine before treating the project as production-ready.
+
+
+## AI provider retry behavior
+
+Transient provider connection failures and HTTP 408, 429, 500, 502, 503 or 504 responses receive up to two bounded retries before any returned tool action runs. Short `Retry-After` values are respected; longer values return a safe provider error instead of retrying early. Cancel is checked during retry waits. Tool actions are never automatically replayed by this retry layer.
