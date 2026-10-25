@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import platform
 import shutil
@@ -750,6 +751,204 @@ def _is_windows_platform() -> bool:
 def _launch_file_with_default_app(path: Path) -> None:
     """Ask Windows Shell to open a user-selected document/image with its default app."""
     os.startfile(str(path))  # type: ignore[attr-defined]
+
+
+MAX_DUPLICATE_SCAN_FILES = 5000
+MAX_DUPLICATE_HASH_BYTES = 256 * 1024 * 1024
+MAX_DUPLICATE_SINGLE_FILE_BYTES = 100 * 1024 * 1024
+MAX_DUPLICATE_GROUPS = 20
+MAX_DUPLICATE_PATHS_PER_GROUP = 10
+DUPLICATE_IGNORED_DIRS = {
+    ".git", ".venv", "venv", "node_modules", "__pycache__", "AppData",
+    "System Volume Information", "$Recycle.Bin", ".cache", ".next", "dist", "build",
+}
+
+
+def _sha256_if_unchanged(path: Path, expected: os.stat_result) -> str | None:
+    """Hash a regular file only if both the open handle and final path still match."""
+    try:
+        if path.is_symlink():
+            return None
+        with path.open("rb") as stream:
+            before = os.fstat(stream.fileno())
+            identity_before = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            identity_expected = (
+                expected.st_dev, expected.st_ino, expected.st_size, expected.st_mtime_ns
+            )
+            if identity_before != identity_expected:
+                return None
+            digest = hashlib.sha256()
+            byte_count = 0
+            while True:
+                chunk = stream.read(1024 * 1024)
+                if not chunk:
+                    break
+                byte_count += len(chunk)
+                if byte_count > expected.st_size or byte_count > MAX_DUPLICATE_SINGLE_FILE_BYTES:
+                    return None
+                digest.update(chunk)
+            after = os.fstat(stream.fileno())
+            identity_after = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        final_path_stat = path.stat()
+        final_path_identity = (
+            final_path_stat.st_dev, final_path_stat.st_ino,
+            final_path_stat.st_size, final_path_stat.st_mtime_ns,
+        )
+        if (
+            identity_after != identity_before
+            or final_path_identity != identity_before
+            or byte_count != expected.st_size
+            or path.is_symlink()
+        ):
+            return None
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def find_duplicate_files(location: str, approve) -> str:
+    """Find identical files by SHA-256 in a bounded approved folder scope; never modify files."""
+    label = str(location).strip()
+    if label.casefold() == "all":
+        selected_roots = [
+            ("Desktop", ROOTS["desktop"]),
+            ("Documents", ROOTS["documents"]),
+            ("Downloads", ROOTS["downloads"]),
+        ]
+    else:
+        aliases = {
+            "desktop": "desktop", "documents": "documents", "downloads": "downloads",
+            "ডেস্কটপ": "desktop", "ডকুমেন্টস": "documents", "ডাউনলোডস": "downloads",
+        }
+        key = aliases.get(label.casefold())
+        if key is None:
+            return "Location must be Desktop, Documents, Downloads, or All."
+        selected_roots = [(label.title(), ROOTS[key])]
+
+    scope = ", ".join(root_label for root_label, _root in selected_roots)
+    confirmation = (
+        f"Find duplicate files in: {scope}\n\n"
+        f"J.A.R.V.I.S will recursively inspect file names and sizes, then hash only same-size candidates. "
+        f"It can examine at most {MAX_DUPLICATE_SCAN_FILES:,} file entries and hash at most "
+        f"{MAX_DUPLICATE_HASH_BYTES // (1024 * 1024)} MiB total; individual files above "
+        f"{MAX_DUPLICATE_SINGLE_FILE_BYTES // (1024 * 1024)} MiB are skipped.\n\n"
+        "Matching file paths, sizes, and shortened SHA-256 fingerprints will be returned to the AI conversation "
+        "and may be sent to the configured AI provider. File contents themselves are not included in the results. "
+        "No files will be deleted, moved, renamed, or edited. Approve this local scan?"
+    )
+    try:
+        if not approve("Confirm duplicate-file scan", confirmation):
+            return "Cancelled. No duplicate-file scan was started."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No duplicate-file scan was started."
+
+    entries_scanned = 0
+    large_files_skipped = 0
+    hash_bytes = 0
+    budget_groups_skipped = 0
+    changed_files_skipped = 0
+    scan_limit_hit = False
+    size_candidates: dict[int, list[tuple[Path, os.stat_result, Path]]] = {}
+    ignored_names = {name.casefold() for name in DUPLICATE_IGNORED_DIRS}
+
+    for root_label, root in selected_roots:
+        if not root.exists():
+            continue
+        try:
+            root_resolved = root.resolve()
+        except OSError:
+            continue
+        stop_scan = False
+        for current_dir, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+            current_path = Path(current_dir)
+            directories[:] = [
+                name for name in directories
+                if not name.startswith(".")
+                and name.casefold() not in ignored_names
+                and not (current_path / name).is_symlink()
+            ]
+            for filename in filenames:
+                if entries_scanned >= MAX_DUPLICATE_SCAN_FILES:
+                    scan_limit_hit = True
+                    stop_scan = True
+                    break
+                entries_scanned += 1
+                path = current_path / filename
+                if path.is_symlink() or filename.startswith("."):
+                    continue
+                try:
+                    resolved = path.resolve(strict=True)
+                    if not resolved.is_relative_to(root_resolved) or not path.is_file():
+                        continue
+                    metadata = path.stat()
+                except OSError:
+                    continue
+                if metadata.st_size > MAX_DUPLICATE_SINGLE_FILE_BYTES:
+                    large_files_skipped += 1
+                    continue
+                size_candidates.setdefault(metadata.st_size, []).append((path, metadata, root_resolved))
+            if stop_scan:
+                break
+        if scan_limit_hit:
+            break
+
+    duplicate_candidates: dict[tuple[int, str], list[Path]] = {}
+    for size, candidates in sorted(size_candidates.items()):
+        if len(candidates) < 2:
+            continue
+        group_bytes = size * len(candidates)
+        if hash_bytes + group_bytes > MAX_DUPLICATE_HASH_BYTES:
+            budget_groups_skipped += 1
+            continue
+        for path, metadata, _root_resolved in candidates:
+            digest = _sha256_if_unchanged(path, metadata)
+            if digest is None:
+                changed_files_skipped += 1
+                continue
+            hash_bytes += metadata.st_size
+            duplicate_candidates.setdefault((size, digest), []).append(path)
+
+    groups = [
+        (size, digest, sorted(paths, key=lambda item: str(item).casefold()))
+        for (size, digest), paths in duplicate_candidates.items()
+        if len(paths) > 1
+    ]
+    groups.sort(key=lambda item: (-item[0] * (len(item[2]) - 1), str(item[2][0]).casefold()))
+    redundant_bytes = sum(size * (len(paths) - 1) for size, _digest, paths in groups)
+    if not groups:
+        summary = f"No identical-file groups were confirmed in {scope}. Scanned {entries_scanned:,} file entr(y/ies)."
+    else:
+        summary = (
+            f"Found {len(groups):,} duplicate group(s) in {scope}; "
+            f"about {redundant_bytes:,} bytes are repeated beyond one copy. "
+            f"Scanned {entries_scanned:,} file entr(y/ies), hashed {hash_bytes:,} bytes:\n"
+        )
+        for group_number, (size, digest, paths) in enumerate(groups[:MAX_DUPLICATE_GROUPS], start=1):
+            summary += (
+                f"\n{group_number}. {len(paths)} identical files — {size:,} bytes each — "
+                f"SHA-256 {digest[:12]}…\n"
+            )
+            shown = paths[:MAX_DUPLICATE_PATHS_PER_GROUP]
+            summary += "\n".join(f"   - {path}" for path in shown)
+            if len(paths) > len(shown):
+                summary += f"\n   - … and {len(paths) - len(shown)} more path(s)"
+            summary += "\n"
+        if len(groups) > MAX_DUPLICATE_GROUPS:
+            summary += f"\nOnly the first {MAX_DUPLICATE_GROUPS} duplicate groups are shown."
+
+    notes = []
+    if large_files_skipped:
+        notes.append(f"skipped {large_files_skipped:,} file(s) larger than {MAX_DUPLICATE_SINGLE_FILE_BYTES // (1024 * 1024)} MiB")
+    if budget_groups_skipped:
+        notes.append(f"skipped {budget_groups_skipped:,} same-size group(s) due to the hash budget")
+    if changed_files_skipped:
+        notes.append(f"skipped {changed_files_skipped:,} file(s) that changed or could not be read consistently")
+    if scan_limit_hit:
+        notes.append(f"stopped at the {MAX_DUPLICATE_SCAN_FILES:,}-entry scan limit")
+    if notes:
+        summary += "\n\nScan limits: " + "; ".join(notes) + "."
+    summary += "\n\nNo files were changed or deleted."
+    return summary
 
 
 MAX_ARCHIVE_FILES = 100
