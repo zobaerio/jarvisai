@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.2 — Consent-based Local Content Search
+**সংস্করণ:** 1.5.3 — Consent-gated File Read
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -37,6 +37,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 এটি cooperative cancellation: model-এর network request ইতিমধ্যে আটকে থাকলে সেটি return না করা পর্যন্ত অপেক্ষা লাগতে পারে (read timeout ৪৫ সেকেন্ড), আর ইতিমধ্যে শুরু হওয়া external action স্বয়ংক্রিয়ভাবে undo করা যায় না। Cancel শনাক্ত হওয়ার পরে নতুন AI tool action শুরু করা হয় না।
 
 History ও queued command এই PC-তে `%APPDATA%\Zobaerio\Jarvis\task_history.json`-এ JSON হিসেবে থাকে; এই feature সেটি encrypt করে না। Restart-এর পর saved queue চালাতে আলাদাভাবে confirmation দিতে হবে। Command হিসেবে password, API key বা secret দেবে না।
+
+## নতুন: Text File পড়ার আগে অনুমতি
+
+এখন J.A.R.V.I.S কোনো supported text/source file পড়ার আগে exact path ও file size দেখিয়ে confirmation নেবে। Dialog-এ স্পষ্টভাবে জানাবে যে file-এর লেখা AI conversation-এ যাবে এবং configured AI provider-এ পাঠানো হতে পারে। সর্বোচ্চ ১০০ KB-এর supported text file পড়তে পারবে; symbolic link, binary/null-byte file এবং confirmation চলাকালে বা পড়ার সময় বদলে যাওয়া file block করা হবে। অনুমতি না দিলে file-এর কোনো content AI-কে দেওয়া হবে না।
 
 ## নতুন: ফাইলের ভেতরের লেখা খোঁজা
 
