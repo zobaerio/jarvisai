@@ -155,6 +155,8 @@ _COMPLEX_TASK_MARKERS = (
 def should_generate_task_plan(user_text: str) -> bool:
     """Avoid an extra model round-trip for short questions and single-step commands."""
     text = " ".join(str(user_text or "").casefold().split())
+    if any(marker in text for marker in _COMPLEX_TASK_MARKERS):
+        return True
     if len(text) < 45:
         return False
-    return any(marker in text for marker in _MULTI_STEP_MARKERS + _COMPLEX_TASK_MARKERS)
+    return any(marker in text for marker in _MULTI_STEP_MARKERS)
