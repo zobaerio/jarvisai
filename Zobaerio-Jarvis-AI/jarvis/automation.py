@@ -245,7 +245,7 @@ def prepare_email_draft(recipient: str, subject: str, body: str) -> str:
     address = str(recipient).strip()
     # Keep this deliberately conservative: one address only, no display names or header syntax.
     if len(address) > 254 or re.fullmatch(
-        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\\.[A-Za-z]{2,}",
+        r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,}",
         address,
     ) is None:
         return "Email draft blocked: provide one valid recipient email address."
@@ -253,13 +253,13 @@ def prepare_email_draft(recipient: str, subject: str, body: str) -> str:
     body_text = str(body).strip()
     if len(subject_text) > 200:
         return "Email draft blocked: subject must be 200 characters or fewer."
-    if any(ord(char) < 32 and char not in "\\t" for char in subject_text):
+    if any(ord(char) < 32 and char not in "\t" for char in subject_text):
         return "Email draft blocked: subject contains unsupported control characters."
     if not body_text:
         return "Email draft not opened: email body is empty."
     if len(body_text) > 5000:
         return "Email draft blocked: body must be 5,000 characters or fewer."
-    if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in body_text):
+    if any(ord(char) < 32 and char not in "\n\r\t" for char in body_text):
         return "Email draft blocked: body contains unsupported control characters."
     url = "mailto:" + quote(address, safe="@.!#$%&'*+/=?^_`{|}~-")
     params = []
