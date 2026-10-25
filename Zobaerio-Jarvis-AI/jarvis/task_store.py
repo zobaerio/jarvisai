@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -16,6 +17,20 @@ MAX_STEPS = 40
 MAX_COMMAND_LENGTH = 600
 MAX_RESULT_LENGTH = 6000
 
+_PATH_LOCKS_GUARD = threading.Lock()
+_PATH_LOCKS: dict[str, Any] = {}
+
+
+def _lock_for_path(path: Path) -> threading.RLock:
+    """Share one in-process lock between TaskStore objects that use the same file."""
+    key = os.path.normcase(str(path.resolve()))
+    with _PATH_LOCKS_GUARD:
+        lock = _PATH_LOCKS.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _PATH_LOCKS[key] = lock
+        return lock
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -26,7 +41,7 @@ class TaskStore:
 
     def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path) if path is not None else DEFAULT_HISTORY_FILE
-        self._lock = threading.RLock()
+        self._lock = _lock_for_path(self.path)
 
     def list_tasks(self, limit: int = MAX_TASKS) -> list[dict[str, Any]]:
         with self._lock:
@@ -104,23 +119,72 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
-    def _read(self) -> list[dict[str, Any]]:
+    @property
+    def backup_path(self) -> Path:
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
+    @staticmethod
+    def _load_rows(path: Path) -> list[dict[str, Any]] | None:
+        """Return valid bounded records, or None when the JSON file is absent/corrupt."""
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            return []
+            raw = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return []
+            return None
         if not isinstance(raw, list):
-            return []
+            return None
         rows: list[dict[str, Any]] = []
         for item in raw[-MAX_TASKS:]:
             if isinstance(item, dict) and isinstance(item.get("id"), str):
                 rows.append(item)
         return rows
 
+    def _read(self) -> list[dict[str, Any]]:
+        primary = self._load_rows(self.path)
+        if primary is not None:
+            return primary
+        # A valid backup is preferred to silently losing all task history when
+        # the primary JSON is truncated or damaged by an interrupted write.
+        backup = self._load_rows(self.backup_path)
+        return backup if backup is not None else []
+
     def _write(self, rows: list[dict[str, Any]]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        temp = self.path.with_suffix(self.path.suffix + ".tmp")
-        temp.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-        temp.replace(self.path)
+        payload = json.dumps(rows[-MAX_TASKS:], ensure_ascii=False, indent=2) + "\n"
+        self._atomic_write_text(self.path, payload)
+        # Back up the committed primary after the atomic replacement. Backup
+        # failures must not turn a successful primary save into a failed task update.
+        try:
+            self._atomic_write_text(self.backup_path, payload)
+        except OSError:
+            pass
+
+    def _atomic_write_text(self, destination: Path, payload: str) -> None:
+        """Flush a uniquely named same-directory temporary file before atomic replace."""
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temp = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            with temp.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            temp.replace(destination)
+            self._fsync_parent_directory(destination.parent)
+        finally:
+            try:
+                temp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    @staticmethod
+    def _fsync_parent_directory(directory: Path) -> None:
+        """Best-effort directory metadata sync (not supported by every Windows filesystem)."""
+        try:
+            descriptor = os.open(str(directory), os.O_RDONLY)
+        except OSError:
+            return
+        try:
+            os.fsync(descriptor)
+        except OSError:
+            pass
+        finally:
+            os.close(descriptor)

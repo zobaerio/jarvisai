@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.5.3 explicit consent before returning local file contents to the AI conversation. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.5.4 durable task history and crash recovery. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -18,7 +18,7 @@ Audit date: 2026-10-25. Version focus: v1.5.3 explicit consent before returning 
 - Consent-based, bounded local content search for common text/source files; skips symlinks/binary/hidden/ignored directories, caps files and result snippets, and warns that matching excerpts enter the AI conversation.
 - Approval-gated single-file copy, move and rename within Desktop/Documents/Downloads; blocks symlinks/path traversal, refuses overwrites, and preserves the source until a destination copy succeeds.
 - Opt-in wake-word listening prototype.
-- Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; history viewer is available in the desktop UI.
+- Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; path-level in-process locking, unique temp files, fsync/atomic replacement and backup recovery; history viewer is available in the desktop UI.
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
 - Persistent FIFO command queue: commands can be queued while another task runs; the user can arm saved queued commands after a restart.
 - Cooperative cancellation between AI request/tool steps; the approval dialog also offers a Cancel Task action.
@@ -54,4 +54,4 @@ Audit date: 2026-10-25. Version focus: v1.5.3 explicit consent before returning 
 7. Add automated tests, CI, signed package, uninstaller, updater and repeatable device-level tests.
 
 ## Safety/privacy
-The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access. Task history is stored locally as JSON under the app's APPDATA folder and is not encrypted by this feature; avoid entering passwords, API keys or other secrets as commands.
+The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access. Task history is stored locally as JSON under the app's APPDATA folder and is not encrypted by this feature; an atomic-save backup aids recovery but does not replace encrypted storage; avoid entering passwords, API keys or other secrets as commands.
