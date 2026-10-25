@@ -598,11 +598,11 @@ def _transfer_file(
     else:
         effect = "The source is removed only after the destination copy succeeds."
     approval_text = (
-        f"Operation: {operation.upper()}\\n\\n"
-        f"Source: {source}\\n"
-        f"Destination: {destination}\\n"
-        f"File size: {size:,} bytes\\n\\n"
-        f"{effect}\\n"
+        f"Operation: {operation.upper()}\n\n"
+        f"Source: {source}\n"
+        f"Destination: {destination}\n"
+        f"File size: {size:,} bytes\n\n"
+        f"{effect}\n"
         "An existing destination will never be overwritten. Approve this exact operation?"
     )
     try:
