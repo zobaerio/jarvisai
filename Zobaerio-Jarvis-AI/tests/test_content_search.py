@@ -55,7 +55,7 @@ class LocalContentSearchTests(unittest.TestCase):
         self.assertIn("skipped 1 large/binary file", result)
 
     def test_search_skips_null_byte_text_files(self) -> None:
-        (self.roots["documents"] / "binary.txt").write_bytes(b"needle\\x00payload")
+        (self.roots["documents"] / "binary.txt").write_bytes(b"needle\x00payload")
         result = automation.search_file_contents("needle", "Documents", lambda *_: True)
         self.assertIn("No matching lines found", result)
         self.assertIn("skipped 1 large/binary file", result)
