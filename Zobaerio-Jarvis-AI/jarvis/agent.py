@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+import json
+from typing import Any, Callable
+from urllib.parse import urlparse
+
+import requests
+
+from . import automation
+from .settings import get_api_key
+
+SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. For potentially destructive or external actions, explain the action and ask for approval first; file creation already requires explicit app approval. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
+
+TOOLS: list[dict[str, Any]] = [
+    {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
+    {"type": "function", "function": {"name": "open_website", "description": "Open an HTTP(S) website or search Google for a query in the default browser.", "parameters": {"type": "object", "properties": {"url_or_query": {"type": "string"}}, "required": ["url_or_query"]}}},
+    {"type": "function", "function": {"name": "open_folder", "description": "Open the user's Desktop, Documents, or Downloads folder in File Explorer.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}}, "required": ["location"]}}},
+    {"type": "function", "function": {"name": "search_files", "description": "Search filenames under Desktop, Documents, and Downloads. Does not read file content.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+    {"type": "function", "function": {"name": "get_system_info", "description": "Get basic OS, computer, Python, and current-time information.", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside Desktop, Documents, or Downloads. The desktop app will ask the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "name": {"type": "string"}}, "required": ["location", "name"]}}},
+    {"type": "function", "function": {"name": "create_text_file", "description": "Create a new .txt, .md, .csv, .json, or .log file under Desktop, Documents, or Downloads. No overwriting. The app asks the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "content": {"type": "string"}}, "required": ["location", "filename", "content"]}}},
+    {"type": "function", "function": {"name": "read_text_file", "description": "Read a small text/code file from Desktop, Documents, or Downloads. Provide the exact filename within the selected folder. Only common text formats are supported.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}}, "required": ["location", "filename"]}}},
+]
+
+
+class JarvisAgent:
+    def __init__(self, settings: dict[str, Any], approval: Callable[[str, str], bool]) -> None:
+        self.settings = settings
+        self.approval = approval
+        self.history: list[dict[str, Any]] = []
+
+    def update_settings(self, settings: dict[str, Any]) -> None:
+        self.settings = settings
+
+    def respond(self, user_text: str) -> str:
+        direct = automation.direct_command(user_text)
+        if direct is not None:
+            return direct
+
+        base_url = str(self.settings.get("api_base_url", "")).strip().rstrip("/")
+        model = str(self.settings.get("model", "")).strip()
+        if not base_url or not model:
+            return "AI model সেট করা নেই। Settings-এ API endpoint ও model দিন, অথবা local AI চাইলে Ollama ইনস্টল করে সেটি চালু করুন। সাধারণ app/website কমান্ড API ছাড়াও কাজ করবে।"
+
+        key = get_api_key()
+        is_local = any(host in base_url.lower() for host in ("localhost", "127.0.0.1", "::1"))
+        if not is_local and not key:
+            return "AI API key পাওয়া যায়নি। Settings খুলে provider-এর API key দিন। Local Ollama ব্যবহার করলে API key ফাঁকা রাখা যাবে।"
+
+        self.history.append({"role": "user", "content": user_text})
+        self.history = self.history[-18:]
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.history
+        headers = {"Content-Type": "application/json"}
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
+        url = base_url + "/chat/completions"
+        try:
+            for _ in range(5):
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json={"model": model, "messages": messages, "tools": TOOLS, "tool_choice": "auto", "temperature": 0.4},
+                    timeout=90,
+                )
+                if response.status_code >= 400:
+                    details = response.text[:500]
+                    if response.status_code in (401, 403):
+                        return "AI provider authentication failed. Settings-এ API key এবং endpoint যাচাই করো।"
+                    return f"AI provider error ({response.status_code}): {details}"
+                payload = response.json()
+                choices = payload.get("choices", [])
+                if not choices:
+                    return "AI provider কোনো উত্তর দেয়নি। Model/endpoint Settings-এ যাচাই করো।"
+                message = choices[0].get("message", {})
+                tool_calls = message.get("tool_calls") or []
+                messages.append(message)
+                if not tool_calls:
+                    answer = message.get("content") or "আমি উত্তর তৈরি করতে পারিনি। আরেকবার বলো।"
+                    self.history.append({"role": "assistant", "content": answer})
+                    return answer
+                for call in tool_calls:
+                    function = call.get("function", {})
+                    name = function.get("name", "")
+                    raw_args = function.get("arguments", "{}")
+                    try:
+                        args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                        result = self._execute_tool(name, args)
+                    except Exception as exc:
+                        result = f"Tool failed safely: {type(exc).__name__}: {exc}"
+                    messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
+            return "আমি কয়েকটি পদক্ষেপ চেষ্টা করেছি, কিন্তু কাজটি এই রানেই শেষ করতে পারিনি। কাজটি ছোট ছোট নির্দেশনায় ভাগ করে বলো।"
+        except requests.exceptions.ConnectionError:
+            return "AI model-এ সংযোগ করা যাচ্ছে না। Local Ollama ব্যবহার করলে Ollama চালু আছে কি না ও model pull করা হয়েছে কি না দেখো; cloud provider হলে internet, endpoint ও API key যাচাই করো।"
+        except requests.exceptions.Timeout:
+            return "AI model উত্তর দিতে বেশি সময় নিয়েছে। আবার চেষ্টা করো অথবা ছোট নির্দেশনা দাও।"
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            return f"AI request ব্যর্থ হয়েছে: {type(exc).__name__}: {exc}"
+
+    def _execute_tool(self, name: str, args: dict[str, Any]) -> str:
+        if name == "open_application":
+            return automation.open_application(str(args.get("app_name", "")))
+        if name == "open_website":
+            return automation.open_website(str(args.get("url_or_query", "")))
+        if name == "open_folder":
+            return automation.open_folder(str(args.get("location", "")))
+        if name == "search_files":
+            return automation.search_files(str(args.get("query", "")))
+        if name == "get_system_info":
+            return automation.get_system_info()
+        if name == "create_folder":
+            return automation.create_folder(str(args.get("location", "")), str(args.get("name", "")), self.approval)
+        if name == "create_text_file":
+            return automation.create_text_file(str(args.get("location", "")), str(args.get("filename", "")), str(args.get("content", "")), self.approval)
+        if name == "read_text_file":
+            return automation.read_text_file(str(args.get("location", "")), str(args.get("filename", "")))
+        return f"Unknown tool '{name}' was blocked."
