@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.6.6 — Task History search & filters
+**সংস্করণ:** 1.6.7 — Privacy-safe diagnostics export
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
@@ -112,3 +112,8 @@ Task History থেকে `QUEUED` status-এর command নির্বাচ�
 ## নতুন: Task History Search ও Status Filter
 
 Search box-এ command, result, progress step, task ID বা tool-action metadata লিখে task খুঁজে পাবে। Status dropdown থেকে `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` ইত্যাদি filter করা যাবে। এটি এই PC-তে থাকা সর্বশেষ ১০০টি history record-এর ওপর local search; এতে task record পরিবর্তন হয় না এবং কোনো command execute হয় না।
+
+
+## নতুন: Privacy-safe Diagnostics Export
+
+Task History থেকে **Export Safe Diagnostics** চাপলে আগে privacy notice দেখাবে এবং confirmation নেবে। JSON report-এ শুধু মোট task/status/action-এর সংখ্যা, UTC date ও elapsed duration-এর সারাংশ, app version, OS family এবং Python version থাকবে। Task ID, command/prompt, result text, file path/name, progress text, tool name/arguments/output এবং exception details export হবে না। ফাইলটি নিজের PC-তে নির্বাচিত জায়গায় save হবে; অন্য কাউকে পাঠানোর আগে নিজে review করবে।
