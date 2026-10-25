@@ -938,7 +938,7 @@ def find_duplicate_files(location: str, approve) -> str:
 
     notes = []
     if large_files_skipped:
-        notes.append(f"skipped {large_files_skipped:,} file(s) larger than {MAX_DUPLICATE_SINGLE_FILE_BYTES // (1024 * 1024)} MiB")
+        notes.append(f"skipped {large_files_skipped:,} file(s) larger than {MAX_DUPLICATE_SINGLE_FILE_BYTES:,} bytes")
     if budget_groups_skipped:
         notes.append(f"skipped {budget_groups_skipped:,} same-size group(s) due to the hash budget")
     if changed_files_skipped:
