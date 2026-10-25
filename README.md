@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.5.5 — Secure AI endpoint checks  
+**Version:** 1.5.6 — Durable settings persistence  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -18,6 +18,7 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - Consent-gated reading of selected text files with path/size disclosure, provider-transmission notice, symlink/binary blocking and recheck for file changes.
 - Task history updates use path-level thread locks, unique fsynced temporary files, atomic replacement and a `.bak` recovery file.
 - Settings includes a non-generative `/models` connection check; malformed URLs are rejected and stored API keys are never sent over remote plain HTTP.
+- Settings are atomically saved with a local recovery backup and fall back to that backup when the primary JSON becomes unreadable.
 - Consent-based text search across allow-listed user folders, with bounded file/result limits and a warning that matching snippets may reach the configured AI provider.
 - A consistent J.A.R.V.I.S icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
 - Approved foreground-app actions: title-only window discovery, user-confirmed text paste, strict allow-listed shortcuts, and deterministic checks for local file/folder existence or visible window titles.

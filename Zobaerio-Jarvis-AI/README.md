@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.5 — Secure AI endpoint checks
+**Version:** 1.5.6 — Durable settings persistence
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -58,6 +58,10 @@ If installation fails, open PowerShell in the project folder and run `python --v
 Settings validates the API base URL, rejects embedded URL credentials and query/fragment components, and prevents the assistant from sending a stored API key over plain HTTP to a non-local endpoint. Use HTTPS for remote providers; loopback addresses such as localhost can use HTTP for local services.
 
 **Test Connection** sends a GET request to `/models` only. It does not submit a chat prompt or generate an answer. The result confirms reachability and whether the configured model appears in the returned list; it does not prove that chat completions or tool-calling work with every provider.
+
+## Durable settings storage
+
+Settings are written through a unique same-directory temporary file, flush/fsync and atomic replace. A local `settings.json.bak` recovery copy is refreshed after a successful save; if the primary settings file is unreadable, J.A.R.V.I.S attempts to load the backup. This helps avoid partial JSON after an interrupted save, but does not encrypt settings or replace normal device backups. API keys remain in the Windows credential store, not in this JSON file.
 
 ## Task history and cancellation (v1.3.0)
 
