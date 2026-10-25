@@ -331,6 +331,82 @@ class TaskStore:
             return dict(target)
 
 
+    def set_task_plan(self, task_id: str, step_titles: list[str]) -> dict[str, Any] | None:
+        """Persist a bounded, resumable plan without executing or auto-replaying any step."""
+        if not isinstance(step_titles, list) or not step_titles or len(step_titles) > MAX_STEPS:
+            raise ValueError(f"A task plan must contain 1 to {MAX_STEPS} steps.")
+        titles: list[str] = []
+        for title in step_titles:
+            if not isinstance(title, str):
+                raise ValueError("Every task-plan step must be text.")
+            normalized = " ".join(title.split())
+            if not normalized or len(normalized) > 240:
+                raise ValueError("Task-plan steps must contain 1 to 240 characters.")
+            titles.append(normalized)
+
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None or target.get("status") not in {"queued", "running"}:
+                return None
+            now = _now()
+            target["plan"] = [
+                {
+                    "id": uuid.uuid4().hex[:12],
+                    "title": title,
+                    "status": "pending",
+                    "attempts": 0,
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                for title in titles
+            ]
+            target["updated_at"] = now
+            self._write(rows[-MAX_TASKS:])
+            return dict(target)
+
+    def update_plan_step(
+        self, task_id: str, step_id: str, *, status: str
+    ) -> dict[str, Any] | None:
+        """Persist one step transition; retrying a failed step is always explicit."""
+        if status not in {"pending", "running", "completed", "failed", "skipped"}:
+            raise ValueError(f"Unsupported plan-step status: {status}")
+        allowed_transitions = {
+            "pending": {"running", "skipped"},
+            "running": {"completed", "failed"},
+            "failed": {"pending"},
+            "completed": set(),
+            "skipped": set(),
+        }
+        with self._lock:
+            rows = self._read()
+            target = next((row for row in rows if row.get("id") == task_id), None)
+            if target is None or target.get("status") not in {"queued", "running"}:
+                return None
+            plan = target.get("plan")
+            if not isinstance(plan, list):
+                return None
+            item = next(
+                (step for step in plan if isinstance(step, dict) and step.get("id") == step_id),
+                None,
+            )
+            if item is None:
+                return None
+            current = item.get("status")
+            if status not in allowed_transitions.get(current, set()):
+                raise ValueError(f"Invalid plan-step transition: {current} -> {status}")
+            now = _now()
+            item["status"] = status
+            item["updated_at"] = now
+            if status == "running":
+                attempts = item.get("attempts", 0)
+                if type(attempts) is not int or attempts < 0:
+                    attempts = 0
+                item["attempts"] = min(999, attempts + 1)
+            target["updated_at"] = now
+            self._write(rows[-MAX_TASKS:])
+            return dict(target)
+
     def cancel_queued_task(self, task_id: str) -> dict[str, Any] | None:
         """Cancel a queued command without executing it; active or terminal tasks are untouched."""
         with self._lock:
