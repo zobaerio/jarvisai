@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.5.8 safe provider errors and malformed-response handling. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.5.9 startup recovery for interrupted tasks. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -20,6 +20,7 @@ Audit date: 2026-10-25. Version focus: v1.5.8 safe provider errors and malformed
 - Opt-in wake-word listening prototype.
 - Settings JSON uses atomic fsynced saves and a recovery backup; corrupt primary files fall back to a validated backup. API keys remain outside this file in the credential store.
 - Approval-gated file-to-Recycle-Bin action for one regular file inside Desktop/Documents/Downloads, with path/size/type preview, symlink/path traversal/directory blocking and file-change recheck; not a permanent-delete tool.
+- Startup recovery marks abandoned running/cancelling tasks failed, preserves queued/terminal tasks, avoids automatic replay, and leaves tasks belonging to a live owner process untouched.
 - AI provider error responses are mapped to safe HTTP-status diagnostics; raw response bodies and exception strings are not surfaced. Malformed JSON, choices, message and tool-call payloads are validated to prevent adapter errors escaping the worker.
 - AI endpoint validation rejects embedded URL credentials/query fragments and blocks API-key transmission over remote plain HTTP; Settings exposes a background /models connectivity check without a chat-generation request.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; path-level in-process locking, unique temp files, fsync/atomic replacement and backup recovery; history viewer is available in the desktop UI.

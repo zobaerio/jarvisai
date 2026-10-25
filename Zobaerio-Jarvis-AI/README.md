@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.8 — Safe provider response handling
+**Version:** 1.5.9 — Interrupted task recovery
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -56,6 +56,10 @@ If installation fails, open PowerShell in the project folder and run `python --v
 ## Safe Recycle Bin action
 
 J.A.R.V.I.S can send one regular file from Desktop, Documents or Downloads to the Windows Recycle Bin. It displays the exact path, size and type and asks for approval. It rejects directories, symbolic links, path traversal, missing files and files that change while the approval dialog is open. This is a recoverable OS trash operation, not a permanent-delete command; recovery still depends on the Recycle Bin not having been emptied and Windows permitting the move.
+
+## Startup recovery for interrupted tasks
+
+At startup, J.A.R.V.I.S checks persisted task history. Tasks left in a running/cancelling state from a process that is no longer active are marked failed with a recovery note and a timestamp. They are not automatically replayed because desktop/file actions may already have partially occurred; the user must review Task History before retrying. Queued tasks remain queued and are never started automatically during recovery. Tasks belonging to a process that still appears active are left untouched.
 
 ## Safe AI provider error handling
 

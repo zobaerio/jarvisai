@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.8 — Safe Provider Response
+**সংস্করণ:** 1.5.9 — Interrupted Task Recovery
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -31,6 +31,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 ## নতুন: Safe Recycle Bin Action
 
 এখন Desktop, Documents বা Downloads থেকে একবারে একটি regular file Windows Recycle Bin-এ পাঠানো যাবে। Approval dialog-এ exact path, file size ও type দেখাবে। Directory, symbolic link, path traversal, missing file এবং approval চলাকালে file বদলে গেলে operation block হবে। এটি permanent delete নয়; Recycle Bin খালি করা না হলে এবং Windows অনুমতি দিলে ফাইল recover করা যাবে।
+
+## নতুন: App Restart-এর পর Task Recovery
+
+অ্যাপ চালু হলে persistent Task History পরীক্ষা করবে। আগের process আর active না থাকা অবস্থায় কোনো task `running/cancelling` থাকলে সেটিকে timestamp ও recovery note-সহ `failed` করবে। Desktop/file action আংশিক সম্পন্ন হয়ে থাকতে পারে, তাই duplicate action ঠেকাতে নিজে থেকে আবার চালাবে না—retry করার আগে Task History দেখে নিতে হবে। Queued task queue-তেই থাকবে; recovery নিজে থেকে queued command চালু করে না। অন্য কোনো J.A.R.V.I.S process active মনে হলে তার task বদলাবে না।
 
 ## নতুন: নিরাপদ AI Error Handling
 
