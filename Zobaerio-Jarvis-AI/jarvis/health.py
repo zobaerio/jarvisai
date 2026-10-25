@@ -39,6 +39,8 @@ def collect_system_health(
     os_name: str | None = None,
     frozen: bool | None = None,
     module_available: Callable[[str], bool] | None = None,
+    local_endpoint: Callable[[str], bool] | None = None,
+    api_key_resolver: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> list[HealthCheck]:
     """Return fast, local preflight checks without contacting endpoints or revealing secrets.
 
@@ -98,10 +100,32 @@ def collect_system_health(
 
     endpoint = str(settings.get("api_base_url", "") or "").strip()
     model = str(settings.get("model", "") or "").strip()
-    if endpoint and model:
-        checks.append(HealthCheck("AI model configuration", "PASS", "An endpoint and model are configured; network reachability was not tested."))
-    else:
+    if not endpoint or not model:
         checks.append(HealthCheck("AI model configuration", "WARN", "Configure the AI endpoint and model in Settings before using model-powered tasks."))
+    else:
+        checks.append(HealthCheck("AI model configuration", "PASS", "An endpoint and model are configured; network reachability was not tested."))
+        local_check = local_endpoint
+        key_resolver = api_key_resolver
+        try:
+            if local_check is None or key_resolver is None:
+                from .settings import get_api_key, is_local_api_endpoint
+                local_check = local_check or is_local_api_endpoint
+                key_resolver = key_resolver or get_api_key
+            is_local = bool(local_check(endpoint))
+        except Exception:
+            # Do not surface provider URLs, keyring errors, or configuration exception text.
+            is_local = False
+        if is_local:
+            checks.append(HealthCheck("AI API key", "PASS", "A local endpoint is configured; an API key is optional."))
+        else:
+            try:
+                key_present = bool(key_resolver(settings)) if key_resolver is not None else False
+            except Exception:
+                key_present = False
+            if key_present:
+                checks.append(HealthCheck("AI API key", "PASS", "A cloud API key is available; its value is never displayed. Connection was not tested."))
+            else:
+                checks.append(HealthCheck("AI API key", "WARN", "A cloud endpoint/model is configured, but a key was not found or secure storage could not verify it."))
 
     return checks
 
