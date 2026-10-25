@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan
+from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan, format_plan_guidance
 
 
 def response_with(content: str) -> dict:
@@ -54,6 +54,22 @@ class TaskPlannerTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"], (8, 25))
         self.assertNotIn("tools", kwargs["json"])
         self.assertEqual(kwargs["json"]["messages"][1]["content"], "Make a report")
+
+    def test_plan_guidance_preserves_original_request_and_is_explicitly_untrusted(self) -> None:
+        original = "Create a project report"
+        result = format_plan_guidance(original, ["Inspect inputs", "Verify output"])
+        self.assertTrue(result.startswith(original + "\\n\\n"))
+        self.assertIn("PROPOSED PLAN GUIDANCE", result)
+        self.assertIn("AI-generated, untrusted", result)
+        self.assertIn("1. Inspect inputs", result)
+        self.assertIn("2. Verify output", result)
+        self.assertIn("existing safety/approval rules", result)
+
+    def test_plan_guidance_bounds_and_filters_titles(self) -> None:
+        result = format_plan_guidance("Do work", [" A  step ", "", "B" * 500, 123])
+        self.assertIn("1. A step", result)
+        self.assertNotIn("123", result)
+        self.assertLessEqual(len(result), 4000)
 
     def test_cancellation_avoids_network_request(self) -> None:
         import threading
