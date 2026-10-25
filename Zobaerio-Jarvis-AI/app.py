@@ -17,6 +17,7 @@ from jarvis.settings import get_api_key, load_settings, save_settings, set_api_k
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
+from jarvis.safe_errors import safe_worker_error
 from jarvis.branding import ensure_brand_assets
 
 BG = "#0b1120"
@@ -1228,10 +1229,7 @@ class JarvisDesktop:
             )
         except Exception as exc:
             failed = True
-            result = (
-                f"একটি সমস্যা হয়েছে ({type(exc).__name__})। "
-                "নিরাপত্তার জন্য বিস্তারিত error লুকানো হয়েছে। Settings ও permissions যাচাই করে আবার চেষ্টা করুন।"
-            )
+            result = safe_worker_error(exc)
         if cancel_event.is_set():
             status = "cancelled"
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
