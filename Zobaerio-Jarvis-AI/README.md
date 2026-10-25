@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.9 — Windows portable build workflow
+**Version:** 1.7.0 — Local system health checks
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -177,3 +177,8 @@ Requirements: Windows 10/11, Python 3.12 x64, internet access for dependency ins
 4. Launch `JARVIS/JARVIS.exe` from the extracted package. Keep the whole `JARVIS` folder together because `_internal` contains runtime libraries and the 3D page/assets.
 
 The script uses an isolated `.packaging-venv` instead of adding PyInstaller to the runtime `.venv`. The package includes `version.json` with the app version, Python version, architecture and the fact that this is an unsigned portable build; Windows CI checks that this manifest matches the version constant in source. The workflow verifies the executable, packaged 3D page and ZIP, then uploads the artifact for 14 days. This package is **unsigned**; Windows SmartScreen may warn until a trusted code-signing identity is configured. It is not an MSIX installer and does not auto-update. The 3D studio still loads Three.js from a CDN, and AI/speech features depend on the configured provider or external services, so the package is not fully offline.
+
+
+## Local system health check
+
+Use **RUN SYSTEM HEALTH CHECK** in the AI model status panel to inspect the supported Python runtime, Windows platform, local 3D/branding assets, dependency availability and AI configuration presence. The report shows `PASS`, `WARN` or `FAIL` and provides a refresh action. This is a local preflight only: it does not contact the configured provider, test microphone/speaker hardware, or scan user files. The endpoint and API key are not displayed in the health report. To check network reachability, use the separate provider connection test in Settings.
