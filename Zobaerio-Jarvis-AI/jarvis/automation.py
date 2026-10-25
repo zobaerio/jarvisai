@@ -4,7 +4,9 @@ import os
 import platform
 import shutil
 import subprocess
+import uuid
 import webbrowser
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -748,6 +750,160 @@ def _is_windows_platform() -> bool:
 def _launch_file_with_default_app(path: Path) -> None:
     """Ask Windows Shell to open a user-selected document/image with its default app."""
     os.startfile(str(path))  # type: ignore[attr-defined]
+
+
+MAX_ARCHIVE_FILES = 100
+MAX_ARCHIVE_TOTAL_BYTES = 100 * 1024 * 1024
+
+
+def create_zip_archive(location: str, filenames: list[str], archive_filename: str, approve) -> str:
+    """Create a bounded flat ZIP from user-selected regular files, without overwriting anything."""
+    if not isinstance(filenames, list) or not filenames:
+        return "Choose at least one filename to archive."
+    if len(filenames) > MAX_ARCHIVE_FILES:
+        return f"A ZIP archive can contain at most {MAX_ARCHIVE_FILES} files per operation."
+    if any(not isinstance(name, str) for name in filenames):
+        return "Each selected item must be a filename, not a path or another value."
+    if len({name.casefold() for name in filenames}) != len(filenames):
+        return "Duplicate filenames are not allowed in one archive."
+    if not isinstance(archive_filename, str) or not archive_filename.strip().lower().endswith(".zip"):
+        return "The archive filename must end with .zip."
+    try:
+        destination = _operation_child_path(location, archive_filename)
+    except (ValueError, OSError) as exc:
+        return f"ZIP creation blocked: {exc}"
+    if destination.exists():
+        return f"Archive destination already exists: {destination}. Nothing was overwritten."
+
+    source_records: list[tuple[Path, os.stat_result]] = []
+    total_size = 0
+    try:
+        for filename in filenames:
+            source = _operation_child_path(location, filename)
+            if source == destination:
+                return "The archive cannot also be one of its source files."
+            if not source.is_file():
+                return f"Selected source is missing or is not a regular file: {source}"
+            metadata = source.stat()
+            if source.is_symlink():
+                return f"Symbolic links are not supported: {source}"
+            total_size += metadata.st_size
+            if total_size > MAX_ARCHIVE_TOTAL_BYTES:
+                return (
+                    f"Selected files total more than {MAX_ARCHIVE_TOTAL_BYTES // (1024 * 1024)} MiB. "
+                    "Choose a smaller set and try again."
+                )
+            source_records.append((source, metadata))
+    except (ValueError, OSError) as exc:
+        return f"ZIP creation blocked: {exc}"
+
+    if len({source.name.casefold() for source, _metadata in source_records}) != len(source_records):
+        return "Two selected files resolve to the same archive entry name; choose unique filenames."
+
+    detail_lines = [
+        "Create a ZIP archive from these files?",
+        "",
+        f"Folder: {destination.parent}",
+        f"Archive: {destination.name}",
+        f"Destination: {destination}",
+        f"Selected files: {len(source_records)}",
+        f"Total uncompressed size: {total_size:,} bytes",
+        "",
+        "Sources (files will remain unchanged):",
+    ]
+    detail_lines.extend(
+        f"  • {source.name} — {metadata.st_size:,} bytes"
+        for source, metadata in source_records
+    )
+    detail_lines.extend([
+        "",
+        "The new archive will be created only if its destination does not exist. "
+        "Approve creating this exact ZIP archive?"
+    ])
+    try:
+        if not approve("Confirm ZIP archive creation", "\n".join(detail_lines)):
+            return "Cancelled. No ZIP archive was created."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No ZIP archive was created."
+
+    temp_path = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        # Recheck the output and every source after user approval.
+        if destination.exists():
+            return f"Archive destination appeared after confirmation: {destination}. Nothing was overwritten."
+        for source, original in source_records:
+            current = _operation_child_path(location, source.name)
+            now = current.stat()
+            original_identity = (original.st_dev, original.st_ino, original.st_size, original.st_mtime_ns)
+            current_identity = (now.st_dev, now.st_ino, now.st_size, now.st_mtime_ns)
+            if current != source or current.is_symlink() or current_identity != original_identity:
+                return f"Selected file changed after confirmation: {source.name}. No archive was published."
+
+        actual_total = 0
+        with zipfile.ZipFile(
+            temp_path,
+            mode="x",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=6,
+            allowZip64=False,
+        ) as archive:
+            for source, original in source_records:
+                with source.open("rb") as source_stream:
+                    opened = os.fstat(source_stream.fileno())
+                    opened_identity = (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns)
+                    expected_identity = (original.st_dev, original.st_ino, original.st_size, original.st_mtime_ns)
+                    if opened_identity != expected_identity:
+                        raise ValueError(f"Selected file changed while opening: {source.name}")
+                    written_for_source = 0
+                    with archive.open(source.name, mode="w", force_zip64=False) as archive_stream:
+                        while True:
+                            chunk = source_stream.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            written_for_source += len(chunk)
+                            actual_total += len(chunk)
+                            if actual_total > MAX_ARCHIVE_TOTAL_BYTES:
+                                raise ValueError("Selected files grew beyond the 100 MiB archive limit.")
+                            archive_stream.write(chunk)
+                    after_read = os.fstat(source_stream.fileno())
+                    after_identity = (
+                        after_read.st_dev, after_read.st_ino, after_read.st_size, after_read.st_mtime_ns
+                    )
+                    if after_identity != opened_identity or written_for_source != original.st_size:
+                        raise ValueError(f"Selected file changed while archiving: {source.name}")
+                    # The path itself must still name the file that was approved and opened.
+                    path_after = source.stat()
+                    path_identity = (
+                        path_after.st_dev, path_after.st_ino, path_after.st_size, path_after.st_mtime_ns
+                    )
+                    if source.is_symlink() or path_identity != opened_identity:
+                        raise ValueError(f"Selected file path changed while archiving: {source.name}")
+
+        if destination.exists():
+            return f"Archive destination appeared before commit: {destination}. Nothing was overwritten."
+        # A same-directory hard-link is an atomic no-overwrite publish on supported filesystems.
+        # If the filesystem disallows hard links, fail closed and preserve the existing destination.
+        try:
+            os.link(temp_path, destination)
+        except FileExistsError:
+            return f"Archive destination already exists: {destination}. Nothing was overwritten."
+        except OSError as exc:
+            return (
+                f"ZIP was prepared but could not be published safely ({type(exc).__name__}). "
+                "The destination was not overwritten; try a local folder on a supported filesystem."
+            )
+        archive_size = destination.stat().st_size
+        return (
+            f"Created ZIP archive: {destination} "
+            f"({len(source_records)} files, {archive_size:,} bytes). Source files were left unchanged."
+        )
+    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        return f"ZIP creation stopped safely ({type(exc).__name__}): {exc}. No partial archive was published."
+    finally:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def move_file_to_recycle_bin(location: str, filename: str, approve) -> str:

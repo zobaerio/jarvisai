@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.9 — Interrupted Task Recovery
+**সংস্করণ:** 1.6.0 — Safe ZIP Archive
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -31,6 +31,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 ## নতুন: Safe Recycle Bin Action
 
 এখন Desktop, Documents বা Downloads থেকে একবারে একটি regular file Windows Recycle Bin-এ পাঠানো যাবে। Approval dialog-এ exact path, file size ও type দেখাবে। Directory, symbolic link, path traversal, missing file এবং approval চলাকালে file বদলে গেলে operation block হবে। এটি permanent delete নয়; Recycle Bin খালি করা না হলে এবং Windows অনুমতি দিলে ফাইল recover করা যাবে।
+
+## নতুন: নিরাপদ ZIP Archive তৈরি
+
+J.A.R.V.I.S Desktop, Documents অথবা Downloads-এর একটি folder থেকে ১–১০০টি নির্বাচিত regular file নিয়ে সর্বোচ্চ ১০০ MiB uncompressed size-এর ZIP বানাতে পারবে। Confirmation dialog-এ archive-এর নাম এবং প্রতিটি selected file-এর নাম/size দেখাবে। Path traversal, symbolic link, directory, duplicate entry name, আগে থেকেই থাকা destination এবং approval-এর পর বদলে যাওয়া source file block হবে। Filesystem atomic no-overwrite publish সমর্থন না করলে operation ব্যর্থ হবে; existing archive overwrite করবে না। Original source file অপরিবর্তিত থাকবে।
 
 ## নতুন: App Restart-এর পর Task Recovery
 
