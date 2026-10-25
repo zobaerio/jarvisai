@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan, format_plan_guidance
+from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan, format_plan_guidance, should_generate_task_plan
 
 
 def response_with(content: str) -> dict:
@@ -70,6 +70,22 @@ class TaskPlannerTests(unittest.TestCase):
         self.assertIn("1. A step", result)
         self.assertNotIn("123", result)
         self.assertLessEqual(len(result), 4000)
+
+    def test_planning_skips_short_questions_and_single_step_commands(self) -> None:
+        for request in ("What time is it?", "Open Chrome", "Explain concrete"):
+            with self.subTest(request=request):
+                self.assertFalse(should_generate_task_plan(request))
+
+    def test_planning_detects_multistep_requests_in_english_and_bangla(self) -> None:
+        for request in (
+            "Please create a detailed report and then verify the numbers",
+            "First inspect the files, then prepare a report for me",
+            "একটা রিপোর্ট তৈরি করো তারপর ভুলগুলো যাচাই করো",
+            "এই প্রজেক্টটা ধাপে ধাপে তৈরি করে শেষে পরীক্ষা করো",
+            "Create a website",
+        ):
+            with self.subTest(request=request):
+                self.assertTrue(should_generate_task_plan(request))
 
     def test_cancellation_avoids_network_request(self) -> None:
         import threading

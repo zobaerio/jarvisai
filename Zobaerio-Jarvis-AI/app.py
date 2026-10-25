@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
-from jarvis.task_planner import format_plan_guidance, generate_task_plan
+from jarvis.task_planner import format_plan_guidance, generate_task_plan, should_generate_task_plan
 from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
@@ -1410,7 +1410,7 @@ class JarvisDesktop:
         plan_titles: list[str] | None = None
         # Generate and persist a side-effect-free plan before normal execution. Planning
         # failure is non-fatal: the existing agent workflow still handles the request.
-        if task_id and not cancel_event.is_set():
+        if task_id and not cancel_event.is_set() and should_generate_task_plan(text):
             try:
                 self._record_task_step(task_id, "Generating a proposed task plan")
                 plan_titles = generate_task_plan(self.settings, text, cancel_event=cancel_event)
