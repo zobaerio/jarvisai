@@ -1,0 +1,81 @@
+name: Publish Windows Installer Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python 3.12 x64
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - name: Verify release tag matches app version
+        shell: pwsh
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          $version = & python -c "from jarvis.version import APP_VERSION; print(APP_VERSION)"
+          if ($LASTEXITCODE -ne 0) { throw "Could not read app version." }
+          $expectedTag = "v$($version.Trim())"
+          if ("${{ github.ref_name }}" -ne $expectedTag) {
+            throw "Release tag must match the source APP_VERSION ($expectedTag)."
+          }
+
+      - name: Build the application payload
+        shell: cmd
+        working-directory: Zobaerio-Jarvis-AI
+        run: build_portable.bat
+
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Compile per-user Windows installer
+        shell: pwsh
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          $version = & ".packaging-venv/Scripts/python.exe" -c "from jarvis.version import APP_VERSION; print(APP_VERSION)"
+          if ($LASTEXITCODE -ne 0 -or !$version.Trim()) { throw "Could not read app version from source." }
+          $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) { throw "Inno Setup compiler was not found at $compiler." }
+          & $compiler "/DMyAppVersion=$($version.Trim())" "installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
+
+      - name: Verify installer and create SHA256 checksum
+        shell: pwsh
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          $installer = "dist/JARVIS-Setup.exe"
+          if (!(Test-Path $installer)) { throw "Installer executable was not produced." }
+          if ((Get-Item $installer).Length -lt 10MB) { throw "Installer unexpectedly looks too small." }
+          if (!(Test-Path "dist/JARVIS/JARVIS.exe")) { throw "The app payload is missing." }
+          if (!(Test-Path "dist/JARVIS/_internal/assets/avatar_studio.html")) { throw "The 3D Studio payload is missing." }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  JARVIS-Setup.exe" | Set-Content -Encoding ascii "dist/JARVIS-Setup.exe.sha256"
+          "Installer verified. SHA256: $hash"
+
+      - name: Publish installer and checksum to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release view "${{ github.ref_name }}" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe#J.A.R.V.I.S Windows Installer" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe.sha256#SHA256 Checksum" --title "J.A.R.V.I.S ${{ github.ref_name }}" --generate-notes
+          } else {
+            gh release upload "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe.sha256" --clobber
+          }
