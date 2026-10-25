@@ -69,7 +69,7 @@ class WindowsStartupTests(unittest.TestCase):
         self.assertFalse(is_windows_startup_enabled(winreg_module=registry, is_windows=True))
         self.assertTrue(set_windows_startup(True, winreg_module=registry, is_windows=True, executable=r"C:\JARVIS.exe", frozen=True))
         self.assertTrue(is_windows_startup_enabled(winreg_module=registry, is_windows=True))
-        self.assertTrue(registry.values[RUN_VALUE_NAME].endswith("JARVIS.exe"'))
+        self.assertTrue(registry.values[RUN_VALUE_NAME].endswith("JARVIS.exe"))
         self.assertFalse(set_windows_startup(False, winreg_module=registry, is_windows=True))
         self.assertFalse(is_windows_startup_enabled(winreg_module=registry, is_windows=True))
 
