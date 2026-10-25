@@ -1160,6 +1160,18 @@ class JarvisDesktop:
 
     def _on_close(self) -> None:
         if messagebox.askyesno("Close J.A.R.V.I.S", "Close the assistant?", parent=self.root):
+            # Ask the agent to stop before it starts any further tool calls.
+            if self._active_task_cancel_event is not None:
+                self._active_task_cancel_event.set()
+            if self._active_task_id:
+                try:
+                    self.task_store.update_task(
+                        self._active_task_id,
+                        status="cancelling",
+                        step="Application closing; cancellation requested",
+                    )
+                except Exception:
+                    pass
             self.wake_enabled = False
             self.root.destroy()
 
