@@ -21,6 +21,7 @@ from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnos
 from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
+from jarvis.startup import is_windows_startup_enabled, set_windows_startup
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -1720,6 +1721,14 @@ class JarvisDesktop:
         speak_var = tk.BooleanVar(value=bool(self.settings.get("speak_replies", True)))
         tk.Checkbutton(pad, text="Speak assistant replies aloud (internet required for neural voice)", variable=speak_var, bg=BG, fg=TEXT, activebackground=BG, activeforeground=TEXT, selectcolor=CARD, font=("Segoe UI", 9)).pack(anchor="w", pady=(10, 12))
 
+        startup_var = tk.BooleanVar(value=is_windows_startup_enabled())
+        tk.Checkbutton(
+            pad,
+            text="Start J.A.R.V.I.S automatically when I sign in to Windows (optional)",
+            variable=startup_var, bg=BG, fg=TEXT, activebackground=BG,
+            activeforeground=TEXT, selectcolor=CARD, font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(0, 10))
+
         connection_status = tk.Label(
             pad, text="Connection not tested yet.", bg=BG, fg=MUTED,
             font=("Segoe UI", 9), justify="left", wraplength=540,
@@ -1777,6 +1786,10 @@ class JarvisDesktop:
                 if not new["model"]:
                     raise ValueError("Model name cannot be empty.")
                 validate_api_key_transport(new["api_base_url"], key_var.get().strip())
+                # Apply the explicit Windows login preference before persisting the setting.
+                # If the OS registration fails, keep the previous saved preference intact.
+                set_windows_startup(bool(startup_var.get()))
+                new["auto_start_at_login"] = bool(startup_var.get())
                 save_settings(new)
             except (ValueError, OSError) as exc:
                 messagebox.showerror("Invalid settings", str(exc), parent=win)
