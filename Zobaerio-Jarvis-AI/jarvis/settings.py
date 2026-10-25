@@ -3,6 +3,8 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import threading
+import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -133,23 +135,77 @@ def test_api_connection(
 
 
 
+_SETTINGS_LOCK = threading.RLock()
+
+
+def _load_settings_file(path: Path) -> dict[str, Any] | None:
+    """Read a valid settings object, or None if the file is absent/corrupt."""
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(loaded, dict):
+        return None
+    return {key: value for key, value in loaded.items() if key in DEFAULTS}
+
+
 def load_settings() -> dict[str, Any]:
+    """Load current settings, recovering from the backup if the primary is unreadable."""
     APP_DIR.mkdir(parents=True, exist_ok=True)
-    data = DEFAULTS.copy()
-    if SETTINGS_FILE.exists():
-        try:
-            loaded = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                data.update({k: v for k, v in loaded.items() if k in DEFAULTS})
-        except (OSError, json.JSONDecodeError):
-            pass
-    return data
+    with _SETTINGS_LOCK:
+        loaded = _load_settings_file(SETTINGS_FILE)
+        if loaded is None:
+            loaded = _load_settings_file(SETTINGS_FILE.with_suffix(SETTINGS_FILE.suffix + ".bak"))
+        data = DEFAULTS.copy()
+        if loaded is not None:
+            data.update(loaded)
+        return data
 
 
 def save_settings(data: dict[str, Any]) -> None:
+    """Atomically persist the allow-listed settings and refresh a local recovery copy."""
     APP_DIR.mkdir(parents=True, exist_ok=True)
-    safe = {k: data.get(k, DEFAULTS[k]) for k in DEFAULTS}
-    SETTINGS_FILE.write_text(json.dumps(safe, ensure_ascii=False, indent=2), encoding="utf-8")
+    safe = {key: data.get(key, DEFAULTS[key]) for key in DEFAULTS}
+    payload = json.dumps(safe, ensure_ascii=False, indent=2) + "\n"
+    with _SETTINGS_LOCK:
+        _atomic_write_text(SETTINGS_FILE, payload)
+        # Backup failure must not report the already-committed primary save as failed.
+        try:
+            _atomic_write_text(SETTINGS_FILE.with_suffix(SETTINGS_FILE.suffix + ".bak"), payload)
+        except OSError:
+            pass
+
+
+def _atomic_write_text(destination: Path, payload: str) -> None:
+    """Flush a unique same-directory temporary file before atomic replacement."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(destination)
+        _fsync_parent_directory(destination.parent)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _fsync_parent_directory(directory: Path) -> None:
+    """Best-effort directory metadata sync; not all Windows filesystems support it."""
+    try:
+        descriptor = os.open(str(directory), os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    except OSError:
+        pass
+    finally:
+        os.close(descriptor)
 
 
 def get_api_key() -> str:
