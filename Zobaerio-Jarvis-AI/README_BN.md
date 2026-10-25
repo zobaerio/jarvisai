@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.5.6 — Durable Settings
+**সংস্করণ:** 1.5.7 — Safe Recycle Bin
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -27,6 +27,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 4. Install সফল হলে `run.bat` double-click করো।
 5. বাম পাশে LUNA, RUBY অথবা MAYA সিলেক্ট করো।
 6. Local AI-এর জন্য Ollama ইনস্টল করে PowerShell-এ চালাও: `ollama pull qwen2.5:3b`। Settings-এ Base URL `http://localhost:11434/v1`, model `qwen2.5:3b` দাও।
+
+## নতুন: Safe Recycle Bin Action
+
+এখন Desktop, Documents বা Downloads থেকে একবারে একটি regular file Windows Recycle Bin-এ পাঠানো যাবে। Approval dialog-এ exact path, file size ও type দেখাবে। Directory, symbolic link, path traversal, missing file এবং approval চলাকালে file বদলে গেলে operation block হবে। এটি permanent delete নয়; Recycle Bin খালি করা না হলে এবং Windows অনুমতি দিলে ফাইল recover করা যাবে।
 
 ## নতুন: Secure API Endpoint ও Test Connection
 
