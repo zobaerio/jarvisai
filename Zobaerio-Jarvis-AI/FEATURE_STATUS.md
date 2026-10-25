@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.6.4 explicit task outcome status. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-25. Version focus: v1.6.5 safe cancellation of queued commands. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
@@ -27,6 +27,7 @@ Audit date: 2026-10-25. Version focus: v1.6.4 explicit task outcome status. This
 - Bounded AI provider retries for connection/timeouts and HTTP 408/429/500/502/503/504, with short `Retry-After` handling, a three-attempt maximum and cancellation-aware backoff. Retry occurs before tool execution and never replays a completed desktop/file action.
 - Structured per-tool action audit in task history: tool name, lifecycle state and timestamps only; arguments and returned payloads are not copied into audit metadata. If a task is recovered after a process restart, any still-running action is marked `interrupted` with an unknown outcome and is never automatically replayed.
 - Explicit task outcome state (`completed`, `partial`, `failed`, `cancelled`) is retained in Task History. Known provider/configuration errors and malformed responses are marked failed; tool exceptions or the bounded action/round budget produce partial status. This is not semantic verification of the user's overall goal.
+- Task History exposes an explicit cancel action for a selected `queued` command. It marks that command `cancelled` before execution, does not touch running/terminal tasks, and preserves FIFO order among remaining queued commands.
 - AI endpoint validation rejects embedded URL credentials/query fragments and blocks API-key transmission over remote plain HTTP; Settings exposes a background /models connectivity check without a chat-generation request.
 - Persistent local task history (latest 100 tasks), including command, status, timestamps, result summary and bounded progress events; path-level in-process locking, unique temp files, fsync/atomic replacement and backup recovery; history viewer is available in the desktop UI.
 - Manual retry of a selected historical command after an explicit confirmation; a retry creates a fresh task record.
