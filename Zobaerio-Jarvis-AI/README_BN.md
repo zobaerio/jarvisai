@@ -7,7 +7,9 @@
 - **RUBY:** লাল চুলের full-body artwork
 - **MAYA:** বাদামি চুলের square portrait
 
-অ্যাপে character-এর idle motion হিসেবে হালকা breathing scale, body sway, bob এবং একটি best-effort blink effect আছে। এটা এখনও real skeletal animation / 3D rig নয়। একটি স্থির ছবির বাইরে হাত-পা সত্যিকারের মতো পৃথকভাবে হাঁটানো, natural lip-sync, বা সম্পূর্ণ মুখভঙ্গি করতে হলে rigged model বা animated frames দরকার। MAYA-র দেওয়া ছবিতে পুরো body নেই, তাই সেটির পা animate করা যায় না যতক্ষণ না অন্য body asset দেওয়া হচ্ছে।
+LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হিসেবে থাকবে। মূল dashboard-এর **OPEN REAL 3D AVATAR STUDIO** বোতাম চাপলে আলাদা browser window/tab-এ 3D character viewer খুলবে। সেখানে head, torso, upper/lower arms, thighs, lower legs এবং eyes আলাদা 3D mesh হিসেবে render হয়; idle movement, হাত নাড়ানো, knee/leg movement, blink এবং simulated speech mouth motion আছে। মূল 2D ছবিকে flat plane হিসেবে নড়ানো হচ্ছে না।
+
+এটি সত্যিকারের 3D geometry-র prototype, কিন্তু character-এর reference art-এর সঙ্গে 100% exact 3D likeness নয়। Natural walking, realistic hair/cloth physics, proper facial rig ও phoneme-level lip-sync এখনও বাকি; এর জন্য custom rigged GLB/VRM assets লাগবে। Maya-র source শুধু portrait হওয়ায় সেখান থেকে hidden full-body anatomy পাওয়া যায় না। Three.js CDN থেকে load হয়, তাই 3D preview-এর জন্য internet ও WebGL-compatible browser লাগবে। অসম্পূর্ণ feature-গুলোর বিস্তারিত `FEATURE_STATUS.md`-এ আছে।
 
 ## Install
 1. Windows 11-এ Python 3.12.x 64-bit ইনস্টল করো: https://www.python.org/downloads/release/python-31210/
