@@ -142,6 +142,7 @@ def _invalid_provider_response(message: str = "AI provider returned an invalid o
 TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
     {"type": "function", "function": {"name": "open_website", "description": "Open an HTTP(S) website or search Google for a query in the default browser.", "parameters": {"type": "object", "properties": {"url_or_query": {"type": "string"}}, "required": ["url_or_query"]}}},
+    {"type": "function", "function": {"name": "prepare_whatsapp_message", "description": "Open WhatsApp Web with a message prefilled for an international phone number. This never sends the message; clearly tell the user to review recipient and text and click Send manually.", "parameters": {"type": "object", "properties": {"phone_number": {"type": "string", "description": "Recipient phone number including country calling code, 8–15 digits; may include +, spaces, or hyphens."}, "message": {"type": "string", "description": "Message text to prefill, up to 4,000 characters."}}, "required": ["phone_number", "message"]}}},
     {"type": "function", "function": {"name": "open_folder", "description": "Open the user's Desktop, Documents, or Downloads folder in File Explorer.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}}, "required": ["location"]}}},
     {"type": "function", "function": {"name": "search_files", "description": "Search filenames under Desktop, Documents, and Downloads. Does not read file content.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "get_system_info", "description": "Get basic OS, computer, Python, and current-time information.", "parameters": {"type": "object", "properties": {}, "required": []}}},
@@ -381,6 +382,10 @@ class JarvisAgent:
             return automation.open_application(str(args.get("app_name", "")))
         if name == "open_website":
             return automation.open_website(str(args.get("url_or_query", "")))
+        if name == "prepare_whatsapp_message":
+            return automation.prepare_whatsapp_message(
+                str(args.get("phone_number", "")), str(args.get("message", ""))
+            )
         if name == "open_folder":
             return automation.open_folder(str(args.get("location", "")))
         if name == "search_files":
