@@ -144,6 +144,7 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "open_website", "description": "Open an HTTP(S) website or search Google for a query in the default browser.", "parameters": {"type": "object", "properties": {"url_or_query": {"type": "string"}}, "required": ["url_or_query"]}}},
     {"type": "function", "function": {"name": "prepare_whatsapp_message", "description": "Open WhatsApp Web with a message prefilled for an international phone number. This never sends the message; clearly tell the user to review recipient and text and click Send manually.", "parameters": {"type": "object", "properties": {"phone_number": {"type": "string", "description": "Recipient phone number including country calling code, 8–15 digits; may include +, spaces, or hyphens."}, "message": {"type": "string", "description": "Message text to prefill, up to 4,000 characters."}}, "required": ["phone_number", "message"]}}},
     {"type": "function", "function": {"name": "prepare_email_draft", "description": "Open the default email application with a prefilled draft. This never sends email; tell the user to review and send manually.", "parameters": {"type": "object", "properties": {"recipient": {"type": "string", "description": "One recipient email address."}, "subject": {"type": "string", "description": "Email subject, up to 200 characters; may be empty."}, "body": {"type": "string", "description": "Email body, 1–5,000 characters."}}, "required": ["recipient", "subject", "body"]}}},
+    {"type": "function", "function": {"name": "prepare_calendar_event_draft", "description": "Open a Google Calendar event template for review; never save an event or send invitations automatically.", "parameters": {"type": "object", "properties": {"title": {"type": "string", "description": "Event title, 1–200 characters."}, "start": {"type": "string", "description": "Local ISO datetime such as 2026-10-26T14:30, without timezone offset."}, "end": {"type": "string", "description": "Local ISO datetime later than start."}, "details": {"type": "string", "description": "Optional event details, up to 4,000 characters."}, "location": {"type": "string", "description": "Optional location, up to 300 characters."}, "timezone_name": {"type": "string", "description": "Supported timezone, default Asia/Dhaka."}}, "required": ["title", "start", "end"]}}},
     {"type": "function", "function": {"name": "open_folder", "description": "Open the user's Desktop, Documents, or Downloads folder in File Explorer.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}}, "required": ["location"]}}},
     {"type": "function", "function": {"name": "search_files", "description": "Search filenames under Desktop, Documents, and Downloads. Does not read file content.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"type": "function", "function": {"name": "get_system_info", "description": "Get basic OS, computer, Python, and current-time information.", "parameters": {"type": "object", "properties": {}, "required": []}}},
@@ -392,6 +393,15 @@ class JarvisAgent:
                 str(args.get("recipient", "")),
                 str(args.get("subject", "")),
                 str(args.get("body", "")),
+            )
+        if name == "prepare_calendar_event_draft":
+            return automation.prepare_calendar_event_draft(
+                str(args.get("title", "")),
+                str(args.get("start", "")),
+                str(args.get("end", "")),
+                str(args.get("details", "")),
+                str(args.get("location", "")),
+                str(args.get("timezone_name", "Asia/Dhaka")),
             )
         if name == "open_folder":
             return automation.open_folder(str(args.get("location", "")))
