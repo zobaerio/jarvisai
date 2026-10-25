@@ -29,7 +29,7 @@ class AvatarStudioTests(unittest.TestCase):
         with urlopen(url, timeout=3) as response:
             html = response.read().decode("utf-8")
             self.assertEqual(response.status, 200)
-        self.assertIn("J.A.R.V.I.S 3D Character Studio", html)
+        self.assertIn("J.A.R.V.I.S 3D CHARACTER STUDIO", html.upper())
         self.assertIn("CapsuleGeometry", html)
         self.assertIn("data-character=\"ruby\"", html)
 
