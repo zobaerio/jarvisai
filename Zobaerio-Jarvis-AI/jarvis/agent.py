@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 import threading
+import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -12,6 +16,99 @@ from .settings import get_api_key, is_local_api_endpoint, validate_api_key_trans
 
 SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; moving a file to the Recycle Bin requires explicit, action-specific approval and must never be described as permanent deletion; reading local file contents, creating, copying, moving, or renaming files requires explicit, action-specific approval. Before reading a file, the approval dialog must show the exact path and size and warn that contents enter the AI conversation and may be sent to the configured AI provider. File operations are restricted to regular files inside Desktop, Documents, or Downloads; symbolic links are blocked and existing destinations must never be overwritten. Creating a ZIP may include up to 100 user-selected regular files from one approved folder, capped at 100 MiB total, with explicit approval and no-overwrite publication. Duplicate-file scans operate only in Desktop/Documents/Downloads (or All), require approval, hash bounded same-size candidates locally, report shortened hashes and file paths, and never modify or delete files. Only search file contents when the user asks to search inside files; search results require explicit approval and disclose that short matching excerpts enter the AI conversation. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
+
+_PROVIDER_RETRYABLE_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+_PROVIDER_MAX_ATTEMPTS = 3
+_PROVIDER_MAX_RETRY_AFTER_SECONDS = 5.0
+
+
+def _provider_retry_delay(response: Any, failed_attempt: int) -> float | None:
+    """Return a bounded retry delay; None means the provider asked us to wait too long."""
+    headers = getattr(response, "headers", {})
+    raw_retry_after = str(headers.get("Retry-After", "")).strip() if hasattr(headers, "get") else ""
+    if raw_retry_after:
+        delay: float | None = None
+        try:
+            delay = float(raw_retry_after)
+        except (TypeError, ValueError, OverflowError):
+            try:
+                retry_at = parsedate_to_datetime(raw_retry_after)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                delay = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError, OverflowError):
+                delay = None
+        if delay is not None and math.isfinite(delay):
+            delay = max(0.0, delay)
+            # Never violate a long Retry-After by retrying early; surface the safe HTTP error instead.
+            return delay if delay <= _PROVIDER_MAX_RETRY_AFTER_SECONDS else None
+    return min(0.5 * (2 ** max(0, failed_attempt - 1)), 2.0)
+
+
+def _wait_before_provider_retry(delay: float, cancel_event: threading.Event | None) -> bool:
+    """Wait interruptibly when possible; return False when the user cancels during backoff."""
+    if cancel_event is not None:
+        return not cancel_event.wait(max(0.0, delay))
+    if delay > 0:
+        time.sleep(delay)
+    return True
+
+
+def _post_with_bounded_retry(
+    url: str,
+    *,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    timeout: tuple[int, int] = (10, 45),
+    cancel_event: threading.Event | None = None,
+    progress: Callable[[str], None] | None = None,
+    max_attempts: int = _PROVIDER_MAX_ATTEMPTS,
+) -> requests.Response | None:
+    """Retry only transient model-provider requests, before any returned tool is executed.
+
+    The retry budget is deliberately small. Tool actions are never replayed here, and
+    HTTP failures outside the explicit transient allow-list are returned immediately.
+    """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least one")
+
+    def report_retry(message: str) -> None:
+        if progress is not None:
+            try:
+                progress(message)
+            except Exception:
+                pass
+
+    for attempt in range(1, max_attempts + 1):
+        if cancel_event is not None and cancel_event.is_set():
+            return None
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            if attempt >= max_attempts:
+                raise
+            delay = min(0.5 * (2 ** (attempt - 1)), 2.0)
+            report_retry(
+                f"AI provider connection timed out or failed; retrying request {attempt + 1}/{max_attempts} after {delay:.1f}s"
+            )
+            if not _wait_before_provider_retry(delay, cancel_event):
+                return None
+            continue
+
+        status_code = int(getattr(response, "status_code", 0) or 0)
+        if status_code not in _PROVIDER_RETRYABLE_STATUSES or attempt >= max_attempts:
+            return response
+
+        delay = _provider_retry_delay(response, attempt)
+        if delay is None:
+            return response
+        report_retry(
+            f"AI provider returned transient HTTP {status_code}; retrying request {attempt + 1}/{max_attempts} after {delay:.1f}s"
+        )
+        if not _wait_before_provider_retry(delay, cancel_event):
+            return None
+
+    return None
 
 def _safe_provider_http_error(status_code: int) -> str:
     """Return actionable HTTP diagnostics without reflecting provider-controlled response bodies."""
@@ -138,12 +235,16 @@ class JarvisAgent:
                 if cancelled():
                     return "কাজটি বাতিল করা হয়েছে। আর কোনো tool action চালানো হবে না।"
                 report(f"Contacting AI model (turn {turn + 1}/{max_rounds})")
-                response = requests.post(
+                response = _post_with_bounded_retry(
                     url,
                     headers=headers,
-                    json={"model": model, "messages": messages, "tools": TOOLS, "tool_choice": "auto", "temperature": 0.4},
+                    payload={"model": model, "messages": messages, "tools": TOOLS, "tool_choice": "auto", "temperature": 0.4},
                     timeout=(10, 45),
+                    cancel_event=cancel_event,
+                    progress=report,
                 )
+                if response is None and cancelled():
+                    return "কাজ বাতিলের অনুরোধ গৃহীত হয়েছে। নতুন কোনো tool action চালানো হয়নি।"
                 # requests cannot interrupt an already-blocked network read; after it
                 # returns, cancellation is checked before any model-requested tool runs.
                 if cancelled():
