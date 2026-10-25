@@ -974,6 +974,8 @@ class JarvisDesktop:
                         if type(attempts) is not int or attempts < 0:
                             attempts = 0
                         lines.append(f"{ordinal}. [{step_status}] {title} (attempts: {attempts})")
+                        if step_status == "UNVERIFIED":
+                            lines.append("   Note: Task ended without an individual verification event for this step.")
                 if steps:
                     lines.extend(["", "ACTIVITY LOG"] + [
                         f"[{step.get('time', '')}] {step.get('text', '')}"
@@ -1457,6 +1459,8 @@ class JarvisDesktop:
                 status = "failed"
         if task_id:
             try:
+                # Keep unfinished proposed steps honest; overall task success is not per-step proof.
+                self.task_store.finalize_task_plan(task_id, status)
                 self.task_store.update_task(task_id, status=status, result=result)
             except Exception:
                 pass
