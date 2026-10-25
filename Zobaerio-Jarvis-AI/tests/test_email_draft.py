@@ -11,7 +11,7 @@ class EmailDraftTests(unittest.TestCase):
     def test_valid_email_opens_prefilled_draft_without_sending(self) -> None:
         with patch("jarvis.automation.webbrowser.open") as open_url:
             result = automation.prepare_email_draft(
-                "engineer@example.com", "Site update & plan", "Hello,\\nPlease review the drawing."
+                "engineer@example.com", "Site update & plan", "Hello,\nPlease review the drawing."
             )
         open_url.assert_called_once()
         url = open_url.call_args.args[0]
@@ -22,7 +22,7 @@ class EmailDraftTests(unittest.TestCase):
         self.assertIn("send it yourself", result)
 
     def test_invalid_recipient_does_not_open_app(self) -> None:
-        for address in ("", "not-an-email", "name <user@example.com>", "user@localhost", "a@b.c", "user@example.com\\r\\nBcc:x@y.com"):
+        for address in ("", "not-an-email", "name <user@example.com>", "user@localhost", "a@b.c", "user@example.com\r\nBcc:x@y.com"):
             with self.subTest(address=address), patch("jarvis.automation.webbrowser.open") as open_url:
                 result = automation.prepare_email_draft(address, "Subject", "Body")
                 open_url.assert_not_called()
@@ -44,7 +44,7 @@ class EmailDraftTests(unittest.TestCase):
 
     def test_header_control_characters_are_rejected(self) -> None:
         with patch("jarvis.automation.webbrowser.open") as open_url:
-            result = automation.prepare_email_draft("user@example.com", "Hi\\r\\nBcc:evil@example.com", "Body")
+            result = automation.prepare_email_draft("user@example.com", "Hi\r\nBcc:evil@example.com", "Body")
         open_url.assert_not_called()
         self.assertIn("control characters", result)
 
