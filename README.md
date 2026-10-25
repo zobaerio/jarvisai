@@ -1,7 +1,7 @@
 # J.A.R.V.I.S Desktop AI — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
-**Version:** 1.6.0 — Safe ZIP archive creation  
+**Version:** 1.6.1 — Safe duplicate-file finder  
 **Repository:** https://github.com/zobaerio/jarvisai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
@@ -23,6 +23,7 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - AI provider error bodies and raw exception messages are hidden; malformed provider responses return safe diagnostics.
 - On startup, stale running tasks are marked failed rather than silently remaining active or being automatically replayed; queued tasks stay queued.
 - Create bounded ZIP archives from selected files with explicit approval, source-change checks, no-overwrite publication and source files left unchanged.
+- Find duplicate files read-only by local SHA-256 hashes within bounded, user-approved folders; never delete or alter files.
 - Consent-based text search across allow-listed user folders, with bounded file/result limits and a warning that matching snippets may reach the configured AI provider.
 - A consistent J.A.R.V.I.S icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
 - Approved foreground-app actions: title-only window discovery, user-confirmed text paste, strict allow-listed shortcuts, and deterministic checks for local file/folder existence or visible window titles.
