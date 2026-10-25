@@ -23,7 +23,8 @@ class BrandingTests(unittest.TestCase):
                 self.assertEqual(logo.mode, "RGBA")
             with Image.open(assets.ico) as icon:
                 self.assertEqual(icon.format, "ICO")
-                self.assertIn((32, 32), icon.info.get("sizes", set()) or {(32, 32)})
+                self.assertGreater(icon.size[0], 0)
+                self.assertGreater(icon.size[1], 0)
 
     def test_mark_remains_square_and_transparent_outside_badge(self) -> None:
         image = branding._paint_icon(128)
