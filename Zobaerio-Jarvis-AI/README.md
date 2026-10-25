@@ -2,9 +2,9 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.2.0 — User-supplied character gallery
+**Version:** 1.2.2 — Procedural 3D Avatar Studio prototype
 
-A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, and three selectable character artworks.
+A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
 ## Character gallery
 
@@ -14,7 +14,7 @@ The three source images supplied by the repository owner are stored unchanged at
 - `assets/characters/reference/ruby.jpg` — red-haired full-body character
 - `assets/characters/reference/maya.jpg` — brown-haired portrait character
 
-The dashboard displays these exact source images and uses an idle 2.5D effect (gentle scale/bob/sway plus a best-effort blink overlay). This is **not a full skeletal or 3D character rig**. In particular, still artwork does not contain enough hidden information to animate individual hands, legs, facial expressions, or walking naturally while keeping every pixel exactly unchanged. True human-like motion needs a rigged model or separately generated animation frames. Maya's provided source is a square portrait, so it cannot show a full body or leg animation without a different asset.
+The selector cards retain the user-supplied images as reference thumbnails. The main dashboard no longer pretends the flat artwork is a 3D person. Click **OPEN REAL 3D AVATAR STUDIO** to open a separate browser-based viewer that builds actual 3D meshes and animates the head, torso, upper/lower arms, thighs, lower legs, eye blinks and a simulated speaking mouth. These are stylized procedural 3D approximations inspired by LUNA/RUBY/MAYA, not photorealistic or pixel-perfect 1:1 reconstructions. Maya's source is only a portrait, so it cannot provide hidden full-body details for an exact 3D reconstruction.
 
 ## Requirements
 
@@ -25,6 +25,14 @@ The dashboard displays these exact source images and uses an idle 2.5D effect (g
 - Optional: [Ollama for Windows](https://ollama.com/download/windows) for local LLM responses
 
 Python 3.12 is recommended because PyAudio wheels are commonly available for this interpreter; Python 3.14 may trigger a C++ compilation error.
+
+## 3D Character Studio (prototype)
+
+The desktop app's **OPEN REAL 3D AVATAR STUDIO** button launches `assets/avatar_studio.html` via a loopback-only local HTTP server. It renders separate 3D mesh parts; it does not animate the original image as a flat plane. Drag to orbit, scroll to zoom, switch characters, pause idle motion, play a wave and trigger browser speech.
+
+Three.js 0.186.1 loads from jsDelivr at runtime, so internet access and a WebGL-compatible browser are required for the viewer. The source assets are available under `assets/characters/reference/`; those are reference images only. A custom rigged GLB/VRM model, realistic hair/cloth physics, natural walking and phoneme-level lip-sync are not included yet.
+
+See `FEATURE_STATUS.md` for what is implemented, partial and still planned.
 
 ## Install and run
 

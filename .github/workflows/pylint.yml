@@ -1,23 +1,38 @@
-name: Pylint
+name: Desktop QA
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 jobs:
-  build:
+  source-and-3d-studio:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10"]
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
-      run: |
-        pylint $(git ls-files '*.py')
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check Python syntax
+        working-directory: Zobaerio-Jarvis-AI
+        run: python -m compileall -q app.py jarvis tests
+      - name: Run unit tests
+        working-directory: Zobaerio-Jarvis-AI
+        run: python -m unittest discover -s tests -v
+      - name: Check inline 3D module syntax
+        working-directory: Zobaerio-Jarvis-AI
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("assets/avatar_studio.html").read_text(encoding="utf-8")
+          match = re.search(r'<script type="module">(.*?)</script>', html, re.S)
+          if not match:
+              raise SystemExit("No ES module script found in the avatar page")
+          Path("avatar_studio_check.mjs").write_text(match.group(1), encoding="utf-8")
+          PY
+          node --check avatar_studio_check.mjs
