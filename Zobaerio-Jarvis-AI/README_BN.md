@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
 
-**সংস্করণ:** 1.4.2 — Agent Action Verification ও Responsive UI
+**সংস্করণ:** 1.5.0 — অনুমতি-ভিত্তিক File Operations
 
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
@@ -38,6 +38,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 
 History ও queued command এই PC-তে `%APPDATA%\Zobaerio\Jarvis\task_history.json`-এ JSON হিসেবে থাকে; এই feature সেটি encrypt করে না। Restart-এর পর saved queue চালাতে আলাদাভাবে confirmation দিতে হবে। Command হিসেবে password, API key বা secret দেবে না।
 
+## নতুন: File Copy, Move ও Rename
+
+J.A.R.V.I.S এখন Desktop, Documents এবং Downloads-এর ভেতরে একবারে একটি regular file copy, move অথবা rename করতে পারে। প্রতিটি operation-এর আগে approval dialog-এ source path, destination path, file size এবং কী কাজ হবে তা দেখাবে। আগে থেকে destination file থাকলে সেটি কখনো overwrite করবে না। Symbolic link এবং folder-এর বাইরে যাওয়ার path block করা হয়। Move/rename-এর ক্ষেত্রে আগে destination-এ copy সম্পন্ন করে, তারপর original সরানোর চেষ্টা করে; original সরানো না গেলে দুইটি copy-ই থাকবে এবং ফলাফলে partial state জানাবে। এই ফিচার file delete, পুরো folder copy বা এই তিনটি folder-এর বাইরে কাজ করে না।
+
 ## AI Agent-এর approved desktop control
 
 AI Agent এখন visible app window-এর title list করতে পারে, নির্দিষ্ট window-তে text paste করতে পারে এবং অনুমোদিত editing/navigation shortcut পাঠাতে পারে। প্রতিটি paste/shortcut-এর আগে confirmation চাইবে এবং কোন window-তে কাজ হবে তা দেখাবে। Text paste করার পর Enter চাপবে না বা form submit করবে না। Enter, Alt+F4, Windows+R এবং arbitrary shortcut sequence blocked। Paste সত্যিই app-এ বসেছে কি না, নিজে থেকে যাচাই করতে পারে না—তাই app দেখে নিশ্চিত করবে। এছাড়া file/folder-এর অস্তিত্ব এবং নির্দিষ্ট window title মিলিয়ে basic verification করা যায়; কিন্তু document-এর content/quality বা পুরো external task সম্পূর্ণ হয়েছে কি না তা যাচাই করতে পারে না।
@@ -46,6 +50,6 @@ AI Agent এখন visible app window-এর title list করতে পার�
 
 ## গুরুত্বপূর্ণ
 - Voice recognition / online neural speech-এর জন্য ইন্টারনেট লাগতে পারে; কিছু voice service-এ audio/text বাহ্যিক service-এ পাঠানো হতে পারে।
-- File create/change করার আগে confirmation চাওয়ার নিরাপত্তা flow রাখা হয়েছে।
+- File create/copy/move/rename করার আগে নির্দিষ্ট action দেখিয়ে confirmation চাওয়ার নিরাপত্তা flow রাখা হয়েছে; destination overwrite করা হয় না।
 - arbitrary shell command স্বয়ংক্রিয়ভাবে চালানো যায় না।
 - এটিকে production-ready বলার আগে নিজের Windows 11 PC-তে microphone, speaker, character selection এবং প্রতিটি command পরীক্ষা করবে।
