@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.6 — Task History search & filters
+**Version:** 1.6.8 — Safe exception redaction
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -155,3 +155,13 @@ In Task History, select a row whose status is `QUEUED` and choose **Cancel Selec
 ## Search and filter Task History
 
 Use the search box to find a task by its command, recorded result, progress step, task ID or tool-action metadata. Use the status drop-down to filter to `QUEUED`, `RUNNING`, `COMPLETED`, `PARTIAL`, `FAILED`, `CANCELLED` or another recorded state. Search is performed locally against the latest 100 history entries; filtering does not change task records or start any command.
+
+
+## Privacy-safe diagnostics export
+
+Choose **Export Safe Diagnostics** from Task History and confirm the privacy notice. The generated JSON includes aggregate task/status/action counts, UTC dates and elapsed durations, app version, OS family and Python version. It deliberately excludes task IDs, commands/prompts, results, file paths/names, progress text, tool names/arguments/output payloads and exception details. The file is saved to a path you select on your PC; inspect it before sharing it with support.
+
+
+## Safe exception redaction
+
+When a tool or desktop worker raises an unexpected exception, user-facing messages and model tool results contain only a bounded exception type and guidance; raw `str(exception)` details are not forwarded. Those details can accidentally contain local file paths, URLs, account identifiers or returned data. Tool outputs are also omitted from progress-history text so that progress logs carry status rather than content. This does not replace operating-system permissions or the separate approval gates for actions.
