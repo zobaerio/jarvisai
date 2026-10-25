@@ -59,8 +59,12 @@ echo [4/5] Checking Python files...
 ".venv\Scripts\python.exe" -m compileall -q app.py jarvis tests
 if errorlevel 1 goto failed
 
-echo [5/5] Creating a Desktop shortcut (if Windows allows it)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([IO.Path]::Combine([Environment]::GetFolderPath('Desktop'),'J.A.R.V.I.S Desktop AI.lnk')); $s.TargetPath=(Join-Path (Get-Location).Path 'run.bat'); $s.WorkingDirectory=(Get-Location).Path; $s.Save()" >nul 2>nul
+echo [5/6] Creating the J.A.R.V.I.S logo and Windows app icon...
+".venv\Scripts\python.exe" -m jarvis.branding
+if errorlevel 1 goto failed
+
+echo [6/6] Creating a Desktop shortcut with the app icon (if Windows allows it)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([IO.Path]::Combine([Environment]::GetFolderPath('Desktop'),'J.A.R.V.I.S Desktop AI.lnk')); $s.TargetPath=(Join-Path (Get-Location).Path 'run.bat'); $s.WorkingDirectory=(Get-Location).Path; $i=Join-Path $env:APPDATA 'Zobaerio\Jarvis\jarvis.ico'; if(Test-Path $i){$s.IconLocation=$i}; $s.Save()" >nul 2>nul
 
 echo.
 echo Setup complete. Double-click run.bat or the Desktop shortcut to start J.A.R.V.I.S.
