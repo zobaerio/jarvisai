@@ -516,6 +516,154 @@ def read_text_file(location: str, filename: str) -> str:
     return f"Contents of {path}:\n\n{path.read_text(encoding='utf-8', errors='replace')}"
 
 
+
+def _operation_child_path(location: str, filename: str) -> Path:
+    """Resolve one plain file name in an approved user folder; reject links and paths."""
+    base = normalize_location(location)
+    raw = str(filename).strip()
+    if (
+        not raw
+        or raw in {".", ".."}
+        or Path(raw).name != raw
+        or any(c in raw for c in '<>:"/\\|?*')
+        or any(ord(c) < 32 for c in raw)
+    ):
+        raise ValueError("Use a simple file name without a path or reserved/control characters.")
+    candidate = base / raw
+    if candidate.is_symlink():
+        raise ValueError("Symbolic links are not supported for file operations.")
+    return safe_child_path(location, raw)
+
+
+def _copy_file_no_overwrite(source: Path, destination: Path) -> None:
+    """Copy one regular file without ever opening an existing destination for writing."""
+    created_destination = False
+    try:
+        with source.open("rb") as source_stream:
+            # Exclusive creation is the no-overwrite guard, including a destination
+            # that appears after the approval dialog was shown.
+            with destination.open("xb") as destination_stream:
+                created_destination = True
+                shutil.copyfileobj(source_stream, destination_stream, length=1024 * 1024)
+                destination_stream.flush()
+                os.fsync(destination_stream.fileno())
+        try:
+            shutil.copystat(source, destination, follow_symlinks=False)
+        except OSError:
+            # Metadata preservation is best-effort; the copied file data is intact.
+            pass
+    except Exception:
+        if created_destination:
+            try:
+                destination.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
+
+
+def _transfer_file(
+    operation: str,
+    source_location: str,
+    filename: str,
+    destination_location: str,
+    destination_filename: str,
+    approve,
+) -> str:
+    """Copy, move or rename one file, with explicit approval and no-overwrite behavior."""
+    if operation not in {"copy", "move", "rename"}:
+        return "Blocked: unsupported file operation."
+    try:
+        source = _operation_child_path(source_location, filename)
+        destination = _operation_child_path(destination_location, destination_filename)
+    except (ValueError, OSError) as exc:
+        return f"File operation blocked: {exc}"
+
+    if source == destination:
+        return "Source and destination are the same file. Nothing was changed."
+    if operation == "rename" and source.parent != destination.parent:
+        return "Rename must stay inside the same approved folder. Use move to change folders."
+    if not source.is_file():
+        return f"Source file not found or is not a regular file: {source}"
+    if destination.exists():
+        return f"Destination already exists: {destination}. Nothing was overwritten."
+
+    try:
+        size = source.stat().st_size
+    except OSError as exc:
+        return f"Could not inspect the source file: {exc}"
+
+    action = {"copy": "Copy file", "move": "Move file", "rename": "Rename file"}[operation]
+    if operation == "copy":
+        effect = "The source stays in place."
+    else:
+        effect = "The source is removed only after the destination copy succeeds."
+    approval_text = (
+        f"Operation: {operation.upper()}\\n\\n"
+        f"Source: {source}\\n"
+        f"Destination: {destination}\\n"
+        f"File size: {size:,} bytes\\n\\n"
+        f"{effect}\\n"
+        "An existing destination will never be overwritten. Approve this exact operation?"
+    )
+    try:
+        approved = approve(action, approval_text)
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). Nothing was changed."
+    if not approved:
+        return f"Cancelled. No file was {('copied' if operation == 'copy' else 'moved or renamed')}."
+
+    try:
+        _copy_file_no_overwrite(source, destination)
+    except FileExistsError:
+        return f"Destination appeared or already exists: {destination}. No file was overwritten."
+    except OSError as exc:
+        return f"File operation failed safely ({type(exc).__name__}): {exc}"
+
+    copied_size = destination.stat().st_size
+    if operation == "copy":
+        return f"Copied file: {source} → {destination} ({copied_size:,} bytes)."
+    try:
+        source.unlink()
+    except OSError as exc:
+        return (
+            f"Destination copy completed at {destination}, but the original source could not be removed "
+            f"({exc}). Both files remain; no data was lost."
+        )
+    label = "Renamed" if operation == "rename" else "Moved"
+    return f"{label} file: {source} → {destination} ({copied_size:,} bytes); original removed after copy succeeded."
+
+
+def copy_file(
+    source_location: str,
+    filename: str,
+    destination_location: str,
+    destination_filename: str,
+    approve,
+) -> str:
+    """Copy one file between approved user folders, with an explicit confirmation."""
+    return _transfer_file(
+        "copy", source_location, filename, destination_location, destination_filename, approve
+    )
+
+
+def move_file(
+    source_location: str,
+    filename: str,
+    destination_location: str,
+    destination_filename: str,
+    approve,
+) -> str:
+    """Move one file between approved user folders, without overwriting a destination."""
+    return _transfer_file(
+        "move", source_location, filename, destination_location, destination_filename, approve
+    )
+
+
+def rename_file(location: str, filename: str, new_filename: str, approve) -> str:
+    """Rename one file inside Desktop, Documents or Downloads, with confirmation."""
+    return _transfer_file("rename", location, filename, location, new_filename, approve)
+
+
 def direct_command(text: str) -> str | None:
     """Handle common app, folder, web, and basic system commands locally."""
     value = text.strip()
