@@ -14,10 +14,15 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - A feature inventory and a Bengali guide for generating, rigging and importing your own 3D character.
 - Local task history (last 100 tasks), user-confirmed retry, a persistent FIFO command queue, and cooperative cancellation with a cancel control in the desktop dashboard and approval dialog.
 - A consistent J.A.R.V.I.S icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
+- Approved foreground-app actions: title-only open-window discovery, text paste to a named window and a strict allow-list of editing/navigation shortcuts.
 
 The built-in characters are stylized procedural models—not photorealistic or 1:1 recreations of the reference drawings. The app does not automatically generate a matching 3D model from those pictures or invent absent animation clips. For close likeness, create/license a rigged GLB with the needed motion clips first. Natural walking, hair/cloth physics, expressive facial rigging and phoneme-level lip-sync remain unfinished. Maya's supplied source is only a portrait and cannot define missing full-body geometry. The viewer loads Three.js from a CDN and needs internet access plus WebGL support.
 
 Task history and queued commands are stored in `%APPDATA%\\Zobaerio\\Jarvis\\task_history.json` as local, unencrypted JSON. Avoid entering secrets as commands. Saved queued commands require explicit resumption after an app restart. Cancellation cannot interrupt an in-flight model network read immediately and cannot undo an action already started.
+
+## AI Agent desktop actions
+
+The AI agent can inspect visible window titles (not their contents), then paste text into a named Windows app or send one allow-listed editing/navigation shortcut. Each action asks for confirmation and targets a specific window. It does not press Enter to submit forms; dangerous/general shortcuts are blocked. There is no screenshot vision or arbitrary mouse clicking yet.
 
 ## Branding and responsive UI
 
