@@ -3,6 +3,7 @@
 Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and playback timeouts. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
+- **Optional Windows login startup:** Settings can register or remove a per-user HKCU Run entry for the packaged app or source script. It is off by default, requires no administrator rights, and does not configure a machine-wide service.
 - **Background Mode (system tray):** closing the main window can hide J.A.R.V.I.S to the Windows system tray instead of terminating the process. The tray menu restores the window or explicitly exits. Active tasks continue while hidden; a real exit requests cancellation and warns if a task is active. This is not yet a separate Windows service and does not guarantee tasks survive sign-out or reboot.
 - Dark Windows desktop command-center UI with generated J.A.R.V.I.S branding, taskbar/window icon, clock and CPU/memory indicators.
 - Responsive desktop layout: the right-side rail hides on narrow windows, decorative top navigation collapses, and the main workspace grows; minimum window size is 820×560.
