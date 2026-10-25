@@ -221,7 +221,8 @@ def prepare_whatsapp_message(phone_number: str, message: str) -> str:
     """Open WhatsApp Web with a validated recipient and prefilled draft; never send it."""
     raw_phone = str(phone_number).strip()
     digits = re.sub(r"[\s()+.-]", "", raw_phone)
-    if not digits.isdigit() or not 8 <= len(digits) <= 15:
+    # Accept ASCII international phone digits only; str.isdigit() also accepts Unicode numerals.
+    if re.fullmatch(r"[0-9]{8,15}", digits) is None:
         return "WhatsApp draft blocked: provide an international phone number with 8–15 digits, including country code (for example, +8801XXXXXXXXX)."
     text = str(message).strip()
     if not text:
