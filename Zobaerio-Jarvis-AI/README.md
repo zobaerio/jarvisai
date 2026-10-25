@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.6.2 — Bounded AI provider retry/backoff
+**Version:** 1.6.3 — Structured tool-action audit
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -135,3 +135,8 @@ The repository owner should also test microphone, speaker output, character sele
 ## AI provider retry behavior
 
 Transient provider connection failures and HTTP 408, 429, 500, 502, 503 or 504 responses receive up to two bounded retries before any returned tool action runs. Short `Retry-After` values are respected; longer values return a safe provider error instead of retrying early. Cancel is checked during retry waits. Tool actions are never automatically replayed by this retry layer.
+
+
+## Tool-action audit history
+
+Task History records each declared tool action as `RUNNING`, `RESULT_RECEIVED`, `FAILED` or `INTERRUPTED`. The audit stores tool names, timestamps and a bounded diagnostic note only; it does not copy tool arguments or result payloads. If the app restarts while a tool is running, recovery marks the outcome unknown and does not automatically replay the action.
