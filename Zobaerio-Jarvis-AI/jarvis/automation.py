@@ -166,6 +166,27 @@ SOCIAL_WEBSITE_ALIASES = {
     "মেসেঞ্জার": "https://www.messenger.com/",
 }
 
+WORKSPACE_WEBSITE_ALIASES = {
+    "gmail": "https://mail.google.com/",
+    "google mail": "https://mail.google.com/",
+    "জিমেইল": "https://mail.google.com/",
+    "google calendar": "https://calendar.google.com/",
+    "calendar": "https://calendar.google.com/",
+    "ক্যালেন্ডার": "https://calendar.google.com/",
+    "google drive": "https://drive.google.com/",
+    "drive": "https://drive.google.com/",
+    "গুগল ড্রাইভ": "https://drive.google.com/",
+    "google docs": "https://docs.google.com/",
+    "docs": "https://docs.google.com/",
+    "গুগল ডকস": "https://docs.google.com/",
+    "google sheets": "https://sheets.google.com/",
+    "sheets": "https://sheets.google.com/",
+    "google maps": "https://maps.google.com/",
+    "maps": "https://maps.google.com/",
+    "গুগল ম্যাপস": "https://maps.google.com/",
+}
+
+
 
 def _youtube_search_query(value: str) -> str | None:
     """Extract an explicit YouTube search request in English or Bangla."""
@@ -200,6 +221,10 @@ def open_website(url_or_query: str) -> str:
     if known_site:
         webbrowser.open(known_site)
         return f"Opened {known_site}."
+    workspace_site = WORKSPACE_WEBSITE_ALIASES.get(value.casefold())
+    if workspace_site:
+        webbrowser.open(workspace_site)
+        return f"Opened {workspace_site}."
 
     parsed = urlparse(value)
     if parsed.scheme in {"http", "https"} and parsed.netloc:
@@ -1517,7 +1542,7 @@ def direct_command(text: str) -> str | None:
         if low.endswith(suffix):
             candidates.append(value[:-len(suffix)].strip())
 
-    known_special = {"chrome", "edge", "browser", "google", "youtube", "settings", "web browser"}
+    known_special = {"chrome", "edge", "browser", "google", "youtube", "settings", "web browser", *WORKSPACE_WEBSITE_ALIASES.keys()}
     for name in candidates:
         key = name.casefold()
         if key in APP_ALIASES or key in known_special:
@@ -1525,5 +1550,7 @@ def direct_command(text: str) -> str | None:
                 return open_website("https://www.google.com")
             if key == "youtube":
                 return open_website("https://www.youtube.com")
+            if key in WORKSPACE_WEBSITE_ALIASES:
+                return open_website(name)
             return open_application(name)
     return None
