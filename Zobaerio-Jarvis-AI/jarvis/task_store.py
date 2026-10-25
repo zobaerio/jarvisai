@@ -18,6 +18,65 @@ MAX_COMMAND_LENGTH = 600
 MAX_RESULT_LENGTH = 6000
 MAX_ACTIONS_PER_TASK = 16
 
+TASK_HISTORY_STATUSES = (
+    "all",
+    "queued",
+    "running",
+    "cancelling",
+    "completed",
+    "partial",
+    "failed",
+    "cancelled",
+)
+
+
+def filter_task_records(
+    records: list[dict[str, Any]],
+    *,
+    query: str = "",
+    status: str = "all",
+) -> list[dict[str, Any]]:
+    """Filter an already bounded history snapshot without mutating or persisting it."""
+    normalized_status = str(status or "all").strip().lower()
+    if normalized_status not in TASK_HISTORY_STATUSES:
+        raise ValueError("Unsupported task-history status filter")
+    needle = " ".join(str(query or "").split())[:300].casefold()
+    filtered: list[dict[str, Any]] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_status = str(record.get("status", "unknown")).casefold()
+        if normalized_status != "all" and record_status != normalized_status:
+            continue
+        if needle:
+            parts = [
+                str(record.get("id", "")),
+                str(record.get("command", "")),
+                str(record.get("result", "")),
+                record_status,
+            ]
+            steps = record.get("steps")
+            if isinstance(steps, list):
+                parts.extend(
+                    str(step.get("text", ""))
+                    for step in steps
+                    if isinstance(step, dict)
+                )
+            actions = record.get("actions")
+            if isinstance(actions, list):
+                for action in actions:
+                    if isinstance(action, dict):
+                        parts.extend([
+                            str(action.get("name", "")),
+                            str(action.get("status", "")),
+                            str(action.get("note", "")),
+                        ])
+            if needle not in " ".join(parts).casefold():
+                continue
+        filtered.append(record)
+    return filtered
+
+
 _PATH_LOCKS_GUARD = threading.Lock()
 _PATH_LOCKS: dict[str, Any] = {}
 
