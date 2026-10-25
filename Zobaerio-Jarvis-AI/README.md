@@ -2,7 +2,7 @@
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
-**Version:** 1.5.3 — Consent-gated file reading
+**Version:** 1.5.4 — Durable task history and recovery
 
 A Python desktop personal-assistant prototype with a dark sci-fi command center, voice input/output, configurable local AI endpoint, allow-listed desktop/web commands, three character reference profiles, and a real-time procedural 3D Avatar Studio.
 
@@ -59,7 +59,7 @@ The right-side **ACTIVE TASKS** panel now includes **RUN QUEUED TASKS**, **CANCE
 
 Cancellation is cooperative. An already-blocked model request may need to finish before cancellation is observed (the network read timeout is 45 seconds); a desktop or external action that already started cannot be automatically undone. The assistant will avoid starting subsequent AI tool actions after it observes cancellation.
 
-Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
+Task history and queued commands are stored locally in `%APPDATA%\Zobaerio\Jarvis\task_history.json`. The JSON is not encrypted by this feature. Task-history saves use unique temporary files, flush/fsync and atomic replacement; `task_history.json.bak` is a recovery copy if the primary JSON becomes unreadable. This reduces corruption/lost-update risk but is not a substitute for encrypted storage or regular backups. After restarting the app, saved queued commands do not run automatically; press **RUN QUEUED TASKS** and confirm to resume them. Do not use commands to store passwords, API keys or other secrets.
 
 ## Consent-gated reading of a specific file
 
