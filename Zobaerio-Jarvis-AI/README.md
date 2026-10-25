@@ -30,7 +30,7 @@ Python 3.12 is recommended because PyAudio wheels are commonly available for thi
 
 The desktop app's **OPEN REAL 3D AVATAR STUDIO** button launches `assets/avatar_studio.html` via a loopback-only local HTTP server. It renders separate 3D mesh parts; it does not animate the original image as a flat plane. Drag to orbit, scroll to zoom, switch characters, pause idle motion, play a wave and trigger browser speech.
 
-Three.js 0.186.1 loads from jsDelivr at runtime, so internet access and a WebGL-compatible browser are required for the viewer. The source assets are available under `assets/characters/reference/`; those are reference images only. A custom rigged GLB/VRM model, realistic hair/cloth physics, natural walking and phoneme-level lip-sync are not included yet.
+Three.js 0.186.1 loads from jsDelivr at runtime, so internet access and a WebGL-compatible browser are required for the viewer. The source assets are reference images only. Click **IMPORT RIGGED .GLB** to select a local binary GLB; that model replaces the currently selected procedural character. The Studio plays a default/idle clip if present and offers wave/talk controls for embedded clips with matching names. File parsing happens locally in the browser; the model is not uploaded. The app does not create a custom rig or add animations that aren't present in the GLB. Realistic hair/cloth physics, custom model creation and phoneme-level lip-sync are not included.
 
 See `FEATURE_STATUS.md` for what is implemented, partial and still planned.
 
