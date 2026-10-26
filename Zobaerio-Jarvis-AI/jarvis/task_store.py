@@ -460,6 +460,7 @@ class TaskStore:
             if not command:
                 return None
             new_id = uuid.uuid4().hex[:12]
+            queued_ahead = sum(1 for row in rows if row.get("status") == "queued")
             note = (
                 f"Explicitly resumed from task #{source_task_id}. Previously completed plan steps "
                 "were carried forward and will not be replayed; confirm any uncertain side effects."
@@ -480,7 +481,11 @@ class TaskStore:
             }
             rows.append(record)
             self._write(rows[-MAX_TASKS:])
-            return dict(record)
+            # Return the number of existing queued items observed atomically before this
+            # record was appended. Keep the transient UI hint out of persistent task history.
+            result = dict(record)
+            result["_queued_tasks_ahead"] = queued_ahead
+            return result
 
     def update_plan_step(
         self,
