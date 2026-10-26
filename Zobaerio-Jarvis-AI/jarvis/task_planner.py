@@ -229,6 +229,15 @@ def classify_plan_step_kind(step_title: str, user_text: str = "") -> str:
     ):
         return "state_change"
 
+    read_only_markers = (
+        "inspect", "check", "verify", "search", "find ", "list ", "review",
+        "audit", "scan", "test ", "look up", "gather", "collect", "validate",
+        "inspect inputs", "পরীক্ষা", "যাচাই", "খুঁজ", "তালিকা", "পর্যালোচনা",
+        "স্ক্যান", "চেক", "তথ্য সংগ্রহ", "দেখে নাও", "যাচাই কর",
+    )
+    if any(marker in title for marker in read_only_markers):
+        return "read_only"
+
     response_markers = (
         "draft ", "write ", "summarize", "summary", "analyze", "compare",
         "explain", "calculate", "outline", "translate", "prepare a report",
@@ -239,15 +248,6 @@ def classify_plan_step_kind(step_title: str, user_text: str = "") -> str:
     )
     if any(marker in title for marker in response_markers):
         return "response"
-
-    read_only_markers = (
-        "inspect", "check", "verify", "search", "find ", "list ", "review",
-        "audit", "scan", "test ", "look up", "gather", "collect", "validate",
-        "inspect inputs", "পরীক্ষা", "যাচাই", "খুঁজ", "তালিকা", "পর্যালোচনা",
-        "স্ক্যান", "চেক", "তথ্য সংগ্রহ", "দেখে নাও", "যাচাই কর",
-    )
-    if any(marker in title for marker in read_only_markers):
-        return "read_only"
 
     # The original request can reveal side-effect intent even when the plan title
     # is vague (e.g. a step named "Finish the task"). Do not infer a text-only step
