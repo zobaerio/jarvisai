@@ -136,6 +136,8 @@ class JarvisDesktop:
                          font=("Segoe UI", 8, "bold"), cursor="fleur")
         self._floating_label = label
         label.pack(pady=(1, 0))
+        self._floating_task_status = tk.Label(shell, text="READY", bg="#07111f", fg="#86efac", font=("Segoe UI", 7, "bold"))
+        self._floating_task_status.pack(pady=(0, 2))
         controls = tk.Frame(shell, bg="#07111f")
         self._floating_controls = controls
         controls.pack(fill="x", padx=4, pady=(1, 4))
@@ -178,6 +180,7 @@ class JarvisDesktop:
     def _apply_floating_mode(self) -> None:
         if self._floating_mini:
             self._floating_label.pack_forget()
+            self._floating_task_status.pack_forget()
             self._floating_controls.pack_forget()
             self._floating_mic.pack_forget()
             self._floating_mode_button.configure(text="EXPAND")
@@ -186,6 +189,7 @@ class JarvisDesktop:
         else:
             self._floating_orb.pack_configure(padx=8, pady=(7, 0))
             self._floating_label.pack(pady=(1, 0))
+            self._floating_task_status.pack(pady=(0, 2))
             self._floating_controls.pack(fill="x", padx=4, pady=(1, 4))
             self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
             self._floating_mode_button.configure(text="MINI")
@@ -198,10 +202,13 @@ class JarvisDesktop:
                 return
             if getattr(self, "_busy", False):
                 color = "#f59e0b"  # task running
+                self._floating_task_status.configure(text="TASK RUNNING", fg="#fcd34d")
             elif getattr(self, "wake_enabled", False):
                 color = "#22d3ee"  # wake-word listener enabled
+                self._floating_task_status.configure(text="LISTENING", fg="#67e8f9")
             else:
                 color = "#34d399"  # idle / ready
+                self._floating_task_status.configure(text="READY", fg="#86efac")
             self._floating_orb.itemconfigure(self._floating_status_dot, fill=color)
             self._floating_hud.after(900, self._refresh_floating_status)
         except tk.TclError:
