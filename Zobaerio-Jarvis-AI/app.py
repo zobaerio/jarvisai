@@ -1318,6 +1318,10 @@ class JarvisDesktop:
             ):
                 return
             try:
+                queued_before_resume = self.task_store.queued_count()
+            except Exception:
+                queued_before_resume = 0
+            try:
                 resumed = self.task_store.create_resumed_plan_task(source_id)
             except Exception as exc:
                 messagebox.showerror(
@@ -1335,10 +1339,6 @@ class JarvisDesktop:
                 refresh()
                 return
             self._push_activity("Resumed task plan from task #" + source_id)
-            try:
-                queued_before_resume = self.task_store.queued_count()
-            except Exception:
-                queued_before_resume = 0
             if queued_before_resume > 0:
                 self._write_message(
                     "SYSTEM",
