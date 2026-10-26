@@ -1,10 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Install J.A.R.V.I.S Desktop AI
+title Install ORVIX AI Desktop Assistant
 
 echo ====================================================
-echo   J.A.R.V.I.S Desktop AI - Windows 11 Setup
+echo   ORVIX AI Desktop Assistant - Windows 11 Setup
 echo ====================================================
 echo.
 
@@ -59,15 +59,15 @@ echo [4/5] Checking Python files...
 ".venv\Scripts\python.exe" -m compileall -q app.py jarvis tests
 if errorlevel 1 goto failed
 
-echo [5/6] Creating the J.A.R.V.I.S logo and Windows app icon...
+echo [5/6] Creating the ORVIX AI logo and Windows app icon...
 ".venv\Scripts\python.exe" -m jarvis.branding
 if errorlevel 1 goto failed
 
 echo [6/6] Creating a Desktop shortcut with the app icon (if Windows allows it)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([IO.Path]::Combine([Environment]::GetFolderPath('Desktop'),'J.A.R.V.I.S Desktop AI.lnk')); $s.TargetPath=(Join-Path (Get-Location).Path 'run.bat'); $s.WorkingDirectory=(Get-Location).Path; $i=Join-Path $env:APPDATA 'Zobaerio\Jarvis\jarvis.ico'; if(Test-Path $i){$s.IconLocation=$i}; $s.Save()" >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([IO.Path]::Combine([Environment]::GetFolderPath('Desktop'),'ORVIX AI Desktop.lnk')); $s.TargetPath=(Join-Path (Get-Location).Path 'run.bat'); $s.WorkingDirectory=(Get-Location).Path; $i=Join-Path $env:APPDATA 'Zobaerio\Jarvis\jarvis.ico'; if(Test-Path $i){$s.IconLocation=$i}; $s.Save()" >nul 2>nul
 
 echo.
-echo Setup complete. Double-click run.bat or the Desktop shortcut to start J.A.R.V.I.S.
+echo Setup complete. Double-click run.bat or the Desktop shortcut to start ORVIX AI.
 echo For advanced AI reasoning, configure an AI model from Settings after the app opens.
 pause
 exit /b 0
