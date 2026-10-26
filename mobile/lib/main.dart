@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'provider_config.dart';
+import 'provider_response.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -286,17 +287,10 @@ class _ChatScreenState extends State<ChatScreen> {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw _ProviderException('Provider returned HTTP ${response.statusCode}. Check the model, API key, and endpoint.');
       }
-      final decoded = jsonDecode(response.body);
-      final choices = decoded is Map ? decoded['choices'] : null;
-      final first = choices is List && choices.isNotEmpty ? choices.first : null;
-      final message = first is Map ? first['message'] : null;
-      final content = message is Map ? message['content'] : null;
-      if (content is! String || content.trim().isEmpty || content.length > 20000) {
-        throw _ProviderException('Provider returned an empty or unsupported response.');
-      }
+      final content = parseChatCompletion(response.body);
       if (!mounted) return;
       setState(() {
-        _messages.add(ChatMessage(role: 'assistant', text: content.trim()));
+        _messages.add(ChatMessage(role: 'assistant', text: content));
       });
     } on _ProviderException catch (e) {
       if (mounted) setState(() => _status = e.message);
@@ -310,6 +304,28 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() => _busy = false);
         _scrollToBottom();
       }
+    }
+  }
+
+
+  Future<void> _clearConversation() async {
+    if (_messages.isEmpty || _busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear this conversation?'),
+        content: const Text('Messages are only kept in memory. Clearing removes the current conversation from this screen.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Clear chat')),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      setState(() {
+        _messages.clear();
+        _status = 'Conversation cleared.';
+      });
     }
   }
 
@@ -344,8 +360,13 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.wifi_tethering),
           ),
           IconButton(
+            tooltip: 'Clear conversation',
+            onPressed: _messages.isEmpty || _busy ? null : _clearConversation,
+            icon: const Icon(Icons.delete_outline),
+          ),
+          IconButton(
             tooltip: 'AI provider settings',
-            onPressed: _openSettings,
+            onPressed: _busy ? null : _openSettings,
             icon: const Icon(Icons.tune),
           ),
         ],
