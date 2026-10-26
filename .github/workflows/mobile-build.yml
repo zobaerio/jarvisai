@@ -56,21 +56,16 @@ jobs:
           set -euo pipefail
           SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
           package="ndk;28.2.13676358"
+          # Accept licenses in a separate step so sdkmanager can close stdin
+          # without terminating a pipe producer with SIGPIPE during installation.
+          yes | "$SDKMANAGER" --licenses || true
           for attempt in 1 2 3; do
-            # sdkmanager can close stdin after accepting the needed license.
-            # With pipefail enabled, `yes` then exits on SIGPIPE and falsely
-            # marks a successful NDK install as failed. Capture sdkmanager's
-            # exit code directly instead.
-            set +o pipefail
-            yes | "$SDKMANAGER" --install "$package"
-            sdk_status=${PIPESTATUS[1]}
-            set -o pipefail
-            if [ "$sdk_status" -eq 0 ] && [ -d "${ANDROID_HOME}/ndk/28.2.13676358" ]; then
+            if "$SDKMANAGER" --install "$package" &&
+              [ -d "${ANDROID_HOME}/ndk/28.2.13676358" ]; then
               echo "Android NDK 28.2.13676358 installed."
               exit 0
             fi
-            echo "::warning::NDK installation attempt ${attempt} failed (sdkmanager exit: ${sdk_status}); retrying after a short delay."
-            rm -rf "${ANDROID_HOME}/ndk/28.2.13676358"
+            echo "::warning::NDK installation attempt ${attempt} failed; retrying after a short delay."
             sleep $((attempt * 10))
           done
           echo "::error::Could not install Android NDK after 3 attempts."
