@@ -1,4 +1,4 @@
-# J.A.R.V.I.S Desktop AI — Windows 11
+# ORVIX AI Desktop Assistant — Windows 11
 
 **Repository:** https://github.com/zobaerio/jarvisai  
 **Owner:** zobaerio  
@@ -12,7 +12,7 @@ Network-backed speech recognition has a 15-second operation timeout. Edge TTS sy
 
 ## Branding and responsive layout
 
-The official brand source lives in `assets/branding/jarvis-mark.svg` and `assets/branding/jarvis-wordmark.svg`. On installation/startup, `jarvis/branding.py` uses the existing Pillow dependency to generate a PNG logo and multi-size Windows ICO under `%APPDATA%\Zobaerio\Jarvis\`. The installer assigns that ICO to the Desktop shortcut, and the app uses the same mark in the window icon and header.
+The ORVIX AI brand source lives in `assets/branding/jarvis-mark.svg` and `assets/branding/jarvis-wordmark.svg`. The legacy filenames are retained for compatibility. On installation/startup, `jarvis/branding.py` uses the existing Pillow dependency to generate a PNG logo and multi-size Windows ICO under `%APPDATA%\Zobaerio\Jarvis\`. The installer assigns that ICO to the Desktop shortcut, and the app uses the ORVIX mark in the window icon and header. Existing per-user data paths are intentionally preserved during this rebrand.
 
 The desktop window can resize down to 820×560. Below 1180 px the right-hand utility rail collapses to give the agent workspace more room; below 1120 px decorative top navigation labels hide. This is responsive desktop behavior, not a mobile/Android build. Phone installation remains a later platform phase.
 
