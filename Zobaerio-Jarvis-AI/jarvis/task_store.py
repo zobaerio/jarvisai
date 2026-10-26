@@ -421,6 +421,9 @@ class TaskStore:
                     return None
                 validated.append(item)
 
+            step_ids = [item["id"] for item in validated]
+            if len(set(step_ids)) != len(step_ids):
+                return None
             first_unfinished = next(
                 (i for i, item in enumerate(validated) if item.get("status") != "completed"),
                 None,
