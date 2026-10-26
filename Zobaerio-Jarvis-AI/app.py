@@ -1450,21 +1450,26 @@ class JarvisDesktop:
                     task_id,
                     f"Optional plan generation unavailable ({type(exc).__name__}); continuing with normal execution",
                 )
-        try:
-            execution_text = format_plan_guidance(text, plan_titles or [])
-            if plan_titles:
-                self._record_task_step(task_id, "Using proposed plan as guidance; existing approval and safety checks remain active")
-            result = self.agent.respond(
-                execution_text,
-                cancel_event=cancel_event,
-                progress=lambda step: self._record_task_step(task_id, step),
-                tool_event=lambda name, status, action_id, note: self._record_tool_action(
-                    task_id, name, status, action_id, note
-                ),
-            )
-        except Exception as exc:
-            failed = True
-            result = safe_worker_error(exc)
+        if cancel_event.is_set():
+            # Cancellation may arrive while the optional planner is waiting on the provider.
+            # Do not start a second model request or any tools after the user has cancelled.
+            result = "Task cancelled before execution began. No AI tool actions were started."
+        else:
+            try:
+                execution_text = format_plan_guidance(text, plan_titles or [])
+                if plan_titles:
+                    self._record_task_step(task_id, "Using proposed plan as guidance; existing approval and safety checks remain active")
+                result = self.agent.respond(
+                    execution_text,
+                    cancel_event=cancel_event,
+                    progress=lambda step: self._record_task_step(task_id, step),
+                    tool_event=lambda name, status, action_id, note: self._record_tool_action(
+                        task_id, name, status, action_id, note
+                    ),
+                )
+            except Exception as exc:
+                failed = True
+                result = safe_worker_error(exc)
         if cancel_event.is_set():
             status = "cancelled"
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
