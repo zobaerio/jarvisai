@@ -57,8 +57,11 @@ class TaskPlannerTests(unittest.TestCase):
 
     def test_step_kind_classifier_is_conservative_about_state_changes(self) -> None:
         self.assertEqual(classify_plan_step_kind("Draft a short report"), "response")
+        self.assertEqual(classify_plan_step_kind("Prepare a report"), "response")
         self.assertEqual(classify_plan_step_kind("Inspect the input files"), "read_only")
+        self.assertEqual(classify_plan_step_kind("Review the report"), "read_only")
         self.assertEqual(classify_plan_step_kind("Verify output"), "read_only")
+        self.assertEqual(classify_plan_step_kind("Create report file"), "state_change")
         self.assertEqual(classify_plan_step_kind("Create a website"), "state_change")
         self.assertEqual(classify_plan_step_kind("Open Notepad"), "state_change")
         self.assertEqual(classify_plan_step_kind("Create the report file"), "state_change")
