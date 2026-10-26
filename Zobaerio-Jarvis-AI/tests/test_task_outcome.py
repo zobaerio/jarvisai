@@ -206,6 +206,25 @@ class AgentOutcomeTests(unittest.TestCase):
             agent.respond("Create report.txt and verify it")
         self.assertFalse(agent.last_verification_succeeded)
 
+    def test_bare_website_hostname_maps_to_its_own_verification_target(self) -> None:
+        from jarvis.agent import _expected_verification_targets
+
+        self.assertEqual(
+            _expected_verification_targets("open_website", {"url_or_query": "example.com"}),
+            {("window", "example.com", "")},
+        )
+        self.assertEqual(
+            _expected_verification_targets(
+                "open_website",
+                {"url_or_query": "https://www.example.com/path"},
+            ),
+            {("window", "example.com", "")},
+        )
+        self.assertEqual(
+            _expected_verification_targets("open_website", {"url_or_query": "weather tomorrow"}),
+            {("window", "google", "")},
+        )
+
     def test_later_state_change_invalidates_an_earlier_verification(self) -> None:
         agent = self.make_agent()
         verify_call = self.provider_response({
