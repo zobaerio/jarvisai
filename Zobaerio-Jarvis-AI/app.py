@@ -987,7 +987,7 @@ class JarvisDesktop:
                     lines.insert(1, f"Resumed from task: #{resumed_from[:64]}")
                 plan = record.get("plan") if isinstance(record.get("plan"), list) else []
                 if plan:
-                    lines.extend(["", "STRUCTURED PLAN (stored progress; not an automatic replay queue)"])
+                    lines.extend(["", "STRUCTURED PLAN (resume is explicit; uncertain actions may repeat)"])
                     for ordinal, plan_step in enumerate(plan, start=1):
                         if not isinstance(plan_step, dict):
                             continue
