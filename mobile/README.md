@@ -18,7 +18,13 @@ This is an initial mobile chat client, not full feature parity with the Windows 
 
 ## Build
 
-Install Flutter stable and Android Studio for Android, or Xcode on macOS for iOS. From this directory:
+Install Flutter stable and Android Studio for Android, or Xcode on macOS for iOS. From this directory, first generate the standard Android/iOS host projects (this script creates them in a temporary directory and copies only the platform folders, without overwriting your Dart source):
+
+```sh
+python bootstrap_platforms.py
+```
+
+Then run:
 
 ```sh
 flutter pub get
