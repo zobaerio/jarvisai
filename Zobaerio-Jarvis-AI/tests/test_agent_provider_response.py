@@ -95,5 +95,30 @@ class SafeProviderResponseTests(unittest.TestCase):
                 self.assertIn("raw response body is hidden", message)
 
 
+    def test_successful_chat_completion_uses_configured_key_and_returns_answer(self) -> None:
+        self.agent.settings = {
+            "api_base_url": "https://api.example.test/v1",
+            "model": "test-chat-model",
+        }
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "choices": [{"message": {"role": "assistant", "content": "Hello from the mocked model."}}]
+        }
+        with patch("jarvis.agent.get_api_key", return_value="test-provider-secret"), patch(
+            "jarvis.agent.requests.post", return_value=response
+        ) as post:
+            result = self.agent.respond("Say hello.")
+
+        self.assertEqual(result, "Hello from the mocked model.")
+        self.assertEqual(self.agent.last_outcome, "completed")
+        post.assert_called_once()
+        args, kwargs = post.call_args
+        self.assertEqual(args[0], "https://api.example.test/v1/chat/completions")
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test-provider-secret")
+        self.assertEqual(kwargs["json"]["model"], "test-chat-model")
+        self.assertEqual(kwargs["json"]["messages"][-1], {"role": "user", "content": "Say hello."})
+        self.assertNotIn("test-provider-secret", result)
+
+
 if __name__ == "__main__":
     unittest.main()
