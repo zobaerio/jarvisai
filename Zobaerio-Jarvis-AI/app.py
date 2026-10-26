@@ -982,6 +982,9 @@ class JarvisDesktop:
                     "RESULT",
                     str(record.get("result", "") or "(No result recorded yet.)"),
                 ]
+                resumed_from = record.get("resumed_from_task_id")
+                if isinstance(resumed_from, str) and resumed_from:
+                    lines.insert(1, f"Resumed from task: #{resumed_from[:64]}")
                 plan = record.get("plan") if isinstance(record.get("plan"), list) else []
                 if plan:
                     lines.extend(["", "STRUCTURED PLAN (stored progress; not an automatic replay queue)"])
