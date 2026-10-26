@@ -41,14 +41,3 @@ def bounded_float(value: object, fallback: float, minimum: float, maximum: float
     except (TypeError, ValueError, OverflowError):
         parsed = safe_fallback
     return max(minimum, min(parsed, maximum))
-
-
-def bounded_float(value: object, fallback: float, minimum: float, maximum: float) -> float:
-    """Convert a setting to a finite float and clamp it to an inclusive range."""
-    try:
-        parsed = float(value)
-        if parsed != parsed or parsed in (float("inf"), float("-inf")):
-            parsed = fallback
-    except (TypeError, ValueError, OverflowError):
-        parsed = fallback
-    return max(minimum, min(parsed, maximum))
