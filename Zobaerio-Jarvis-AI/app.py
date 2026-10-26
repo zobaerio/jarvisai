@@ -172,7 +172,7 @@ class JarvisDesktop:
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
             widget.bind("<Double-Button-1>", lambda _event: self._show_main_from_floating())
-            widget.bind("<Button-3>", self._toggle_floating_pin)
+            widget.bind("<Button-3>", self._show_floating_context_menu)
         self._floating_hud.protocol("WM_DELETE_WINDOW", self._hide_floating_hud)
         if self._floating_mini:
             self._apply_floating_mode()
@@ -236,6 +236,22 @@ class JarvisDesktop:
         height = self._bounded_int(sh + event.y_root - sy, sh, minimum_h, max_h)
         self._floating_hud.geometry(f"{width}x{height}+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
         self._schedule_floating_preferences_save()
+
+    def _show_floating_context_menu(self, event: tk.Event) -> str:
+        """Offer common HUD actions from a compact right-click menu."""
+        menu = tk.Menu(self._floating_hud, tearoff=0, bg="#0b1728", fg=TEXT,
+                       activebackground="#164e63", activeforeground=TEXT)
+        menu.add_command(label="Open J.A.R.V.I.S", command=self._show_main_from_floating)
+        menu.add_command(label="Switch Mini / Expanded", command=self._toggle_floating_mode)
+        menu.add_command(label="Unpin from top" if self._floating_pin else "Pin on top",
+                         command=self._toggle_floating_pin)
+        menu.add_separator()
+        menu.add_command(label="Hide Floating HUD", command=self._hide_floating_hud)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+        return "break"
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
