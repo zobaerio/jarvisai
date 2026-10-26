@@ -50,6 +50,13 @@ def _expected_verification_targets(name: str, args: dict[str, Any]) -> set[tuple
         return target("window", args.get("app_name"))
     if name == "open_website":
         value = str(args.get("url_or_query", "") or "").strip()
+        folded = value.casefold()
+        # Known aliases have recognizable human-readable tab titles; using the alias
+        # avoids pretending "Google" is the target for Gmail/Drive/etc.
+        for mapping_name in ("SOCIAL_WEBSITE_ALIASES", "WORKSPACE_WEBSITE_ALIASES"):
+            aliases = getattr(automation, mapping_name, {})
+            if isinstance(aliases, dict) and folded in aliases:
+                return target("window", folded)
         parsed = None
         if "://" in value:
             parsed = urlparse(value)
