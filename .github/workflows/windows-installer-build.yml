@@ -103,4 +103,4 @@ jobs:
           name: JARVIS-Windows-Installer
           path: Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
