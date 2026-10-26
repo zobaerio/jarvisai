@@ -1,6 +1,6 @@
 # J.A.R.V.I.S Desktop AI — Feature Status & Production Roadmap
 
-Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and playback timeouts. This inventory describes code that exists; it does not claim every planned feature is implemented.
+Audit date: 2026-10-26. Version focus: v1.7.3 bounded voice recognition and playback timeouts. This inventory describes code that exists; it does not claim every planned feature is implemented.
 
 ## Implemented in the Python desktop prototype
 - **Windows installer (validation in progress):** Inno Setup definition and CI build create a per-user unsigned setup executable, Start Menu shortcut, optional Desktop shortcut and uninstall entry; user settings/task history are preserved. Do not mark release-ready until CI verification and real-device install/upgrade/uninstall checks pass.
@@ -85,3 +85,11 @@ Audit date: 2026-10-25. Version focus: v1.7.3 bounded voice recognition and play
 
 ## Safety/privacy
 The assistant cannot safely promise to do “everything.” Keep automation least-privilege and require approval for meaningful external or destructive actions. Do not commit API keys or credentials. Stored provider keys must not be sent over plain HTTP to non-loopback endpoints. Online speech recognition and neural TTS may transmit audio/text to their providers. The 3D Studio preview itself does not request camera or microphone access. Task history is stored locally as JSON under the app's APPDATA folder and is not encrypted by this feature; an atomic-save backup aids recovery but does not replace encrypted storage; avoid entering passwords, API keys or other secrets as commands.
+
+## Android/iOS mobile client foundation — in development
+
+- The repository now contains an initial Flutter client under `mobile/` for Android and iOS.
+- Implemented in this initial phase: OpenAI-compatible chat, configurable HTTPS provider/model, secure-storage API key, non-generative provider connectivity check, bounded chat input/context, safe diagnostics, URL validation and unit tests.
+- `mobile/bootstrap_platforms.py` generates the standard Android/iOS host folders without overwriting Dart source. Flutter CI runs analysis/tests and verifies host-project generation.
+- **Not complete:** feature parity with the Windows agent, desktop automation from mobile, native permissions/integrations, signed Android APK/AAB, iOS archive/App Store signing, and real-device testing. The mobile client is not yet a replacement for the Windows desktop agent.
+- Mobile API keys are stored using the platform secure-storage plugin; never commit real keys. Phone localhost does not refer to the desktop computer, so mobile configuration requires a reachable HTTPS provider endpoint.
