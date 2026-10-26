@@ -366,14 +366,29 @@ class TaskStore:
             return dict(target)
 
     def update_plan_step(
-        self, task_id: str, step_id: str, *, status: str
+        self,
+        task_id: str,
+        step_id: str,
+        *,
+        status: str,
+        evidence: str | None = None,
+        verification_note: str | None = None,
+        outcome: str | None = None,
     ) -> dict[str, Any] | None:
-        """Persist one step transition; retrying a failed step is always explicit."""
-        if status not in {"pending", "running", "completed", "failed", "skipped", "unverified"}:
+        """Persist one step transition and bounded evidence metadata; retries are explicit."""
+        valid_statuses = {"pending", "running", "completed", "failed", "skipped", "unverified"}
+        valid_evidence = {"assistant_response", "verified_local_action", "tool_result", "none"}
+        valid_outcomes = {"completed", "partial", "failed", "cancelled"}
+        if status not in valid_statuses:
             raise ValueError(f"Unsupported plan-step status: {status}")
+        if evidence is not None and evidence not in valid_evidence:
+            raise ValueError(f"Unsupported plan-step evidence type: {evidence}")
+        if outcome is not None and outcome not in valid_outcomes:
+            raise ValueError(f"Unsupported plan-step outcome: {outcome}")
+        safe_note = " ".join(str(verification_note or "").split())[:240]
         allowed_transitions = {
             "pending": {"running", "skipped"},
-            "running": {"completed", "failed"},
+            "running": {"completed", "failed", "unverified"},
             "failed": {"pending"},
             "completed": set(),
             "skipped": set(),
@@ -406,13 +421,25 @@ class TaskStore:
                 item["attempts"] = min(999, attempts + 1)
                 item["started_at"] = now
                 item.pop("finished_at", None)
+                item.pop("evidence", None)
+                item.pop("verification_note", None)
+                item.pop("outcome", None)
             elif status in {"completed", "failed", "skipped", "unverified"}:
                 item["finished_at"] = now
             elif status == "pending":
                 # An explicit retry is queued but not active yet. Preserve attempt count,
-                # while clearing timestamps belonging to the previous attempt.
+                # while clearing metadata belonging to the previous attempt.
                 item.pop("started_at", None)
                 item.pop("finished_at", None)
+                item.pop("evidence", None)
+                item.pop("verification_note", None)
+                item.pop("outcome", None)
+            if evidence is not None:
+                item["evidence"] = evidence
+            if safe_note:
+                item["verification_note"] = safe_note
+            if outcome is not None:
+                item["outcome"] = outcome
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
             return dict(target)
