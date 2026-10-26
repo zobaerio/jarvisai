@@ -112,7 +112,9 @@ class JarvisDesktop:
         self._floating_hud.configure(bg="#07111f")
         hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
         hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
-        self._floating_hud.geometry(f"92x164+{hud_x}+{hud_y}")
+        hud_w = self._bounded_int(self.settings.get("floating_hud_width", 92), 92, 92, 240)
+        hud_h = self._bounded_int(self.settings.get("floating_hud_height", 164), 164, 104, 320)
+        self._floating_hud.geometry(f"{hud_w}x{hud_h}+{hud_x}+{hud_y}")
         self._floating_drag_origin: tuple[int, int] | None = None
         self._floating_save_after_id: str | None = None
         self._floating_mini = bool(self.settings.get("floating_hud_mini", False))
@@ -151,7 +153,11 @@ class JarvisDesktop:
                   font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2")
         self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
         self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
-        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 5))
+        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 2))
+        self._floating_resize_grip = tk.Label(shell, text="◢", bg="#07111f", fg="#67e8f9", cursor="size_nw_se", font=("Segoe UI", 8))
+        self._floating_resize_grip.pack(side="right", padx=2, pady=(0, 1))
+        self._floating_resize_grip.bind("<ButtonPress-1>", self._floating_resize_start)
+        self._floating_resize_grip.bind("<B1-Motion>", self._floating_resize_move)
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
@@ -201,6 +207,21 @@ class JarvisDesktop:
         except tk.TclError:
             return
 
+    def _floating_resize_start(self, event: tk.Event) -> None:
+        self._floating_resize_origin = (event.x_root, event.y_root, self._floating_hud.winfo_width(), self._floating_hud.winfo_height())
+
+    def _floating_resize_move(self, event: tk.Event) -> None:
+        if not hasattr(self, "_floating_resize_origin"):
+            return
+        sx, sy, sw, sh = self._floating_resize_origin
+        minimum_w, minimum_h = ((80, 104) if self._floating_mini else (92, 150))
+        max_w = max(minimum_w, min(320, self.root.winfo_screenwidth() - self._floating_hud.winfo_x()))
+        max_h = max(minimum_h, min(400, self.root.winfo_screenheight() - self._floating_hud.winfo_y()))
+        width = self._bounded_int(sw + event.x_root - sx, sw, minimum_w, max_w)
+        height = self._bounded_int(sh + event.y_root - sy, sh, minimum_h, max_h)
+        self._floating_hud.geometry(f"{width}x{height}+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+        self._schedule_floating_preferences_save()
+
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
                                       event.y_root - self._floating_hud.winfo_y())
@@ -238,6 +259,8 @@ class JarvisDesktop:
             self.settings["floating_hud_y"] = self._bounded_int(self._floating_hud.winfo_y(), 120, 0, max(0, self.root.winfo_screenheight() - 125))
             self.settings["floating_hud_topmost"] = bool(self._floating_pin)
             self.settings["floating_hud_mini"] = bool(self._floating_mini)
+            self.settings["floating_hud_width"] = self._bounded_int(self._floating_hud.winfo_width(), 92, 80, 320)
+            self.settings["floating_hud_height"] = self._bounded_int(self._floating_hud.winfo_height(), 164, 104, 400)
             save_settings(self.settings)
         except (tk.TclError, OSError, ValueError):
             # A preferences write failure must never interrupt the assistant UI.
