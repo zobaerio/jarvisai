@@ -182,6 +182,74 @@ def format_plan_step_guidance(
     )
 
 
+PLAN_STEP_KINDS = frozenset({"response", "read_only", "state_change", "unknown"})
+
+
+def classify_plan_step_kind(step_title: str, user_text: str = "") -> str:
+    """Conservatively classify what kind of evidence should complete a plan step.
+
+    This is a local heuristic, not a model-supplied trust decision. Ambiguous steps
+    remain unknown and cannot be marked complete from assistant text alone.
+    """
+    title = " ".join(str(step_title or "").casefold().split())
+    request = " ".join(str(user_text or "").casefold().split())
+    combined = f"{title} {request}"
+
+    state_change_markers = (
+        "create a website", "build a website", "create website", "build an app",
+        "create an app", "create a file", "create file", "create a folder",
+        "create folder", "create folder structure", "open ", "launch ", "send ",
+        "copy ", "move ", "rename ", "delete ", "remove ", "install ", "save ",
+        "edit file", "update file", "modify file", "paste ", "type ", "create zip",
+        "archive ", "download ", "upload ", "publish ", "deploy ",
+        "create a zip", "prepare whatsapp message", "prepare email draft",
+        "create a calendar event", "move to recycle bin",
+        "ফাইল তৈরি", "ফোল্ডার তৈরি", "ওয়েবসাইট তৈরি", "ওয়েবসাইট তৈরি",
+        "অ্যাপ তৈরি", "খুলো", "খুলুন", "খুলে দাও", "চালু কর", "পাঠাও",
+        "মুছে", "কপি কর", "সরিয়ে", "সরিয়ে", "স্থানান্তর", "নাম পরিবর্তন",
+        "ইনস্টল", "সেভ", "সংরক্ষণ", "আপলোড", "ডাউনলোড", "পাবলিশ", "ডিপ্লয়",
+        "ডিপ্লয়", "ইমেইল পাঠা", "টাইপ কর", "পেস্ট কর", "জিপ ফাইল তৈরি",
+    )
+    if any(marker in title for marker in state_change_markers):
+        return "state_change"
+
+    response_markers = (
+        "draft ", "write ", "summarize", "summary", "analyze", "compare",
+        "explain", "calculate", "outline", "translate", "prepare a report",
+        "create a report", "create a draft", "create a summary", "generate a report",
+        "report", "write-up", "recommend", "explanation", "সারাংশ", "বিশ্লেষণ",
+        "তুলনা", "ব্যাখ্যা", "হিসাব", "খসড়া", "খসড়া", "অনুবাদ", "প্রতিবেদন",
+        "রিপোর্ট", "লিখে দাও", "লিখুন", "বর্ণনা",
+    )
+    if any(marker in title for marker in response_markers):
+        return "response"
+
+    read_only_markers = (
+        "inspect", "check", "verify", "search", "find ", "list ", "review",
+        "audit", "scan", "test ", "look up", "gather", "collect", "validate",
+        "inspect inputs", "পরীক্ষা", "যাচাই", "খুঁজ", "তালিকা", "পর্যালোচনা",
+        "স্ক্যান", "চেক", "তথ্য সংগ্রহ", "দেখে নাও", "যাচাই কর",
+    )
+    if any(marker in title for marker in read_only_markers):
+        return "read_only"
+
+    # The original request can reveal side-effect intent even when the plan title
+    # is vague (e.g. a step named "Finish the task"). Do not infer a text-only step
+    # when the overall request clearly asks the computer to change state.
+    request_state_markers = (
+        "open ", "launch ", "create a website", "build a website", "create a file",
+        "create a folder", "create an app", "send ", "copy ", "move ", "delete ",
+        "install ", "save to ", "edit file", "deploy ", "publish ", "খুলো",
+        "খুলুন", "চালু কর", "পাঠাও", "ফাইল তৈরি", "ফোল্ডার তৈরি", "ওয়েবসাইট তৈরি",
+        "ওয়েবসাইট তৈরি", "অ্যাপ তৈরি", "ইনস্টল", "আপলোড", "ডাউনলোড",
+    )
+    if any(marker in request for marker in request_state_markers):
+        return "state_change"
+    if any(marker in title for marker in response_markers):
+        return "response"
+    return "unknown"
+
+
 _MULTI_STEP_MARKERS = (
     "and then", "then ", "after that", "step by step", "first ", "next ",
     "tarpor", "erpor", "dhape dhape", "ekta ekta kore",
