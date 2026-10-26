@@ -20,6 +20,9 @@ DEFAULTS: dict[str, Any] = {
     "speak_replies": True,
     "selected_character": "luna",
     "auto_start_at_login": False,
+    "floating_hud_x": 24,
+    "floating_hud_y": 120,
+    "floating_hud_topmost": True,
 }
 
 
