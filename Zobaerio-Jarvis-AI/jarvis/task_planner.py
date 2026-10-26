@@ -85,25 +85,26 @@ def generate_task_plan(
         headers["Authorization"] = f"Bearer {key}"
     try:
         response = requests.post(
-        base_url + "/chat/completions",
-        headers=headers,
-        json={
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Create a concise execution plan for a Windows desktop assistant. "
-                        "Return ONLY JSON shaped as {\"steps\":[\"step title\"]}. "
-                        "Provide 2-8 short, ordered, user-facing steps. Do not execute actions, "
-                        "request tools, invent completed results, include secrets, or put commands "
-                        "or code in steps. Include approval and verification where relevant."
-                    ),
-                },
-                {"role": "user", "content": command},
-            ],
-            "temperature": 0.2,
-        },
+            base_url + "/chat/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Create a concise execution plan for a Windows desktop assistant. "
+                            "Return ONLY JSON shaped as {\"steps\":[\"step title\"]}. "
+                            "Provide 2-8 short, ordered, user-facing steps. Do not execute actions, "
+                            "request tools, invent completed results, include secrets, or put commands "
+                            "or code in steps. Include approval and verification where relevant."
+                        ),
+                    },
+                    {"role": "user", "content": command},
+                ],
+                "temperature": 0.2,
+            },
+
             timeout=(8, 25),
         )
     except requests.RequestException:
