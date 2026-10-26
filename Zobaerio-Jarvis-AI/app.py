@@ -25,7 +25,7 @@ from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 from jarvis.startup import is_windows_startup_enabled, set_windows_startup
-from jarvis.ui_formatters import bounded_int, format_header_clock
+from jarvis.ui_formatters import bounded_float, bounded_int, format_header_clock
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -342,7 +342,7 @@ class JarvisDesktop:
 
     def _set_floating_opacity(self, value: float) -> None:
         """Set a bounded window opacity and persist it with the other HUD preferences."""
-        self._floating_opacity = max(0.55, min(1.0, float(value)))
+        self._floating_opacity = bounded_float(value, getattr(self, "_floating_opacity", 1.0), 0.55, 1.0)
         try:
             self._floating_hud.attributes("-alpha", self._floating_opacity)
             self._schedule_floating_preferences_save()
