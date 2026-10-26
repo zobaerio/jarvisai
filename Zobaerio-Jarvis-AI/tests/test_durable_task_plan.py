@@ -227,6 +227,30 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(original["status"], "partial")
         self.assertEqual([step["status"] for step in original["plan"]], ["completed", "unverified", "skipped"])
 
+    def test_explicit_resume_rejects_completed_steps_after_an_uncertain_step(self) -> None:
+        source = self.store.create_task("Out-of-order plan")
+        plan = self.store.set_task_plan(source["id"], ["First", "Second"], step_kinds=["state_change", "response"])
+        self.store.update_plan_step(source["id"], plan["plan"][0]["id"], status="running")
+        self.store.update_plan_step(
+            source["id"],
+            plan["plan"][0]["id"],
+            status="unverified",
+            evidence="none",
+            verification_note="First step uncertain.",
+            outcome="partial",
+        )
+        self.store.update_plan_step(source["id"], plan["plan"][1]["id"], status="running")
+        self.store.update_plan_step(
+            source["id"],
+            plan["plan"][1]["id"],
+            status="completed",
+            evidence="assistant_response",
+            verification_note="Second step completed.",
+            outcome="completed",
+        )
+        self.store.update_task(source["id"], status="partial", result="Invalid plan order")
+        self.assertIsNone(self.store.create_resumed_plan_task(source["id"]))
+
     def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
         active = self.store.create_task("Still running")
         self.store.update_task(active["id"], status="running")
