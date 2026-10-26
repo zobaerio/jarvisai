@@ -66,6 +66,11 @@ jobs:
           test -f release-assets/windows-portable/JARVIS-Windows-Portable.zip
           test -f release-assets/android/app-debug.apk
           mv release-assets/android/app-debug.apk release-assets/android/JARVIS-Android-Debug.apk
+          sha256sum \
+            release-assets/windows-installer/JARVIS-Setup.exe \
+            release-assets/windows-portable/JARVIS-Windows-Portable.zip \
+            release-assets/android/JARVIS-Android-Debug.apk \
+            > release-assets/SHA256SUMS.txt
 
       - name: Publish GitHub Release with permanent assets
         uses: softprops/action-gh-release@v2
@@ -78,3 +83,4 @@ jobs:
             release-assets/windows-installer/JARVIS-Setup.exe
             release-assets/windows-portable/JARVIS-Windows-Portable.zip
             release-assets/android/JARVIS-Android-Debug.apk
+            release-assets/SHA256SUMS.txt
