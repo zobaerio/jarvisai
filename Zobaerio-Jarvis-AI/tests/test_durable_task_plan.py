@@ -227,6 +227,25 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(original["status"], "partial")
         self.assertEqual([step["status"] for step in original["plan"]], ["completed", "unverified", "skipped"])
 
+    def test_explicit_resume_rejects_duplicate_step_identifiers(self) -> None:
+        source = self.store.create_task("Malformed plan")
+        plan = self.store.set_task_plan(source["id"], ["First", "Second"])
+        self.store.update_plan_step(source["id"], plan["plan"][0]["id"], status="running")
+        self.store.update_plan_step(
+            source["id"],
+            plan["plan"][0]["id"],
+            status="unverified",
+            evidence="none",
+            verification_note="First step uncertain.",
+            outcome="partial",
+        )
+        self.store.update_task(source["id"], status="partial", result="Malformed")
+        rows = self.store._read()
+        persisted_source = next(row for row in rows if row.get("id") == source["id"])
+        persisted_source["plan"][1]["id"] = persisted_source["plan"][0]["id"]
+        self.store._write(rows)
+        self.assertIsNone(self.store.create_resumed_plan_task(source["id"]))
+
     def test_explicit_resume_rejects_completed_steps_after_an_uncertain_step(self) -> None:
         source = self.store.create_task("Out-of-order plan")
         plan = self.store.set_task_plan(source["id"], ["First", "Second"], step_kinds=["state_change", "response"])
