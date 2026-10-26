@@ -57,6 +57,14 @@ def test_bounded_float_uses_fallback_for_invalid_or_non_finite_settings():
     assert bounded_float(float("-inf"), 0.9, 0.55, 1.0) == 0.9
 
 
+def test_bounded_float_keeps_fallback_finite_and_within_bounds():
+    assert bounded_float(None, float("nan"), 0.55, 1.0) == 0.55
+    assert bounded_float(None, float("inf"), 0.55, 1.0) == 0.55
+    assert bounded_float(None, -float("inf"), 0.55, 1.0) == 0.55
+    assert bounded_float(None, 5.0, 0.55, 1.0) == 1.0
+    assert bounded_float(None, 0.1, 0.55, 1.0) == 0.55
+
+
 def test_bounded_float_sanitizes_invalid_fallback_values():
     assert bounded_float("invalid", float("nan"), 0.55, 1.0) == 0.55
     assert bounded_float(None, float("inf"), 0.55, 1.0) == 0.55
