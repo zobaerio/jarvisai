@@ -102,15 +102,21 @@ def auto_configure_from_api_key(api_key: str, *, timeout: float = 8.0) -> dict[s
         # Google AI Studio provides an OpenAI-compatible endpoint for Gemini models.
         provider, base_url = "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"
         preferred = ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
-    elif key.startswith(("sk-proj-", "sk-svcacct-", "sk-")):
+    elif key.startswith("xai-"):
+        provider, base_url = "xAI", "https://api.x.ai/v1"
+        preferred = ("grok-4.7", "grok-4-fast", "grok-3-mini")
+    elif key.startswith(("sk-proj-", "sk-svcacct-")):
+        # Do not treat every "sk-" token as an OpenAI key. Anthropic and other
+        # providers also use overlapping formats, so a generic prefix is ambiguous.
         provider, base_url = "OpenAI", "https://api.openai.com/v1"
         preferred = ("gpt-4o-mini", "gpt-4.1-mini", "gpt-4o")
     else:
         raise ValueError(
             "Provider could not be identified safely from this key. For a one-field setup, use an "
-            "OpenRouter key (starts with sk-or-v1-), an OpenAI key, a Groq key (starts with gsk_), "
-            "or a Google Gemini AI Studio key (starts with AIza). Other or custom providers can still "
-            "be configured in Advanced Settings."
+            "OpenRouter key (sk-or-v1-), a recognizable OpenAI project/service-account key "
+            "(sk-proj- or sk-svcacct-), a Groq key (gsk_), a Google Gemini AI Studio key (AIza), "
+            "or an xAI key (xai-). Generic 'sk-' keys overlap across providers and are not sent to "
+            "an arbitrary endpoint. Other/custom providers require Advanced Settings."
         )
 
     normalized = validate_api_key_transport(base_url, key)
@@ -151,7 +157,7 @@ def auto_configure_from_api_key(api_key: str, *, timeout: float = 8.0) -> dict[s
         chosen = free[0] if free else None
     if chosen is None:
         # Choose only a known chat-capable family, never an arbitrary embedding/moderation model.
-        markers = ("gpt-", "llama-", "gemini-", "claude-", "qwen", "deepseek-", "mixtral", "command-r")
+        markers = ("gpt-", "llama-", "gemini-", "claude-", "grok-", "qwen", "deepseek-", "mixtral", "command-r")
         non_chat_markers = ("embedding", "moderation", "rerank", "whisper", "tts", "transcription", "image", "guard")
         chosen = next(
             (
