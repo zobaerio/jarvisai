@@ -1334,12 +1334,28 @@ class JarvisDesktop:
                 )
                 refresh()
                 return
+            self._push_activity("Resumed task plan from task #" + source_id)
+            try:
+                queued_before_resume = self.task_store.queued_count()
+            except Exception:
+                queued_before_resume = 0
+            if queued_before_resume > 0:
+                self._write_message(
+                    "SYSTEM",
+                    f"Plan resume queued as task #{resumed['id']} behind existing queued commands. "
+                    "FIFO order is preserved; use RUN QUEUED TASKS to start the queue.",
+                    "system",
+                )
+                self._refresh_queue_button()
+                refresh()
+                if self._queue_armed:
+                    self.root.after(150, self._start_next_queued_task)
+                return
             self._write_message(
                 "SYSTEM",
                 f"Plan resume prepared as a new task (#{resumed['id']}). Completed steps will not be replayed.",
                 "system",
             )
-            self._push_activity("Resumed task plan from task #" + source_id)
             refresh()
             self._launch_task(
                 str(resumed.get("command", command)),
