@@ -257,7 +257,7 @@ def execute_task_plan(
             continue
 
         if (
-            step_kind != "state_change"
+            step_kind == "read_only"
             and tool_names
             and all(name in READ_ONLY_TOOL_NAMES for name in tool_names)
         ):
