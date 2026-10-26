@@ -21,9 +21,17 @@ def bounded_int(value: object, fallback: int, minimum: int, maximum: int) -> int
 def bounded_float(value: object, fallback: float, minimum: float, maximum: float) -> float:
     """Convert a setting to a finite float and clamp it to an inclusive range."""
     try:
+        safe_fallback = float(fallback)
+        if not math.isfinite(safe_fallback):
+            safe_fallback = minimum
+    except (TypeError, ValueError, OverflowError):
+        safe_fallback = minimum
+    safe_fallback = max(minimum, min(safe_fallback, maximum))
+
+    try:
         parsed = float(value)
         if not math.isfinite(parsed):
-            parsed = fallback
+            parsed = safe_fallback
     except (TypeError, ValueError, OverflowError):
-        parsed = fallback
+        parsed = safe_fallback
     return max(minimum, min(parsed, maximum))
