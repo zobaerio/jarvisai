@@ -247,6 +247,7 @@ class JarvisDesktop:
         menu = tk.Menu(self._floating_hud, tearoff=0, bg="#0b1728", fg=TEXT,
                        activebackground="#164e63", activeforeground=TEXT)
         menu.add_command(label="Open J.A.R.V.I.S", command=self._show_main_from_floating)
+        menu.add_command(label="Reset HUD Position", command=self._reset_floating_position)
         menu.add_command(label="Switch Mini / Expanded", command=self._toggle_floating_mode)
         menu.add_command(label="Unpin from top" if self._floating_pin else "Pin on top",
                          command=self._toggle_floating_pin)
@@ -262,6 +263,16 @@ class JarvisDesktop:
         finally:
             menu.grab_release()
         return "break"
+
+    def _reset_floating_position(self) -> None:
+        """Move the HUD to a safe default position and persist the new coordinates."""
+        try:
+            x = 24
+            y = min(120, max(0, self.root.winfo_screenheight() - self._floating_hud.winfo_height()))
+            self._floating_hud.geometry(f"+{x}+{y}")
+            self._schedule_floating_preferences_save()
+        except tk.TclError as exc:
+            self._write_message("SYSTEM", f"Could not reset HUD position: {type(exc).__name__}.", "system")
 
     def _set_floating_opacity(self, value: float) -> None:
         """Set a bounded window opacity and persist it with the other HUD preferences."""
