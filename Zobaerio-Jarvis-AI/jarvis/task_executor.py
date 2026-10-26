@@ -257,7 +257,7 @@ def execute_task_plan(
             continue
 
         if (
-            step_kind == "read_only"
+            step_kind in {"response", "read_only"}
             and tool_names
             and all(name in READ_ONLY_TOOL_NAMES for name in tool_names)
         ):
@@ -266,7 +266,11 @@ def execute_task_plan(
                 step_id,
                 status="completed",
                 evidence="tool_result",
-                verification_note="Read-only tool results were returned; no local state change was claimed.",
+                verification_note=(
+                    "The response step returned its text deliverable with read-only tool results; no local state change was claimed."
+                    if step_kind == "response"
+                    else "Read-only tool results were returned; no local state change was claimed."
+                ),
                 outcome="completed",
             )
             completed_count += 1
