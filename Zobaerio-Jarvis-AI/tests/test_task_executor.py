@@ -118,6 +118,23 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(saved["actions"][0]["plan_step_id"], plan[0]["id"])
         self.assertEqual(saved["actions"][-1]["plan_step_id"], plan[1]["id"])
 
+    def test_duplicate_persisted_step_ids_fail_before_any_step_starts(self) -> None:
+        task_id, _plan = self.make_plan(["First step", "Second step"], ["response", "response"])
+        record = self.store.get_task(task_id)
+        record["plan"][1]["id"] = record["plan"][0]["id"]
+        agent = FakeStepAgent([])
+        with patch.object(self.store, "get_task", return_value=record):
+            result, status = execute_task_plan(
+                agent=agent,
+                task_store=self.store,
+                task_id=task_id,
+                user_text="Do two steps",
+                cancel_event=self.no_cancel(),
+            )
+        self.assertEqual(status, "failed")
+        self.assertIn("duplicate step identifiers", result)
+        self.assertEqual(agent.prompts, [])
+
     def test_unverified_state_change_stops_later_steps(self) -> None:
         task_id, plan = self.make_plan(["Create a file", "Verify the new file"], ["state_change", "read_only"])
         agent = FakeStepAgent([{
