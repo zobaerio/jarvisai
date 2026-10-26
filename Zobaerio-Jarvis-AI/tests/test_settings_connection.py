@@ -125,13 +125,13 @@ class ApiEndpointValidationTests(unittest.TestCase):
             ]
         }
         get.return_value = response
-        result = auto_configure_from_api_key("gsk-test-secret")
+        result = auto_configure_from_api_key("gsk_test-secret")
         self.assertEqual(result["provider"], "Groq")
         self.assertEqual(result["model"], "openai/gpt-oss-120b")
         self.assertEqual(result["api_base_url"], "https://api.groq.com/openai/v1")
         get.assert_called_once_with(
             "https://api.groq.com/openai/v1/models",
-            headers={"Accept": "application/json", "Authorization": "Bearer gsk-test-secret"},
+            headers={"Accept": "application/json", "Authorization": "Bearer gsk_test-secret"},
             timeout=(3, 8.0),
         )
 
