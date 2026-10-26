@@ -224,6 +224,14 @@ class AgentOutcomeTests(unittest.TestCase):
             _expected_verification_targets("open_website", {"url_or_query": "weather tomorrow"}),
             {("window", "google", "")},
         )
+        self.assertEqual(
+            _expected_verification_targets("open_website", {"url_or_query": "Gmail"}),
+            {("window", "gmail", "")},
+        )
+        self.assertEqual(
+            _expected_verification_targets("open_website", {"url_or_query": "Google Drive"}),
+            {("window", "google drive", "")},
+        )
 
     def test_later_state_change_invalidates_an_earlier_verification(self) -> None:
         agent = self.make_agent()
