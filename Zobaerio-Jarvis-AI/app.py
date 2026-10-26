@@ -213,6 +213,15 @@ class JarvisDesktop:
         except Exception as exc:
             self._write_message("SYSTEM", f"Voice input could not start ({type(exc).__name__}). Check microphone and speech settings.", "system")
 
+    def _show_floating_hud(self) -> None:
+        """Restore the floating orb after it has been hidden."""
+        try:
+            self._floating_hud.deiconify()
+            self._floating_hud.lift()
+            self._floating_hud.attributes("-topmost", self._floating_pin)
+        except tk.TclError:
+            self._write_message("SYSTEM", "Floating HUD could not be restored. Restart J.A.R.V.I.S and try again.", "system")
+
     def _hide_floating_hud(self) -> None:
         self._floating_hud.withdraw()
 
@@ -340,6 +349,11 @@ class JarvisDesktop:
         self.model_status = tk.Label(top, text=self._model_status_text(), bg="#0e2c3c", fg=ACCENT,
                                      font=("Segoe UI", 8, "bold"), padx=11, pady=8)
         self.model_status.pack(side="right", padx=8, pady=17)
+        floating_btn = tk.Button(top, text="◉ FLOATING HUD", command=self._show_floating_hud,
+                                  bg="#123047", fg="#a5f3fc", activebackground="#1b5268",
+                                  activeforeground=TEXT, relief="flat", bd=0,
+                                  font=("Segoe UI Semibold", 8, "bold"), padx=10, pady=9, cursor="hand2")
+        floating_btn.pack(side="right", padx=5, pady=17)
         settings_btn = tk.Button(top, text="⚙ SETTINGS", command=self._open_settings,
                                  bg="#122137", fg=TEXT, activebackground="#263e58",
                                  activeforeground=TEXT, relief="flat", bd=0,
