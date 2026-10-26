@@ -1,6 +1,7 @@
 name: Windows Portable Package
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - "Zobaerio-Jarvis-AI/**"
@@ -70,4 +71,4 @@ jobs:
           name: JARVIS-Windows-Portable
           path: Zobaerio-Jarvis-AI/dist/JARVIS-Windows-Portable.zip
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90

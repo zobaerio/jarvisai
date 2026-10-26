@@ -92,54 +92,70 @@ The cloud API-key health check now calls the secure keyring getter with its corr
 In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI, Groq, and Google Gemini API key formats, requests the identified provider's HTTPS model catalog, and selects a recognizable chat model. The key is stored using the existing Windows credential-store integration, not in the settings JSON. Unknown or ambiguous key formats are not sent to guessed providers; configure the provider's OpenAI-compatible base URL and model in Advanced Settings instead. This is not universal native-provider support: an API key alone cannot establish compatibility with every provider, and model discovery does not prove chat generation or tool calling works. After setup, save settings, test the connection, and verify a real chat/task. Provider billing and usage limits still apply.
 
 
-## Install J.A.R.V.I.S on Windows, Android, and iOS
+## Install J.A.R.V.I.S on Windows, iPhone/iPad (iOS), and Android
 
-> **Important:** Download only from this repository's GitHub Actions artifacts. A workflow artifact is a ZIP download, not a permanent public release. Artifacts may expire (the mobile workflow keeps them for 14 days). The iOS workflow currently performs a build check only; it does **not** provide an installable IPA/TestFlight release.
+**Official project links**
+- [Permanent releases and downloads](https://github.com/zobaerio/jarvisai/releases)
+- [J.A.R.V.I.S GitHub repository](https://github.com/zobaerio/jarvisai)
+- [All GitHub Actions builds](https://github.com/zobaerio/jarvisai/actions)
+- [Windows Installer build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml)
+- [Windows Portable build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml)
+- [Android/iOS Mobile build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml)
 
-### 1. Windows — Installer or Portable version
+For everyday installation, first check the [Releases page](https://github.com/zobaerio/jarvisai/releases). Download the Windows installer, portable ZIP, or Android APK attached to the latest successful release. Use the temporary Actions-artifact instructions below only when testing a build that has not yet been published as a release.
 
-**Option A — Windows Installer (recommended when the installer workflow provides an artifact)**
-1. Open the [Windows Installer workflow runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml). If that page says the workflow cannot be found, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml) and select the run named **Windows Installer Package**.
-2. Open the newest run with a green **Success** status.
-3. Scroll to **Artifacts** at the bottom and download the installer artifact (ZIP).
-4. Extract the ZIP, then run the included installer file. If Windows SmartScreen warns that the app is unsigned, verify that you downloaded it from this repository before choosing whether to continue. Do not bypass a warning for a file from an unknown source.
-5. Follow the installer prompts, then launch **J.A.R.V.I.S** from the Start menu or Desktop shortcut.
+### 1. Windows 10/11 — Installer (recommended) or Portable version
 
-**Option B — Portable ZIP (no normal installation required)**
-1. Open [all GitHub Actions runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml) and select the newest successful **Windows Portable Package** run.
-2. Download its portable artifact from the **Artifacts** section.
-3. Extract the ZIP to a folder you control (for example, Documents\JARVIS).
-4. Open the extracted folder and run the included J.A.R.V.I.S executable. Keep the extracted folder together; do not move only the EXE out of its folder.
+#### Option A — Install using the Windows installer
+1. Open the [Windows Installer workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml).
+2. Select the newest run marked **Success** (green tick). Open the run details.
+3. Scroll to **Artifacts** and download **JARVIS-Windows-Installer** (ZIP).
+4. Extract the ZIP first. Inside it, locate and run `JARVIS-Setup.exe`.
+5. Follow the installer prompts. After installation, launch **J.A.R.V.I.S** from the Start menu or Desktop shortcut.
 
-**Option C — Run from source**
-1. Download the repository using **Code → Download ZIP**, or clone it.
-2. Open `Zobaerio-Jarvis-AI/`.
-3. Install [Python 3.12.x 64-bit](https://www.python.org/downloads/).
+**Windows security note:** The installer is currently unsigned, so Windows SmartScreen may show a warning. Check that the file came from this repository and review the warning before deciding whether to continue. Never run installers from unknown sources.
+
+#### Option B — Portable ZIP (no installation wizard)
+1. Open the [Windows Portable workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml).
+2. Select the latest **successful** run and download **JARVIS-Windows-Portable** from **Artifacts**.
+3. Extract the ZIP to a folder you control, such as Documents\JARVIS.
+4. Open the extracted folder and run `JARVIS.exe`. Keep the extracted app folder and its files together; do not move only the EXE.
+
+#### Option C — Run from source
+1. Download the [repository ZIP](https://github.com/zobaerio/jarvisai/archive/refs/heads/main.zip) or clone the repository.
+2. Open the `Zobaerio-Jarvis-AI/` folder.
+3. Install [Python 3.12.x for Windows](https://www.python.org/downloads/).
 4. Run `install.bat`, then `run.bat`.
 
-If a workflow is still running, has failed, or has no artifact, wait for a successful run or use another available installation method. The Windows installer and portable packages may be unsigned.
+**AI setup:** After opening J.A.R.V.I.S, use Settings to configure a supported AI provider and API key, then test the connection. Provider billing, quotas and internet access may apply. Never share your API key publicly.
 
-### 2. Android — Debug APK
+### 2. Android phone/tablet — APK
 
-1. Open the [Android build workflow run](https://github.com/zobaerio/jarvisai/actions/runs/40374198718). If the artifact has expired, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions) and choose the newest successful **Mobile Build Validation** run.
-2. Open **Artifacts** and download `jarvis-mobile-android-debug` (a ZIP file).
-3. On your Android phone, extract the ZIP using Files or another archive app. Find the `.apk` file inside.
-4. Tap the APK. If Android asks, allow **Install unknown apps** only for the file manager/browser you used to open the APK, then return and tap **Install**.
-5. After installation, open **J.A.R.V.I.S**.
+1. Open the [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml).
+2. Open the newest run marked **Success** and look for the **Android debug APK** job.
+3. Scroll to **Artifacts** and download `jarvis-mobile-android-debug` (ZIP).
+4. On your Android device, extract the ZIP using the Files app or another archive app.
+5. Open the extracted folder and tap `app-debug.apk`.
+6. If Android asks, allow **Install unknown apps** only for the specific file manager or browser you used. Return to the APK and tap **Install**.
+7. Open **J.A.R.V.I.S** from your app list. Turn off the temporary “install unknown apps” permission if you enabled it.
 
-**Security note:** Install only an APK you downloaded from this repository's Actions page. Turn off the temporary “install unknown apps” permission afterward if you enabled it.
+**Android limitations:** This is a **debug/testing APK**, not a production release APK or AAB. The mobile client is an early AI chat client and does not yet provide all Windows desktop automation features. AI features may need a compatible provider configuration/API key and an internet connection. Only install the APK downloaded from this project's official Actions workflow.
 
-**Current limitation:** This is a **debug APK**, not a signed production/release APK or AAB. The mobile app is an early AI chat client; it does not yet have all Windows desktop automation features. You may need a compatible provider API key and internet access to chat with an AI model.
+### 3. iPhone or iPad — iOS/iPadOS
 
-### 3. iOS (iPhone/iPad) — build check only for now
+**An installable iPhone/iPad release is not available yet.** The current [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml) runs an iOS compile check using `--no-codesign`; it does not produce a signed IPA, TestFlight invitation, or App Store release. Therefore, there is currently no iOS package that you can install from the GitHub Actions artifacts.
 
-The [mobile workflow](https://github.com/zobaerio/jarvisai/actions) compiles the iOS app without code signing as a CI check. **There is currently no signed IPA, TestFlight invitation, or App Store release linked here**, so you cannot install this build on an iPhone/iPad from the workflow artifact. iOS installation instructions will be added once a signed distribution method is configured.
+When an official iOS release is available, the intended user flow will be:
+1. Open the official TestFlight invitation or App Store listing shared by this project.
+2. For a TestFlight beta, install [TestFlight from the App Store](https://apps.apple.com/app/testflight/id899247664), open the invitation link, and follow Apple's install prompts.
+3. For a public release, install J.A.R.V.I.S directly from its official App Store listing.
+
+Helpful official Apple references: [TestFlight](https://developer.apple.com/testflight/) and [Apple's app distribution documentation](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases). These links explain Apple's distribution process; they do **not** mean that this project already has a TestFlight build or App Store listing.
 
 ### Troubleshooting
 
-- **No Artifacts section:** the run may still be in progress, may have failed, or artifact upload may not have completed.
-- **Artifact expired:** run a new successful build from GitHub Actions or use another currently available artifact.
-- **Windows blocks the installer:** check that it came from this official repository and note that unsigned builds can trigger SmartScreen. Do not run files from untrusted sources.
-- **Android says “Can't install app”:** confirm the ZIP was extracted, open the actual APK, ensure the phone has enough free space, and remove an older conflicting debug build if needed.
-- **AI does not respond:** check your internet connection, provider/base URL, model name, API key, and provider quota in app settings. Never share your API key publicly.
-
+- **No Artifacts section:** Check that you opened a completed successful run and the relevant build job finished.
+- **Artifact expired or download fails:** Actions artifacts expire. Open the relevant workflow page and use the newest successful run.
+- **Windows SmartScreen warning:** The Windows packages are currently unsigned. Verify the source before running them.
+- **Android says “Can't install app”:** Extract the ZIP first and open the actual APK. Check free storage and Android compatibility; an older build with a conflicting app signature may need to be uninstalled first.
+- **The app opens but AI does not answer:** Check internet access, provider/base URL, model name, API key and usage quota in Settings. Never post API keys in issues, screenshots or public chats.
