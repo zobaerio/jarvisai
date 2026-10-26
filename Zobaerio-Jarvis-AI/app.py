@@ -1800,6 +1800,8 @@ class JarvisDesktop:
 
                 # A successful quick setup persists just the provider/model and credential,
                 # so the user does not have to configure a second form or press Save Settings.
+                variables["api_base_url"].set(result["api_base_url"])
+                variables["model"].set(result["model"])
                 previous_settings = dict(self.settings)
                 new_settings = dict(previous_settings)
                 new_settings["api_base_url"] = result["api_base_url"]
@@ -1829,8 +1831,6 @@ class JarvisDesktop:
 
                 self.settings = new_settings
                 self.agent.update_settings(self.settings)
-                variables["api_base_url"].set(result["api_base_url"])
-                variables["model"].set(result["model"])
                 self.model_status.configure(text=self._model_status_text())
                 if hasattr(self, "llm_detail_label"):
                     self.llm_detail_label.configure(
