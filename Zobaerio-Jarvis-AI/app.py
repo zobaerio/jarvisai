@@ -1321,15 +1321,6 @@ class JarvisDesktop:
             ):
                 return
             try:
-                queued_before_resume = self.task_store.queued_count()
-            except Exception as exc:
-                messagebox.showerror(
-                    "Resume plan",
-                    f"Could not verify the saved queue order ({type(exc).__name__}). No resume task was created; refresh Task History and retry.",
-                    parent=win,
-                )
-                return
-            try:
                 resumed = self.task_store.create_resumed_plan_task(source_id)
             except Exception as exc:
                 messagebox.showerror(
@@ -1347,6 +1338,18 @@ class JarvisDesktop:
                 refresh()
                 return
             self._push_activity("Resumed task plan from task #" + source_id)
+            queued_before_resume = resumed.get("_queued_tasks_ahead", 0)
+            if type(queued_before_resume) is not int or queued_before_resume < 0:
+                # If an old/custom TaskStore doesn't return the atomic queue hint, fail
+                # conservatively rather than bypassing an existing FIFO queue.
+                messagebox.showerror(
+                    "Resume plan",
+                    "Could not verify the saved queue order. The plan was prepared as a queued task; run the saved queue to preserve FIFO order.",
+                    parent=win,
+                )
+                self._refresh_queue_button()
+                refresh()
+                return
             if queued_before_resume > 0:
                 self._write_message(
                     "SYSTEM",
