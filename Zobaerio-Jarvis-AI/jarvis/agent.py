@@ -50,8 +50,15 @@ def _expected_verification_targets(name: str, args: dict[str, Any]) -> set[tuple
         return target("window", args.get("app_name"))
     if name == "open_website":
         value = str(args.get("url_or_query", "") or "").strip()
-        parsed = urlparse(value if "://" in value else "")
-        expected = parsed.hostname or ("Google" if value else "")
+        parsed = None
+        if "://" in value:
+            parsed = urlparse(value)
+        elif value and " " not in value and "." in value:
+            # A host may be supplied without a scheme (e.g. example.com).
+            # Plain-language search queries still open the search provider.
+            parsed = urlparse("https://" + value)
+        expected = parsed.hostname if parsed is not None else ""
+        expected = expected or ("Google" if value else "")
         if expected.startswith("www."):
             expected = expected[4:]
         return target("window", expected)
