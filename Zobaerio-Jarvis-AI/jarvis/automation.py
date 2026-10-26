@@ -815,6 +815,80 @@ def create_folder(location: str, name: str, approve) -> str:
     return f"Created folder: {path}"
 
 
+def create_folder_structure(location: str, folder_paths: list[str], approve) -> str:
+    """Create a bounded nested folder structure after one explicit approval, without overwriting."""
+    if not isinstance(folder_paths, list) or not 1 <= len(folder_paths) <= 30:
+        return "Folder structure blocked: provide between 1 and 30 relative folder paths."
+    try:
+        root = normalize_location(location)
+    except (ValueError, OSError) as exc:
+        return f"Folder structure blocked: {exc}"
+
+    planned: dict[str, Path] = {}
+    for raw in folder_paths:
+        if not isinstance(raw, str):
+            return "Folder structure blocked: every path must be text."
+        value = raw.strip()
+        parts = value.replace("\\", "/").split("/")
+        if not value or len(parts) > 8 or any(
+            not part or part in {".", ".."} or part != part.strip()
+            or any(c in part for c in '<>:"|?*')
+            or any(ord(c) < 32 for c in part)
+            for part in parts
+        ):
+            return "Folder structure blocked: use simple folder names, with at most 8 levels and no absolute paths or reserved characters."
+        for index in range(1, len(parts) + 1):
+            relative = "/".join(parts[:index])
+            key = relative.casefold()
+            candidate = root.joinpath(*parts[:index])
+            # Resolve through the existing safe-root checker and reject any link in the path.
+            try:
+                checked = safe_child_path(location, relative)
+            except (ValueError, OSError) as exc:
+                return f"Folder structure blocked: {exc}"
+            if checked != candidate:
+                return "Folder structure blocked: path escaped the selected folder."
+            current = root
+            for part in parts[:index]:
+                current = current / part
+                if current.is_symlink():
+                    return "Folder structure blocked: symbolic links are not supported."
+            planned[key] = candidate
+
+    ordered = sorted(planned.values(), key=lambda p: (len(p.parts), str(p).casefold()))
+    existing = [path for path in ordered if path.exists()]
+    if existing:
+        return "Folder structure not created because these destinations already exist:\n" + "\n".join(str(p) for p in existing)
+    details = (
+        f"Create this folder structure under {root}?\n\n"
+        + "\n".join(f"• {path}" for path in ordered)
+        + "\n\nAll listed folders and required parent folders will be created. Existing destinations are never overwritten. Approve?"
+    )
+    try:
+        if not approve("Create folder structure", details):
+            return "Cancelled. No folders were created."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No folders were created."
+
+    # Recheck after the approval dialog; fail closed if any destination appeared.
+    if any(path.exists() or path.is_symlink() for path in ordered):
+        return "Folder structure changed after confirmation. No folders were created; review the destination and try again."
+    created: list[Path] = []
+    try:
+        for path in ordered:
+            path.mkdir(parents=False, exist_ok=False)
+            created.append(path)
+    except (OSError, FileExistsError) as exc:
+        # Roll back only directories created by this call, and only if still empty.
+        for path in reversed(created):
+            try:
+                path.rmdir()
+            except OSError:
+                pass
+        return f"Folder structure creation stopped safely ({type(exc).__name__}); created empty folders were rolled back where possible."
+    return f"Created {len(created)} folders under {root}:\n" + "\n".join(str(path) for path in created)
+
+
 def create_text_file(location: str, filename: str, content: str, approve) -> str:
     path = safe_child_path(location, filename)
     if path.suffix.lower() not in {".txt", ".md", ".csv", ".json", ".log"}:
