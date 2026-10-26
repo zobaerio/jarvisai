@@ -107,6 +107,7 @@ class JarvisDesktop:
         """Create a compact, draggable always-on-top J.A.R.V.I.S orb."""
         self._floating_hud = tk.Toplevel(self.root)
         self._floating_hud.withdraw()
+        self._floating_hud.title("J.A.R.V.I.S Floating Assistant")
         self._floating_hud.overrideredirect(True)
         self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
         self._floating_hud.attributes("-topmost", self._floating_pin)
@@ -124,7 +125,9 @@ class JarvisDesktop:
                          highlightbackground=ACCENT, highlightthickness=2, bd=0)
         shell.pack(fill="both", expand=True)
         orb = tk.Canvas(shell, width=72, height=72, bg="#07111f",
-                        highlightthickness=0, bd=0, cursor="fleur")
+                        highlightthickness=0, bd=0, cursor="fleur",
+                        takefocus=True)
+        orb.configure(name="jarvis_orb")
         self._floating_orb = orb
         orb.pack(padx=8, pady=(7, 0))
         orb.create_oval(5, 5, 67, 67, outline="#164e63", width=5)
@@ -135,6 +138,7 @@ class JarvisDesktop:
         self._floating_status_dot = orb.create_oval(53, 5, 66, 18, fill="#64748b", outline="#07111f", width=2)
         label = tk.Label(shell, text="J.A.R.V.I.S", bg="#07111f", fg=ACCENT,
                          font=("Segoe UI", 8, "bold"), cursor="fleur")
+        label.configure(takefocus=True)
         self._floating_label = label
         label.pack(pady=(1, 0))
         self._floating_task_status = tk.Label(shell, text="READY", bg="#07111f", fg="#86efac", font=("Segoe UI", 7, "bold"))
@@ -142,14 +146,17 @@ class JarvisDesktop:
         controls = tk.Frame(shell, bg="#07111f")
         self._floating_controls = controls
         controls.pack(fill="x", padx=4, pady=(1, 4))
-        tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
+        open_button = tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
                   bg="#123047", fg=TEXT, activebackground="#1b5268",
                   activeforeground=TEXT, relief="flat", bd=0,
-                  font=("Segoe UI", 7, "bold"), padx=3, cursor="hand2").pack(side="left", expand=True, fill="x")
-        tk.Button(controls, text="×", command=self._hide_floating_hud,
+                  font=("Segoe UI", 7, "bold"), padx=3, cursor="hand2")
+        open_button.pack(side="left", expand=True, fill="x")
+        hide_button = tk.Button(controls, text="×", command=self._hide_floating_hud,
                   bg="#271b2a", fg="#fda4af", activebackground="#51212d",
                   activeforeground=TEXT, relief="flat", bd=0,
-                  font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
+                  font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2")
+        hide_button.configure(takefocus=True)
+        hide_button.pack(side="right")
         self._floating_mic = tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
                   bg="#0e2c3c", fg="#a5f3fc", activebackground="#164e63",
                   activeforeground=TEXT, relief="flat", bd=0,
