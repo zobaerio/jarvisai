@@ -1,6 +1,7 @@
 name: Windows Installer Package
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - "Zobaerio-Jarvis-AI/**"
