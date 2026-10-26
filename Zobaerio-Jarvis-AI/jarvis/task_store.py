@@ -331,8 +331,15 @@ class TaskStore:
             return dict(target)
 
 
-    def set_task_plan(self, task_id: str, step_titles: list[str]) -> dict[str, Any] | None:
-        """Persist a bounded, resumable plan without executing or auto-replaying any step."""
+    def set_task_plan(
+        self,
+        task_id: str,
+        step_titles: list[str],
+        *,
+        step_kinds: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """Persist a bounded plan and the evidence class expected for each step."""
+        valid_kinds = {"response", "read_only", "state_change", "unknown"}
         if not isinstance(step_titles, list) or not step_titles or len(step_titles) > MAX_STEPS:
             raise ValueError(f"A task plan must contain 1 to {MAX_STEPS} steps.")
         titles: list[str] = []
@@ -343,6 +350,14 @@ class TaskStore:
             if not normalized or len(normalized) > 240:
                 raise ValueError("Task-plan steps must contain 1 to 240 characters.")
             titles.append(normalized)
+        if step_kinds is None:
+            kinds = ["unknown"] * len(titles)
+        else:
+            if not isinstance(step_kinds, list) or len(step_kinds) != len(titles):
+                raise ValueError("Task-plan step kinds must match the number of step titles.")
+            if any(kind not in valid_kinds for kind in step_kinds):
+                raise ValueError("Task plan contains an unsupported step kind.")
+            kinds = list(step_kinds)
 
         with self._lock:
             rows = self._read()
@@ -354,12 +369,13 @@ class TaskStore:
                 {
                     "id": uuid.uuid4().hex[:12],
                     "title": title,
+                    "kind": kinds[index],
                     "status": "pending",
                     "attempts": 0,
                     "created_at": now,
                     "updated_at": now,
                 }
-                for title in titles
+                for index, title in enumerate(titles)
             ]
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
