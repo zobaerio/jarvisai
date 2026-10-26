@@ -994,6 +994,8 @@ class JarvisDesktop:
                         if type(attempts) is not int or attempts < 0:
                             attempts = 0
                         lines.append(f"{ordinal}. [{step_status}] {title} (attempts: {attempts})")
+                        step_kind = " ".join(str(plan_step.get("kind") or "unknown").replace("_", " ").split()).title()
+                        lines.append(f"   Expected evidence type: {step_kind}")
                         started_at = str(plan_step.get("started_at") or "")
                         finished_at = str(plan_step.get("finished_at") or "")
                         lines.append(f"   Started: {started_at or 'Not started'}")
