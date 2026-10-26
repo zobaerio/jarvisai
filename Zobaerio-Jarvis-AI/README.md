@@ -1,6 +1,6 @@
 # ORVIX AI Desktop Assistant — Windows 11
 
-**Repository:** https://github.com/zobaerio/jarvisai  
+**Repository:** https://github.com/zobaerio/orvixai  
 **Owner:** zobaerio  
 **Version:** 1.7.3 — bounded voice timeouts
 
