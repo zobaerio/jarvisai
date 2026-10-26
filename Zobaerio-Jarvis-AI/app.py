@@ -25,6 +25,7 @@ from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 from jarvis.startup import is_windows_startup_enabled, set_windows_startup
+from jarvis.ui_formatters import format_header_clock
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -919,7 +920,7 @@ class JarvisDesktop:
         if not self.root.winfo_exists():
             return
         now = datetime.now()
-        self.clock_label.configure(text=f"{now:%H:%M:%S}\n{now:%a, %d %b}".upper())
+        self.clock_label.configure(text=format_header_clock(now))
         self.root.after(1000, self._update_clock)
 
     def _refresh_stats(self) -> None:
