@@ -287,7 +287,11 @@ class JarvisDesktop:
         try:
             if not self._floating_hud.winfo_exists():
                 return
-            if getattr(self, "_busy", False):
+            outcome_until = getattr(self, "_floating_outcome_until", 0.0)
+            if time.monotonic() < outcome_until:
+                outcome_text, outcome_color, color = self._floating_outcome_display
+                self._floating_task_status.configure(text=outcome_text, fg=outcome_color)
+            elif getattr(self, "_busy", False):
                 color = "#f59e0b"  # task running
                 self._floating_task_status.configure(text="TASK RUNNING", fg="#fcd34d")
             elif getattr(self, "wake_enabled", False):
@@ -2075,6 +2079,23 @@ class JarvisDesktop:
             pass
 
     def _finish_response(self, result: str, task_id: str | None = None, task_status: str = "completed") -> None:
+        outcome = str(task_status or "completed").lower()
+        outcome_display = {
+            "completed": ("TASK COMPLETE", "#86efac", "#22c55e", "Task completed successfully"),
+            "partial": ("PARTIAL RESULT", "#fcd34d", "#f59e0b", "Task finished with a partial result"),
+            "failed": ("TASK FAILED", "#fda4af", "#ef4444", "Task failed; check the main window for details"),
+            "cancelled": ("CANCELLED", "#cbd5e1", "#64748b", "Task was cancelled"),
+        }
+        display = outcome_display.get(outcome, outcome_display["failed"])
+        self._floating_outcome_display = (display[0], display[1], display[2])
+        self._floating_outcome_until = time.monotonic() + 5.0
+        try:
+            self._floating_task_status.configure(text=display[0], fg=display[1])
+            self._floating_task_detail_text = display[3]
+            self._floating_task_detail.configure(text=display[3])
+            self._floating_orb.itemconfigure(self._floating_status_dot, fill=display[2])
+        except (AttributeError, tk.TclError):
+            pass
         self._write_message("J.A.R.V.I.S", result, "assistant")
         self._push_activity(f"{task_status.upper()}: " + (self._active_task_command or result).splitlines()[0])
         if task_id is None or task_id == self._active_task_id:
