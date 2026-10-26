@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PLATFORMS = ("android", "ios")
-APP_DISPLAY_NAME = "J.A.R.V.I.S"
+APP_DISPLAY_NAME = "ORVIX AI"
 
 
 def configure_display_names(root: Path) -> None:
@@ -41,7 +41,7 @@ def configure_display_names(root: Path) -> None:
 def main() -> int:
     missing = [name for name in PLATFORMS if not (ROOT / name).exists()]
     if missing:
-        with tempfile.TemporaryDirectory(prefix="jarvis-mobile-hosts-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="orvix-mobile-hosts-") as temporary:
             generated = Path(temporary) / "jarvis_mobile"
             subprocess.run(
                 [
