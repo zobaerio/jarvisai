@@ -24,8 +24,18 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(started["plan"][0]["attempts"], 1)
         self.assertIsNotNone(started["plan"][0]["started_at"])
         self.assertNotIn("finished_at", started["plan"][0])
-        completed = self.store.update_plan_step(task["id"], first["id"], status="completed")
+        completed = self.store.update_plan_step(
+            task["id"],
+            first["id"],
+            status="completed",
+            evidence="assistant_response",
+            verification_note="Generated a text deliverable.",
+            outcome="completed",
+        )
         self.assertEqual(completed["plan"][0]["status"], "completed")
+        self.assertEqual(completed["plan"][0]["evidence"], "assistant_response")
+        self.assertEqual(completed["plan"][0]["verification_note"], "Generated a text deliverable.")
+        self.assertEqual(completed["plan"][0]["outcome"], "completed")
         self.assertIsNotNone(completed["plan"][0]["finished_at"])
         self.assertGreaterEqual(
             completed["plan"][0]["finished_at"],
@@ -44,7 +54,14 @@ class DurableTaskPlanTests(unittest.TestCase):
         plan = self.store.set_task_plan(task["id"], ["Do work"])
         step_id = plan["plan"][0]["id"]
         self.store.update_plan_step(task["id"], step_id, status="running")
-        failed = self.store.update_plan_step(task["id"], step_id, status="failed")
+        failed = self.store.update_plan_step(
+            task["id"],
+            step_id,
+            status="failed",
+            evidence="tool_result",
+            verification_note="The tool returned an error.",
+            outcome="failed",
+        )
         self.assertEqual(failed["plan"][0]["status"], "failed")
         with self.assertRaises(ValueError):
             self.store.update_plan_step(task["id"], step_id, status="running")
@@ -53,6 +70,9 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(pending["plan"][0]["status"], "pending")
         self.assertNotIn("started_at", pending["plan"][0])
         self.assertNotIn("finished_at", pending["plan"][0])
+        self.assertNotIn("evidence", pending["plan"][0])
+        self.assertNotIn("verification_note", pending["plan"][0])
+        self.assertNotIn("outcome", pending["plan"][0])
         retried = self.store.update_plan_step(task["id"], step_id, status="running")
         self.assertEqual(retried["plan"][0]["attempts"], 2)
         self.assertIsNotNone(retried["plan"][0]["started_at"])
@@ -83,6 +103,31 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertNotIn("started_at", finalized["plan"][1])
         self.assertIsNotNone(finalized["plan"][1]["finished_at"])
         self.assertIn("without a dedicated", finalized["plan"][1]["verification_note"])
+
+    def test_running_step_can_be_marked_unverified_with_bounded_evidence(self) -> None:
+        task = self.store.create_task("Run and verify")
+        plan = self.store.set_task_plan(task["id"], ["Change state"])
+        step_id = plan["plan"][0]["id"]
+        self.store.update_plan_step(task["id"], step_id, status="running")
+        note = "  Change returned, but verification was missing.  "
+        updated = self.store.update_plan_step(
+            task["id"],
+            step_id,
+            status="unverified",
+            evidence="tool_result",
+            verification_note=note,
+            outcome="partial",
+        )
+        step = updated["plan"][0]
+        self.assertEqual(step["status"], "unverified")
+        self.assertIsNotNone(step["finished_at"])
+        self.assertEqual(step["evidence"], "tool_result")
+        self.assertEqual(step["verification_note"], "Change returned, but verification was missing.")
+        self.assertEqual(step["outcome"], "partial")
+        with self.assertRaises(ValueError):
+            self.store.update_plan_step(
+                task["id"], step_id, status="unverified", evidence="raw_tool_output"
+            )
 
     def test_finalizing_missing_plan_is_safe_and_invalid_outcome_rejected(self) -> None:
         task = self.store.create_task("No plan")
