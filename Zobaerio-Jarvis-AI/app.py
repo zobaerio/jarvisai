@@ -111,10 +111,9 @@ class JarvisDesktop:
         self._floating_hud.title("J.A.R.V.I.S Floating Assistant")
         self._floating_hud.overrideredirect(True)
         self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
-        try:
-            self._floating_opacity = max(0.55, min(1.0, float(self.settings.get("floating_hud_opacity", 1.0))))
-        except (TypeError, ValueError):
-            self._floating_opacity = 1.0
+        self._floating_opacity = bounded_float(
+            self.settings.get("floating_hud_opacity", 1.0), 1.0, 0.55, 1.0
+        )
         self._floating_hud.attributes("-topmost", self._floating_pin)
         self._floating_hud.attributes("-alpha", self._floating_opacity)
         self._floating_hud.configure(bg="#07111f")
