@@ -11,3 +11,22 @@ def test_format_header_clock_uses_24_hour_time_and_uppercase_date():
 def test_format_header_clock_pads_single_digit_fields():
     value = datetime(2026, 1, 3, 4, 2, 9)
     assert format_header_clock(value) == "04:02:09\nSAT, 03 JAN"
+
+
+from jarvis.ui_formatters import bounded_int
+
+
+def test_bounded_int_clamps_values_to_inclusive_bounds():
+    assert bounded_int(500, 92, 80, 320) == 320
+    assert bounded_int(-10, 92, 80, 320) == 80
+    assert bounded_int(164, 92, 80, 320) == 164
+
+
+def test_bounded_int_uses_fallback_for_invalid_settings():
+    assert bounded_int("not-a-number", 164, 104, 400) == 164
+    assert bounded_int(None, 164, 104, 400) == 164
+    assert bounded_int(float("inf"), 164, 104, 400) == 164
+
+
+def test_bounded_int_handles_string_integer_settings():
+    assert bounded_int("240", 92, 80, 320) == 240

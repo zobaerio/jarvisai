@@ -25,7 +25,7 @@ from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 from jarvis.startup import is_windows_startup_enabled, set_windows_startup
-from jarvis.ui_formatters import format_header_clock
+from jarvis.ui_formatters import bounded_int, format_header_clock
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -366,11 +366,8 @@ class JarvisDesktop:
 
     @staticmethod
     def _bounded_int(value: object, fallback: int, minimum: int, maximum: int) -> int:
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError, OverflowError):
-            parsed = fallback
-        return max(minimum, min(parsed, maximum))
+        """Keep persisted window geometry within safe screen and size bounds."""
+        return bounded_int(value, fallback, minimum, maximum)
 
     def _schedule_floating_preferences_save(self) -> None:
         if self._floating_save_after_id is not None:
