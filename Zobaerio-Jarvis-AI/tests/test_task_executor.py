@@ -195,6 +195,29 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(saved["plan"][1]["status"], "pending")
         self.assertEqual(len(agent.prompts), 1)
 
+    def test_failure_after_tool_activity_leaves_step_unverified(self) -> None:
+        task_id, _plan = self.make_plan(["Create a file", "Verify the file"], ["state_change", "read_only"])
+        agent = FakeStepAgent([{
+            "answer": "An error happened after the file action was attempted.",
+            "outcome": "failed",
+            "tool_count": 1,
+            "tool_names": ["create_text_file"],
+        }])
+        _result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Create a file then verify it",
+            cancel_event=self.no_cancel(),
+        )
+        saved = self.store.get_task(task_id)
+        self.assertEqual(status, "partial")
+        self.assertEqual(saved["plan"][0]["status"], "unverified")
+        self.assertEqual(saved["plan"][0]["evidence"], "tool_result")
+        self.assertEqual(saved["plan"][0]["outcome"], "partial")
+        self.assertEqual(saved["plan"][1]["status"], "pending")
+        self.assertEqual(len(agent.prompts), 1)
+
     def test_cancellation_prevents_starting_the_next_step(self) -> None:
         task_id, _plan = self.make_plan(["First output", "Second output"])
         event = threading.Event()
