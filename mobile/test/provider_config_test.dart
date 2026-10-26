@@ -39,7 +39,7 @@ void main() {
 
     test('rejects empty and oversized model names', () {
       expect(() => ProviderConfig.validateModel(' '), throwsFormatException);
-      expect(() => ProviderConfig.validateModel('m' * 201), throwsFormatException);
+      expect(() => ProviderConfig.validateModel(List.filled(201, 'm').join()), throwsFormatException);
     });
   });
 }
