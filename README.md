@@ -95,13 +95,14 @@ In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI
 ## Install J.A.R.V.I.S on Windows, iPhone/iPad (iOS), and Android
 
 **Official project links**
+- [Permanent releases and downloads](https://github.com/zobaerio/jarvisai/releases)
 - [J.A.R.V.I.S GitHub repository](https://github.com/zobaerio/jarvisai)
 - [All GitHub Actions builds](https://github.com/zobaerio/jarvisai/actions)
 - [Windows Installer build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml)
 - [Windows Portable build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml)
 - [Android/iOS Mobile build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml)
 
-> **Important:** The Windows and Android workflow downloads are temporary GitHub Actions artifacts, not permanent releases. This repository's workflows retain artifacts for 14 days. Download only from the official repository above. If a run has no **Artifacts** section, it may still be running, may have failed, or the artifact upload may not have completed.
+For everyday installation, first check the [Releases page](https://github.com/zobaerio/jarvisai/releases). Download the Windows installer, portable ZIP, or Android APK attached to the latest successful release. Use the temporary Actions-artifact instructions below only when testing a build that has not yet been published as a release.
 
 ### 1. Windows 10/11 — Installer (recommended) or Portable version
 
