@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from jarvis.settings import (
+    auto_configure_from_api_key,
     is_local_api_endpoint,
     test_api_connection,
     validate_api_base_url,
@@ -58,6 +59,34 @@ class ApiEndpointValidationTests(unittest.TestCase):
             validate_api_key_transport("https://api.example.com/v1", "remote-secret"),
             "https://api.example.com/v1",
         )
+
+    @patch("requests.get")
+    def test_auto_setup_detects_openrouter_and_selects_preferred_model(self, get) -> None:
+        response = Mock(status_code=200)
+        response.json.return_value = {"data": [{"id": "openai/gpt-4o-mini"}, {"id": "other-model"}]}
+        get.return_value = response
+        result = auto_configure_from_api_key("sk-or-v1-test-secret")
+        self.assertEqual(result["provider"], "OpenRouter")
+        self.assertEqual(result["api_base_url"], "https://openrouter.ai/api/v1")
+        self.assertEqual(result["model"], "openai/gpt-4o-mini")
+        get.assert_called_once_with(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Accept": "application/json", "Authorization": "Bearer sk-or-v1-test-secret"},
+            timeout=(3, 8.0),
+        )
+
+    @patch("requests.get")
+    def test_auto_setup_never_probes_unknown_provider_with_secret(self, get) -> None:
+        with self.assertRaisesRegex(ValueError, "could not be identified safely"):
+            auto_configure_from_api_key("unknown-provider-secret")
+        get.assert_not_called()
+
+    @patch("requests.get")
+    def test_auto_setup_handles_invalid_key_without_echoing_secret(self, get) -> None:
+        get.return_value = Mock(status_code=401)
+        with self.assertRaisesRegex(ValueError, "rejected this API key"):
+            auto_configure_from_api_key("sk-or-v1-test-secret")
+        get.assert_called_once()
 
     @patch("requests.get")
     def test_connection_check_uses_models_endpoint_and_matches_model(self, get) -> None:
