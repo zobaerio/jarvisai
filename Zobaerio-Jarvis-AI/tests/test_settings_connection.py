@@ -208,5 +208,22 @@ class ApiEndpointValidationTests(unittest.TestCase):
         self.assertNotIn("/chat/completions", get.call_args.args[0])
 
 
+    def test_rejects_blank_control_character_and_oversized_urls(self) -> None:
+        bad_values = [
+            "",
+            "   ",
+            "https://api.example.com/v1\\nAuthorization: Bearer secret",
+            "https://api.example.com/" + ("a" * 2050),
+        ]
+        for value in bad_values:
+            with self.subTest(value=value[:40]):
+                with self.assertRaises(ValueError):
+                    validate_api_base_url(value)
+
+    def test_rejects_non_string_like_empty_key_configuration_safely(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Paste your provider API key first"):
+            auto_configure_from_api_key("  ")
+
+
 if __name__ == "__main__":
     unittest.main()
