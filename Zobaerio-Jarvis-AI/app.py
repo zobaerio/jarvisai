@@ -1254,6 +1254,99 @@ class JarvisDesktop:
                 parent=win,
             )
 
+        def resume_selected_plan() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Resume plan", "Select a task from the history list first.", parent=win)
+                return
+            if self._busy:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "A task is already running. Resume this plan after the active task finishes.",
+                    parent=win,
+                )
+                return
+            source_status = str(record.get("status", "")).casefold()
+            if source_status not in {"partial", "failed", "cancelled"}:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "Only a partial, failed, or cancelled task with a saved plan can be resumed.",
+                    parent=win,
+                )
+                return
+            plan = record.get("plan")
+            if not isinstance(plan, list) or not plan:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "This task has no saved step-by-step plan to resume. Use Retry Selected Task for a fresh run.",
+                    parent=win,
+                )
+                return
+            unfinished = [
+                step for step in plan
+                if isinstance(step, dict) and step.get("status") != "completed"
+            ]
+            if not unfinished:
+                messagebox.showinfo("Resume plan", "Every saved plan step is already completed.", parent=win)
+                return
+            first = unfinished[0]
+            title = " ".join(str(first.get("title") or "Unknown step").split())[:180]
+            step_status = str(first.get("status") or "unknown").upper()
+            command = str(record.get("command") or "").strip()
+            source_id = str(record.get("id") or "")
+            if not command or not source_id:
+                messagebox.showerror("Resume plan", "The selected task record is incomplete.", parent=win)
+                return
+            prompt = (
+                f"Create a new task record from task #{source_id}?\n\n"
+                f"Original task status: {source_status.upper()}\n"
+                f"Next unfinished step ({step_status}):\n{title}\n\n"
+                "Previously completed steps will be carried forward and will NOT be replayed. "
+                "The first unfinished step will run again using current AI settings. Approval gates remain active."
+            )
+            if step_status in {"UNVERIFIED", "FAILED", "RUNNING"}:
+                prompt += (
+                    "\n\nIMPORTANT: the step may already have changed a file, folder, app, or external state. "
+                    "Inspect the current state first. Resuming may repeat an action; do not continue if that risk is unacceptable."
+                )
+            if not messagebox.askyesno(
+                "Confirm plan resume",
+                prompt,
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                resumed = self.task_store.create_resumed_plan_task(source_id)
+            except Exception as exc:
+                messagebox.showerror(
+                    "Resume plan",
+                    f"Could not prepare a resumed task ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            if resumed is None:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "The task changed or no unfinished step is eligible for explicit resume. Refresh Task History and review its state.",
+                    parent=win,
+                )
+                refresh()
+                return
+            self._write_message(
+                "SYSTEM",
+                f"Plan resume prepared as a new task (#{resumed['id']}). Completed steps will not be replayed.",
+                "system",
+            )
+            self._push_activity("Resumed task plan from task #" + source_id)
+            refresh()
+            self._launch_task(
+                str(resumed.get("command", command)),
+                task_id=str(resumed["id"]),
+                existing_record=True,
+            )
+
         def retry_selected() -> None:
             selected = tree.selection()
             record = rows_by_id.get(selected[0]) if selected else None
@@ -1283,6 +1376,7 @@ class JarvisDesktop:
         footer = tk.Frame(win, bg=BG)
         footer.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
+        ttk.Button(footer, text="Resume Saved Plan", command=resume_selected_plan).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Export Selected Task", command=export_selected_task).pack(side="right", padx=(0, 8))
