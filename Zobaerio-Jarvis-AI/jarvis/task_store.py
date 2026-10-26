@@ -427,6 +427,10 @@ class TaskStore:
             )
             if first_unfinished is None:
                 return None
+            # A completed step after the first unfinished step violates sequential-plan
+            # ordering. Refuse to resume a malformed record rather than skip over uncertainty.
+            if any(item.get("status") == "completed" for item in validated[first_unfinished + 1 :]):
+                return None
             # Don't skip a failed/uncertain step and start later actions out of order.
             if validated[first_unfinished].get("status") not in {
                 "pending", "running", "failed", "skipped", "unverified"
