@@ -98,6 +98,10 @@ def auto_configure_from_api_key(api_key: str, *, timeout: float = 8.0) -> dict[s
     elif key.startswith(("gsk_",)):
         provider, base_url = "Groq", "https://api.groq.com/openai/v1"
         preferred = ("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b")
+    elif key.startswith("AIza"):
+        # Google AI Studio provides an OpenAI-compatible endpoint for Gemini models.
+        provider, base_url = "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai"
+        preferred = ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash")
     elif key.startswith(("sk-proj-", "sk-svcacct-", "sk-")):
         provider, base_url = "OpenAI", "https://api.openai.com/v1"
         preferred = ("gpt-4o-mini", "gpt-4.1-mini", "gpt-4o")
