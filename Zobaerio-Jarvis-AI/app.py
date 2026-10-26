@@ -85,6 +85,7 @@ class JarvisDesktop:
         self._prepare_avatar_images()
         self._build_ui()
         self._build_floating_hud()
+        self.root.bind_all("<Control-Shift-j>", self._floating_hud_hotkey)
         self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. তিনটি character profile থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
         self._write_message("SYSTEM", "নিরাপত্তা: file read/create/copy/move/rename বা Recycle Bin-এ পাঠানোর আগে আমি নির্দিষ্ট action-এর অনুমতি চাইব। File read করলে contents AI provider-এ যেতে পারে। arbitrary PowerShell/terminal command চালানো হয় না।", "system")
         if self._startup_recovered_task_count:
@@ -292,6 +293,17 @@ class JarvisDesktop:
             self._listen()
         except Exception as exc:
             self._write_message("SYSTEM", f"Voice input could not start ({type(exc).__name__}). Check microphone and speech settings.", "system")
+
+    def _floating_hud_hotkey(self, _event: tk.Event | None = None) -> str:
+        """Toggle the HUD while the J.A.R.V.I.S application has keyboard focus."""
+        try:
+            if self._floating_hud.state() == "withdrawn":
+                self._show_floating_hud()
+            else:
+                self._hide_floating_hud()
+        except tk.TclError:
+            self._show_floating_hud()
+        return "break"
 
     def _show_floating_hud(self) -> None:
         """Restore the floating orb after it has been hidden."""
