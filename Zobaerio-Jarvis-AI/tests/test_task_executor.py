@@ -54,9 +54,17 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.addCleanup(self.temp_dir.cleanup)
         self.store = TaskStore(Path(self.temp_dir.name) / "history.json")
 
-    def make_plan(self, titles: list[str]) -> tuple[str, list[dict[str, Any]]]:
+    def make_plan(
+        self,
+        titles: list[str],
+        kinds: list[str] | None = None,
+    ) -> tuple[str, list[dict[str, Any]]]:
         task = self.store.create_task("Run a multi-step task")
-        planned = self.store.set_task_plan(task["id"], titles)
+        planned = self.store.set_task_plan(
+            task["id"],
+            titles,
+            step_kinds=kinds or ["unknown"] * len(titles),
+        )
         return task["id"], planned["plan"]
 
     @staticmethod
@@ -64,7 +72,7 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         return threading.Event()
 
     def test_executes_steps_in_order_with_one_shared_tool_budget(self) -> None:
-        task_id, plan = self.make_plan(["Inspect system", "Open and verify Notepad"])
+        task_id, plan = self.make_plan(["Inspect system", "Open and verify Notepad"], ["read_only", "state_change"])
         agent = FakeStepAgent([
             {
                 "answer": "System information collected.",
@@ -111,7 +119,7 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(saved["actions"][-1]["plan_step_id"], plan[1]["id"])
 
     def test_unverified_state_change_stops_later_steps(self) -> None:
-        task_id, plan = self.make_plan(["Create a file", "Verify the new file"])
+        task_id, plan = self.make_plan(["Create a file", "Verify the new file"], ["state_change", "read_only"])
         agent = FakeStepAgent([{
             "answer": "The tool returned, but no verification was run.",
             "tool_count": 1,
@@ -134,7 +142,7 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertIn("ACTIVE STEP 1/2", agent.prompts[0])
 
     def test_text_only_step_is_completed_from_its_direct_response(self) -> None:
-        task_id, _plan = self.make_plan(["Draft a short summary"])
+        task_id, _plan = self.make_plan(["Draft a short summary"], ["response"])
         agent = FakeStepAgent([{"answer": "The requested summary is ready."}])
         result, status = execute_task_plan(
             agent=agent,
@@ -149,8 +157,27 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(step["evidence"], "assistant_response")
         self.assertIn("The requested summary is ready.", result)
 
+    def test_state_change_step_is_not_completed_from_claimed_text_alone(self) -> None:
+        task_id, _plan = self.make_plan(["Create a website"], ["state_change"])
+        agent = FakeStepAgent([{
+            "answer": "The website has been created.",
+            "outcome": "completed",
+        }])
+        result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Create a website",
+            cancel_event=self.no_cancel(),
+        )
+        step = self.store.get_task(task_id)["plan"][0]
+        self.assertEqual(status, "partial")
+        self.assertEqual(step["status"], "unverified")
+        self.assertEqual(step["evidence"], "none")
+        self.assertIn("unsupported claim", result)
+
     def test_failed_step_stops_without_marking_it_complete(self) -> None:
-        task_id, _plan = self.make_plan(["Inspect settings", "Prepare result"])
+        task_id, _plan = self.make_plan(["Inspect settings", "Prepare result"], ["read_only", "response"])
         agent = FakeStepAgent([{
             "answer": "The AI endpoint failed.",
             "outcome": "failed",
