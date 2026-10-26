@@ -841,13 +841,13 @@ def create_folder_structure(location: str, folder_paths: list[str], approve) -> 
             relative = "/".join(parts[:index])
             key = relative.casefold()
             candidate = root.joinpath(*parts[:index])
-            # Resolve through the existing safe-root checker and reject any link in the path.
+            # Resolve and prove containment while allowing only the validated relative segments above.
             try:
-                checked = safe_child_path(location, relative)
+                checked = candidate.resolve(strict=False)
+                if root.resolve() not in checked.parents:
+                    return "Folder structure blocked: path escaped the selected folder."
             except (ValueError, OSError) as exc:
                 return f"Folder structure blocked: {exc}"
-            if checked != candidate:
-                return "Folder structure blocked: path escaped the selected folder."
             current = root
             for part in parts[:index]:
                 current = current / part
