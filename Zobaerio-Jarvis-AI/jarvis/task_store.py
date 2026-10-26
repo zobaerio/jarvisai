@@ -574,11 +574,17 @@ class TaskStore:
             for item in plan:
                 if not isinstance(item, dict) or item.get("status") not in {"pending", "running"}:
                     continue
-                item["status"] = "unverified"
+                prior_status = item["status"]
+                item["status"] = "skipped" if prior_status == "pending" else "unverified"
                 item["updated_at"] = now
                 item["finished_at"] = now
                 item["outcome"] = outcome
-                item["verification_note"] = "Task ended without a dedicated execution/verification event for this plan step."
+                item["evidence"] = "none"
+                item["verification_note"] = (
+                    "Task ended before this step began; it was not executed."
+                    if prior_status == "pending"
+                    else "Task ended during this step without a dedicated execution/verification event; its real-world state may be uncertain."
+                )
                 changed = True
             if changed:
                 target["updated_at"] = now
