@@ -34,3 +34,8 @@ Get-Content .\JARVIS-Setup.exe.sha256
 ```
 
 Compare the hash printed by the first command with the hash in the checksum file. Do not run the installer if the values differ. A matching checksum confirms file integrity against the published checksum; it does not prove the installer is code-signed or independently audited.
+
+
+## Platform installation and update behavior
+
+For Android/tablet/PC support boundaries, step-by-step install instructions, and the current release/update lifecycle, see [INSTALL_AND_UPDATE_GUIDE.md](INSTALL_AND_UPDATE_GUIDE.md). The current desktop app does not yet include an in-app automatic updater, and a GitHub commit alone does not update installed copies.
