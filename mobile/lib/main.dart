@@ -229,15 +229,34 @@ class _ChatScreenState extends State<ChatScreen> {
       _status = 'Checking provider…';
     });
     try {
-      final uri = Uri.parse('$_baseUrl/models');
-      final response = await http.get(
-        uri,
-        headers: {'Authorization': 'Bearer $_apiKey', 'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 15));
-      if (!mounted) return;
-      setState(() => _status = response.statusCode >= 200 && response.statusCode < 300
-          ? 'Provider endpoint is reachable. A chat request has not been sent.'
-          : 'Provider check failed (HTTP ${response.statusCode}). Check endpoint, key, and provider permissions.');
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse('$_baseUrl/models'))
+          ..headers.addAll({
+            'Authorization': 'Bearer $_apiKey',
+            'Accept': 'application/json',
+          });
+        final response = await client.send(request).timeout(const Duration(seconds: 15));
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await readBoundedResponse(
+            response.stream.timeout(const Duration(seconds: 15)),
+            maxBytes: 1024 * 1024,
+          );
+        } else {
+          try {
+            await readBoundedResponse(
+              response.stream.timeout(const Duration(seconds: 5)),
+              maxBytes: 64 * 1024,
+            );
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        setState(() => _status = response.statusCode >= 200 && response.statusCode < 300
+            ? 'Provider endpoint is reachable. A chat request has not been sent.'
+            : 'Provider check failed (HTTP ${response.statusCode}). Check endpoint, key, and provider permissions.');
+      } finally {
+        client.close();
+      }
     } catch (_) {
       if (mounted) setState(() => _status =
           'Could not reach the provider. Check internet access, HTTPS endpoint, and model settings.');
@@ -262,14 +281,15 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer $_apiKey',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
+      final client = http.Client();
+      try {
+        final request = http.Request('POST', Uri.parse('$_baseUrl/chat/completions'))
+          ..headers.addAll({
+            'Authorization': 'Bearer $_apiKey',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          })
+          ..body = jsonEncode({
           'model': _model,
           'messages': [
             {
@@ -282,16 +302,30 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
           'temperature': 0.4,
-        }),
-      ).timeout(const Duration(seconds: 45));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw _ProviderException('Provider returned HTTP ${response.statusCode}. Check the model, API key, and endpoint.');
-      }
-      final content = parseChatCompletion(response.body);
+        });
+        final response = await client.send(request).timeout(const Duration(seconds: 45));
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          // Drain a small bounded error body to release the connection without
+          // ever displaying or logging provider-supplied error text.
+          try {
+            await readBoundedResponse(
+              response.stream.timeout(const Duration(seconds: 15)),
+              maxBytes: 64 * 1024,
+            );
+          } catch (_) {}
+          throw _ProviderException('Provider returned HTTP ${response.statusCode}. Check the model, API key, and endpoint.');
+        }
+        final body = await readBoundedResponse(
+          response.stream.timeout(const Duration(seconds: 45)),
+        );
+        final content = parseChatCompletion(body);
       if (!mounted) return;
       setState(() {
-        _messages.add(ChatMessage(role: 'assistant', text: content));
-      });
+          _messages.add(ChatMessage(role: 'assistant', text: content));
+        });
+      } finally {
+        client.close();
+      }
     } on _ProviderException catch (e) {
       if (mounted) setState(() => _status = e.message);
     } on FormatException {

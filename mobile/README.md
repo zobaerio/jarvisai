@@ -8,7 +8,7 @@ This directory is the first Flutter client foundation for Android and iOS. The e
 - Configurable HTTPS endpoint and model.
 - API key stored through `flutter_secure_storage`; endpoint and model preferences stored separately.
 - Non-generative `/models` connectivity check.
-- Bounded network timeouts and provider-neutral error messages.
+- Bounded network timeouts, streamed response-size limits, and provider-neutral error messages.
 - Provider URL validation rejects plain HTTP, embedded credentials, query strings, fragments, and phone-localhost endpoints.
 - Conversation messages remain in memory and are not persisted by this initial client.
 
