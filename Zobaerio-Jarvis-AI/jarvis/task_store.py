@@ -495,8 +495,14 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
-    def start_action(self, task_id: str, name: str) -> str | None:
-        """Record a tool start without persisting its arguments or returned content."""
+    def start_action(
+        self,
+        task_id: str,
+        name: str,
+        *,
+        plan_step_id: str | None = None,
+    ) -> str | None:
+        """Record a tool start without storing its arguments or returned content."""
         safe_name = " ".join(str(name).split())[:80] or "unknown"
         action_id = uuid.uuid4().hex[:12]
         with self._lock:
@@ -508,14 +514,18 @@ class TaskStore:
             actions = target.get("actions")
             if not isinstance(actions, list):
                 actions = []
-            actions.append({
+            action = {
                 "id": action_id,
                 "name": safe_name,
                 "status": "running",
                 "started_at": now,
                 "finished_at": None,
                 "note": "",
-            })
+            }
+            if isinstance(plan_step_id, str) and plan_step_id:
+                # Only persist a generated step identifier, never a title or arguments.
+                action["plan_step_id"] = plan_step_id[:64]
+            actions.append(action)
             target["actions"] = actions[-MAX_ACTIONS_PER_TASK:]
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
