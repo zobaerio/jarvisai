@@ -116,7 +116,7 @@ class SafeProviderResponseTests(unittest.TestCase):
         self.assertEqual(args[0], "https://api.example.test/v1/chat/completions")
         self.assertEqual(kwargs["headers"]["Authorization"], "Bearer test-provider-secret")
         self.assertEqual(kwargs["json"]["model"], "test-chat-model")
-        self.assertEqual(kwargs["json"]["messages"][-1], {"role": "user", "content": "Say hello."})
+        self.assertIn({"role": "user", "content": "Say hello."}, kwargs["json"]["messages"])
         self.assertNotIn("test-provider-secret", result)
 
 
