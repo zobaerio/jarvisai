@@ -157,6 +157,27 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(step["evidence"], "assistant_response")
         self.assertIn("The requested summary is ready.", result)
 
+    def test_unknown_step_does_not_complete_from_read_only_results_alone(self) -> None:
+        task_id, _plan = self.make_plan(["Handle the next part"], ["unknown"])
+        agent = FakeStepAgent([{
+            "answer": "I inspected system information, but the requested step is still ambiguous.",
+            "tool_count": 1,
+            "tool_names": ["get_system_info"],
+        }])
+        result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Handle the next part",
+            cancel_event=self.no_cancel(),
+        )
+        step = self.store.get_task(task_id)["plan"][0]
+        self.assertEqual(status, "partial")
+        self.assertEqual(step["status"], "unverified")
+        self.assertEqual(step["outcome"], "partial")
+        self.assertIn("no execution evidence", result)
+        self.assertEqual(len(agent.prompts), 1)
+
     def test_state_change_step_is_not_completed_from_claimed_text_alone(self) -> None:
         task_id, _plan = self.make_plan(["Create a website"], ["state_change"])
         agent = FakeStepAgent([{
