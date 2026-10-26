@@ -15,6 +15,13 @@ from . import automation
 from .settings import get_api_key, is_local_api_endpoint, validate_api_key_transport
 from .safe_errors import safe_tool_error
 
+MAX_TOOL_CALLS_PER_TASK = 12
+READ_ONLY_TOOL_NAMES = frozenset({
+    "search_files", "get_system_info", "list_open_windows", "get_active_window_title",
+    "search_file_contents", "find_duplicate_files", "read_text_file",
+})
+
+
 SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; moving a file to the Recycle Bin requires explicit, action-specific approval and must never be described as permanent deletion; reading local file contents, creating, copying, moving, or renaming files requires explicit, action-specific approval. Before reading a file, the approval dialog must show the exact path and size and warn that contents enter the AI conversation and may be sent to the configured AI provider. File operations are restricted to regular files inside Desktop, Documents, or Downloads; symbolic links are blocked and existing destinations must never be overwritten. Creating a ZIP may include up to 100 user-selected regular files from one approved folder, capped at 100 MiB total, with explicit approval and no-overwrite publication. Duplicate-file scans operate only in Desktop/Documents/Downloads (or All), require approval, hash bounded same-size candidates locally, report shortened hashes and file paths, and never modify or delete files. Only search file contents when the user asks to search inside files; search results require explicit approval and disclose that short matching excerpts enter the AI conversation. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
 
@@ -177,6 +184,10 @@ class JarvisAgent:
         self.settings = settings
         self.approval = approval
         self.history: list[dict[str, Any]] = []
+        self.last_tool_call_count = 0
+        self.last_tool_call_names: list[str] = []
+        self.last_tool_call_failures = 0
+        self.last_verification_succeeded = False
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         self.settings = settings
@@ -187,9 +198,22 @@ class JarvisAgent:
         cancel_event: threading.Event | None = None,
         progress: Callable[[str], None] | None = None,
         tool_event: Callable[[str, str, str | None, str], str | None] | None = None,
+        tool_budget: int = MAX_TOOL_CALLS_PER_TASK,
     ) -> str:
-        """Answer a user request; cancellation is cooperative between blocking operations."""
+        """Answer a user request; cancellation is cooperative between blocking operations.
+
+        tool_budget caps tool actions for this response, allowing a caller to enforce one
+        aggregate budget across a multi-step task. Completion evidence is bounded metadata;
+        tool arguments and results are never copied into these fields.
+        """
         self.last_outcome = "completed"
+        self.last_tool_call_count = 0
+        self.last_tool_call_names = []
+        self.last_tool_call_failures = 0
+        self.last_verification_succeeded = False
+        if type(tool_budget) is not int:
+            tool_budget = MAX_TOOL_CALLS_PER_TASK
+        max_tool_calls = min(MAX_TOOL_CALLS_PER_TASK, max(0, tool_budget))
         had_tool_failure = False
 
         def invalid_response(message: str = "AI provider returned an invalid or unsupported response format.") -> str:
@@ -263,7 +287,6 @@ class JarvisAgent:
             headers["Authorization"] = f"Bearer {key}"
         url = base_url + "/chat/completions"
         max_rounds = 8
-        max_tool_calls = 12
         tool_call_count = 0
         try:
             for turn in range(max_rounds):
@@ -334,14 +357,16 @@ class JarvisAgent:
                         return cancelled_response("কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।")
                     if tool_call_count >= max_tool_calls:
                         self.last_outcome = "partial"
-                        report("Task action budget reached; no further tools will start")
+                        report(f"Task action budget reached ({max_tool_calls} action limit); no further tools will start")
                         return (
-                            "Partially completed: নিরাপত্তার জন্য এই task-এ ১২টি tool action-এর সীমা পৌঁছেছে। "
+                            f"Partially completed: নিরাপত্তার জন্য এই task-এর {max_tool_calls}টি tool action সীমা পৌঁছেছে। "
                             "যে ফলাফলগুলো পাওয়া গেছে তা যাচাই করো, তারপর বাকি কাজের জন্য নতুন নির্দেশনা দাও।"
                         )
                     tool_call_count += 1
+                    self.last_tool_call_count = tool_call_count
                     function = call.get("function", {})
-                    name = str(function.get("name", "") or "")
+                    name = str(function.get("name", "") or "")[:80] or "unknown"
+                    self.last_tool_call_names.append(name)
                     raw_args = function.get("arguments", "{}")
                     report(f"Running tool: {name or 'unknown'}")
                     audit_id = notify_tool_event(name or "unknown", "running")
@@ -350,11 +375,18 @@ class JarvisAgent:
                         result = self._execute_tool(name, args)
                     except Exception as exc:
                         had_tool_failure = True
+                        self.last_tool_call_failures += 1
                         result = safe_tool_error(exc)
                         notify_tool_event(name or "unknown", "failed", audit_id, type(exc).__name__)
                     else:
                         # Store only the fact that the tool returned; never copy its arguments or payload.
                         notify_tool_event(name or "unknown", "result_received", audit_id)
+                        if (
+                            name == "verify_local_action"
+                            and isinstance(result, str)
+                            and result.strip().casefold().startswith("verified")
+                        ):
+                            self.last_verification_succeeded = True
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
                     # Do not copy tool output into progress history; it may contain paths or user data.
                     report(f"Tool returned: {name or 'unknown'}")
