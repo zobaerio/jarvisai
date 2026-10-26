@@ -233,6 +233,31 @@ class AgentOutcomeTests(unittest.TestCase):
             {("window", "google drive", "")},
         )
 
+    def test_verification_target_metadata_is_bounded(self) -> None:
+        from jarvis.agent import _expected_verification_targets
+
+        self.assertEqual(
+            _expected_verification_targets(
+                "create_text_file",
+                {"filename": "a" * 513, "location": "Documents"},
+            ),
+            set(),
+        )
+        self.assertEqual(
+            _expected_verification_targets(
+                "create_folder_structure",
+                {"folder_paths": ["Reports", "x" * 261], "location": "Desktop"},
+            ),
+            set(),
+        )
+        self.assertEqual(
+            _expected_verification_targets(
+                "create_folder_structure",
+                {"folder_paths": ["Folder"] * 101, "location": "Desktop"},
+            ),
+            set(),
+        )
+
     def test_later_state_change_invalidates_an_earlier_verification(self) -> None:
         agent = self.make_agent()
         verify_call = self.provider_response({
