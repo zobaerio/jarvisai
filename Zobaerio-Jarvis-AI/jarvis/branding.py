@@ -31,44 +31,30 @@ def _font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont | ImageFont.Im
 
 
 def _paint_icon(size: int = 512) -> Image.Image:
+    """Draw the ORVIX AI app icon using Pillow, with no external asset dependency."""
     scale = size / 512
     def pt(value: float) -> int:
         return round(value * scale)
 
-    base = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    art = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(art)
-    navy = (5, 9, 21, 255)
-    cyan = (34, 211, 238, 255)
+    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(image)
+    navy = (6, 19, 41, 255)
+    cyan = (6, 182, 212, 255)
+    blue = (37, 99, 235, 255)
     orange = (249, 115, 22, 255)
-    pale = (165, 243, 252, 255)
-
-    d.rounded_rectangle((pt(10), pt(10), pt(502), pt(502)), radius=pt(116), fill=navy, outline=(26, 69, 105, 255), width=max(1, pt(4)))
-    d.ellipse((pt(66), pt(66), pt(446), pt(446)), outline=(12, 52, 84, 255), width=max(1, pt(2)))
-    d.ellipse((pt(85), pt(85), pt(427), pt(427)), outline=(30, 130, 190, 255), width=max(1, pt(7)))
-    d.ellipse((pt(109), pt(109), pt(403), pt(403)), outline=(28, 84, 125, 255), width=max(1, pt(2)))
-    d.arc((pt(80), pt(80), pt(432), pt(432)), start=205, end=282, fill=orange, width=max(1, pt(11)))
-    d.arc((pt(80), pt(80), pt(432), pt(432)), start=12, end=76, fill=cyan, width=max(1, pt(8)))
-    for points in [
-        [(pt(95), pt(215)), (pt(144), pt(215)), (pt(165), pt(195)), (pt(187), pt(195))],
-        [(pt(90), pt(250)), (pt(131), pt(250)), (pt(151), pt(230)), (pt(181), pt(230))],
-        [(pt(104), pt(285)), (pt(145), pt(285)), (pt(164), pt(266)), (pt(185), pt(266))],
-    ]:
-        d.line(points, fill=cyan, width=max(1, pt(7)), joint="curve")
-    for x, y in [(192, 195), (187, 230), (190, 266)]:
-        d.ellipse((pt(x-7), pt(y-7), pt(x+7), pt(y+7)), fill=cyan)
-    outline = [(pt(224),pt(132)),(pt(300),pt(132)),(pt(300),pt(291)),(pt(297),pt(316)),(pt(287),pt(335)),(pt(270),pt(345)),(pt(248),pt(345)),(pt(226),pt(337)),(pt(209),pt(322)),(pt(198),pt(313)),(pt(221),pt(293)),(pt(233),pt(307)),(pt(248),pt(315)),(pt(262),pt(309)),(pt(267),pt(287)),(pt(267),pt(166)),(pt(224),pt(166))]
-    d.polygon(outline, fill=cyan)
-    d.line(outline + [outline[0]], fill=pale, width=max(1, pt(3)), joint="curve")
-    d.arc((pt(126), pt(318), pt(395), pt(439)), start=12, end=167, fill=orange, width=max(1, pt(10)))
-    d.ellipse((pt(381), pt(136), pt(399), pt(154)), fill=(251,191,36,255))
-    d.ellipse((pt(402), pt(157), pt(410), pt(165)), fill=cyan)
-    d.ellipse((pt(117), pt(339), pt(127), pt(349)), fill=orange)
-    glow = art.filter(ImageFilter.GaussianBlur(radius=max(1, pt(8))))
-    base.alpha_composite(glow)
-    base.alpha_composite(art)
-    return base
-
+    d.rounded_rectangle((pt(10), pt(10), pt(502), pt(502)), radius=pt(112), fill=navy)
+    # Open orbital O: deliberate gap on the right, plus an orange trajectory.
+    d.arc((pt(86), pt(86), pt(426), pt(426)), start=48, end=312, fill=cyan, width=max(1, pt(34)))
+    d.arc((pt(86), pt(86), pt(426), pt(426)), start=312, end=405, fill=blue, width=max(1, pt(34)))
+    d.arc((pt(112), pt(112), pt(400), pt(400)), start=210, end=320, fill=orange, width=max(1, pt(12)))
+    # Forward-moving intelligence spark.
+    d.polygon([
+        (pt(211), pt(291)), (pt(276), pt(176)), (pt(270), pt(245)),
+        (pt(326), pt(220)), (pt(252), pt(337)), (pt(258), pt(270)),
+    ], fill=(230, 250, 255, 255))
+    d.ellipse((pt(362), pt(112), pt(386), pt(136)), fill=orange)
+    d.ellipse((pt(386), pt(137), pt(398), pt(149)), fill=cyan)
+    return image
 
 def ensure_brand_assets() -> BrandAssets:
     """Generate both assets in temporary files before atomically replacing installed copies."""
