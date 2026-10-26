@@ -172,6 +172,79 @@ class DurableTaskPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.set_task_plan(task["id"], ["One"], step_kinds=[None])
 
+    def test_explicit_resume_clones_plan_without_replaying_completed_steps(self) -> None:
+        source = self.store.create_task("Create and verify a report")
+        plan = self.store.set_task_plan(
+            source["id"],
+            ["Draft report content", "Create report file", "Verify report file"],
+            step_kinds=["response", "state_change", "read_only"],
+        )
+        first, uncertain, future = plan["plan"]
+        completed = self.store.update_plan_step(
+            source["id"],
+            first["id"],
+            status="running",
+        )
+        completed = self.store.update_plan_step(
+            source["id"],
+            first["id"],
+            status="completed",
+            evidence="assistant_response",
+            verification_note="Draft text was created.",
+            outcome="completed",
+        )
+        self.store.update_plan_step(source["id"], uncertain["id"], status="running")
+        self.store.update_plan_step(
+            source["id"],
+            uncertain["id"],
+            status="unverified",
+            evidence="tool_result",
+            verification_note="The file state was not verified.",
+            outcome="partial",
+        )
+        self.store.update_plan_step(
+            source["id"],
+            future["id"],
+            status="unverified",
+            evidence="none",
+            verification_note="Task stopped before this step.",
+            outcome="partial",
+        )
+        self.store.update_task(source["id"], status="partial", result="Stopped before verification.")
+
+        resumed = self.store.create_resumed_plan_task(source["id"])
+        self.assertIsNotNone(resumed)
+        self.assertNotEqual(resumed["id"], source["id"])
+        self.assertEqual(resumed["status"], "queued")
+        self.assertEqual(resumed["resumed_from_task_id"], source["id"])
+        self.assertEqual(
+            [step["status"] for step in resumed["plan"]],
+            ["completed", "pending", "pending"],
+        )
+        self.assertEqual(resumed["plan"][0]["evidence"], "assistant_response")
+        self.assertEqual(resumed["plan"][0]["verification_note"], "Draft text was created.")
+        self.assertNotEqual(resumed["plan"][0]["id"], first["id"])
+        self.assertNotEqual(resumed["plan"][1]["id"], uncertain["id"])
+        self.assertNotIn("finished_at", resumed["plan"][1])
+        self.assertNotIn("verification_note", resumed["plan"][1])
+        self.assertIn("will not be replayed", resumed["steps"][0]["text"])
+        # The original record stays terminal and unchanged.
+        original = self.store.get_task(source["id"])
+        self.assertEqual(original["status"], "partial")
+        self.assertEqual([step["status"] for step in original["plan"]], ["completed", "unverified", "unverified"])
+
+    def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
+        active = self.store.create_task("Still running")
+        self.store.set_task_plan(active["id"], ["Step"])
+        self.assertIsNone(self.store.create_resumed_plan_task(active["id"]))
+
+        done = self.store.create_task("Already done")
+        plan = self.store.set_task_plan(done["id"], ["Step"])
+        self.store.update_plan_step(done["id"], plan["plan"][0]["id"], status="running")
+        self.store.update_plan_step(done["id"], plan["plan"][0]["id"], status="completed")
+        self.store.update_task(done["id"], status="completed")
+        self.assertIsNone(self.store.create_resumed_plan_task(done["id"]))
+
     def test_terminal_or_missing_tasks_cannot_be_planned_or_changed(self) -> None:
         task = self.store.create_task("Already finished")
         self.store.update_task(task["id"], status="completed")
