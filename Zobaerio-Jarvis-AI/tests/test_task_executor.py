@@ -141,6 +141,27 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(len(agent.prompts), 1)
         self.assertIn("ACTIVE STEP 1/2", agent.prompts[0])
 
+    def test_response_step_can_use_read_only_research_tools(self) -> None:
+        task_id, _plan = self.make_plan(["Prepare a report"], ["response"])
+        agent = FakeStepAgent([{
+            "answer": "The report summarizes the inspected information.",
+            "tool_count": 1,
+            "tool_names": ["search_files"],
+        }])
+        result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Prepare a report from available files",
+            cancel_event=self.no_cancel(),
+        )
+        step = self.store.get_task(task_id)["plan"][0]
+        self.assertEqual(status, "completed")
+        self.assertEqual(step["status"], "completed")
+        self.assertEqual(step["evidence"], "tool_result")
+        self.assertIn("read-only tool results", step["verification_note"])
+        self.assertIn("The report summarizes", result)
+
     def test_text_only_step_is_completed_from_its_direct_response(self) -> None:
         task_id, _plan = self.make_plan(["Draft a short summary"], ["response"])
         agent = FakeStepAgent([{"answer": "The requested summary is ready."}])
