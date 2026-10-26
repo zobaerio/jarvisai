@@ -14,7 +14,7 @@ from typing import Callable
 
 from jarvis.agent import JarvisAgent
 from jarvis.task_planner import format_plan_guidance, generate_task_plan, should_generate_task_plan
-from jarvis.settings import get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
+from jarvis.settings import auto_configure_from_api_key, get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.health import collect_system_health, summarize_system_health
@@ -1768,6 +1768,57 @@ class JarvisDesktop:
         key_var = tk.StringVar(value=get_api_key())
         key_entry = ttk.Entry(pad, textvariable=key_var, show="•")
         key_entry.pack(fill="x", ipady=4)
+
+        auto_setup_status = tk.Label(
+            pad,
+            text="Quick setup supports recognizable OpenRouter, OpenAI, and Groq API keys.",
+            bg=BG, fg=MUTED, font=("Segoe UI", 8), wraplength=540, justify="left",
+        )
+        auto_setup_status.pack(fill="x", pady=(5, 2))
+
+        def apply_auto_setup(result: dict | None, error: str | None = None) -> None:
+            try:
+                if not win.winfo_exists():
+                    return
+                auto_setup_button.configure(state="normal", text="AUTO SETUP FROM API KEY")
+                if error:
+                    auto_setup_status.configure(text=error, fg=ORANGE)
+                    return
+                if not result:
+                    auto_setup_status.configure(text="Could not configure this API key.", fg=ORANGE)
+                    return
+                variables["api_base_url"].set(result["api_base_url"])
+                variables["model"].set(result["model"])
+                auto_setup_status.configure(
+                    text=f"Detected {result['provider']} · model selected automatically: {result['model']}. Save Settings to apply.",
+                    fg=GREEN,
+                )
+                connection_status.configure(text="Model discovered. Save settings, then run Test Connection.", fg=GREEN)
+            except tk.TclError:
+                pass
+
+        def auto_setup() -> None:
+            secret = key_var.get().strip()
+            if not secret:
+                messagebox.showinfo("API key setup", "Paste your API key in the field above first.", parent=win)
+                key_entry.focus_set()
+                return
+            auto_setup_button.configure(state="disabled", text="DETECTING PROVIDER…")
+            auto_setup_status.configure(text="Identifying provider and discovering available models securely…", fg=MUTED)
+
+            def worker() -> None:
+                try:
+                    result = auto_configure_from_api_key(secret)
+                    self.events.put((apply_auto_setup, (result, None)))
+                except ValueError as exc:
+                    self.events.put((apply_auto_setup, (None, str(exc))))
+                except Exception as exc:
+                    self.events.put((apply_auto_setup, (None, f"Auto setup failed safely ({type(exc).__name__}). Try Advanced Settings.")))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        auto_setup_button = ttk.Button(pad, text="AUTO SETUP FROM API KEY", command=auto_setup)
+        auto_setup_button.pack(anchor="w", pady=(4, 4))
 
         tk.Label(pad, text="Speech recognition language", bg=BG, fg="#cbd7e8", font=("Segoe UI Semibold", 9)).pack(anchor="w", pady=(12, 5))
         lang_var = tk.StringVar(value=str(self.settings.get("speech_language", "bn-BD")))
