@@ -106,6 +106,10 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 
 ### 1. Windows 10/11 — Installer (recommended) or Portable version
 
+### Windows installation — visual steps
+
+![J.A.R.V.I.S Windows installation visual guide](docs/images/install-windows.svg)
+
 #### Option A — Install using the Windows installer
 1. Open the [Windows Installer workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml).
 2. Select the newest run marked **Success** (green tick). Open the run details.
@@ -131,6 +135,10 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 
 ### 2. Android phone/tablet — APK
 
+### Android installation — visual steps
+
+![J.A.R.V.I.S Android APK installation visual guide](docs/images/install-android.svg)
+
 1. Open the [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml).
 2. Open the newest run marked **Success** and look for the **Android debug APK** job.
 3. Scroll to **Artifacts** and download `jarvis-mobile-android-debug` (ZIP).
@@ -142,6 +150,8 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 **Android limitations:** This is a **debug/testing APK**, not a production release APK or AAB. The mobile client is an early AI chat client and does not yet provide all Windows desktop automation features. AI features may need a compatible provider configuration/API key and an internet connection. Only install the APK downloaded from this project's official Actions workflow.
 
 ### 3. iPhone or iPad — iOS/iPadOS
+
+![J.A.R.V.I.S iOS installation availability status](docs/images/install-ios-status.svg)
 
 **An installable iPhone/iPad release is not available yet.** The current [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml) runs an iOS compile check using `--no-codesign`; it does not produce a signed IPA, TestFlight invitation, or App Store release. Therefore, there is currently no iOS package that you can install from the GitHub Actions artifacts.
 
