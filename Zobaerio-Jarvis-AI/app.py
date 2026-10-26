@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
-from jarvis.task_planner import format_plan_guidance, generate_task_plan, should_generate_task_plan
+from jarvis.task_planner import classify_plan_step_kind, format_plan_guidance, generate_task_plan, should_generate_task_plan
 from jarvis.settings import auto_configure_from_api_key, get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
@@ -1478,7 +1478,11 @@ class JarvisDesktop:
                 if cancel_event.is_set():
                     self._record_task_step(task_id, "Task cancelled before execution began")
                 else:
-                    saved_plan = self.task_store.set_task_plan(task_id, plan_titles)
+                    saved_plan = self.task_store.set_task_plan(
+                        task_id,
+                        plan_titles,
+                        step_kinds=[classify_plan_step_kind(title, text) for title in plan_titles],
+                    )
                     if saved_plan is not None:
                         self._record_task_step(
                             task_id,
