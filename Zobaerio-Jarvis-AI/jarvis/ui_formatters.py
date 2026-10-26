@@ -42,13 +42,24 @@ def bounded_float(value: object, fallback: float, minimum: float, maximum: float
         parsed = safe_fallback
     return max(minimum, min(parsed, maximum))
 
-
-def bounded_float(value: object, fallback: float, minimum: float, maximum: float) -> float:
-    """Convert a setting to a finite float and clamp it to an inclusive range."""
-    try:
-        parsed = float(value)
-        if parsed != parsed or parsed in (float("inf"), float("-inf")):
-            parsed = fallback
-    except (TypeError, ValueError, OverflowError):
-        parsed = fallback
-    return max(minimum, min(parsed, maximum))
+def bounded_window_origin(
+    x: object,
+    y: object,
+    window_width: object,
+    window_height: object,
+    screen_width: object,
+    screen_height: object,
+    fallback_x: int = 24,
+    fallback_y: int = 120,
+) -> tuple[int, int]:
+    """Keep a saved window origin inside the visible screen area."""
+    safe_screen_width = bounded_int(screen_width, 1, 1, 100_000)
+    safe_screen_height = bounded_int(screen_height, 1, 1, 100_000)
+    safe_window_width = bounded_int(window_width, 1, 1, 100_000)
+    safe_window_height = bounded_int(window_height, 1, 1, 100_000)
+    max_x = max(0, safe_screen_width - safe_window_width)
+    max_y = max(0, safe_screen_height - safe_window_height)
+    return (
+        bounded_int(x, fallback_x, 0, max_x),
+        bounded_int(y, fallback_y, 0, max_y),
+    )
