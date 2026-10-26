@@ -173,7 +173,7 @@ class JarvisDesktop:
             self._floating_controls.pack_forget()
             self._floating_mic.pack_forget()
             self._floating_mode_button.configure(text="EXPAND")
-            self._floating_hud.geometry(f"80x94+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+            self._floating_hud.geometry(f"80x104+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
             self._floating_orb.pack_configure(padx=3, pady=(3, 0))
         else:
             self._floating_orb.pack_configure(padx=8, pady=(7, 0))
