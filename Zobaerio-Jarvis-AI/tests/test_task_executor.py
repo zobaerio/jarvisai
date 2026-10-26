@@ -176,6 +176,57 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(step["evidence"], "none")
         self.assertIn("unsupported claim", result)
 
+    def test_resume_skips_completed_steps_and_starts_at_first_pending_step(self) -> None:
+        task_id, plan = self.make_plan(
+            ["Draft the text", "Create a file", "Verify the file"],
+            ["response", "state_change", "read_only"],
+        )
+        self.store.update_plan_step(
+            task_id,
+            plan[0]["id"],
+            status="running",
+        )
+        self.store.update_plan_step(
+            task_id,
+            plan[0]["id"],
+            status="completed",
+            evidence="assistant_response",
+            verification_note="Draft text is ready.",
+            outcome="completed",
+        )
+        agent = FakeStepAgent([
+            {
+                "answer": "The file has been created and verified.",
+                "tool_count": 2,
+                "tool_names": ["create_text_file", "verify_local_action"],
+                "verified": True,
+            },
+            {
+                "answer": "The file was inspected.",
+                "tool_count": 1,
+                "tool_names": ["get_system_info"],
+            },
+        ])
+        # Preserve a completed prefix in the plan and leave only the remaining steps pending.
+        saved_plan = self.store.get_task(task_id)["plan"]
+        for step in saved_plan[1:]:
+            self.assertEqual(step["status"], "pending")
+        result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Draft the text, create a file, and verify it",
+            cancel_event=self.no_cancel(),
+        )
+        self.assertEqual(status, "completed")
+        self.assertEqual(len(agent.prompts), 2)
+        self.assertIn("ACTIVE STEP 2/3", agent.prompts[0])
+        self.assertIn("ACTIVE STEP 3/3", agent.prompts[1])
+        final_plan = self.store.get_task(task_id)["plan"]
+        self.assertEqual([step["status"] for step in final_plan], ["completed", "completed", "completed"])
+        self.assertEqual(final_plan[0]["verification_note"], "Draft text is ready.")
+        self.assertIn("Step 2", result)
+
     def test_failed_step_stops_without_marking_it_complete(self) -> None:
         task_id, _plan = self.make_plan(["Inspect settings", "Prepare result"], ["read_only", "response"])
         agent = FakeStepAgent([{
