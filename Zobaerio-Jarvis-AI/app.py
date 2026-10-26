@@ -301,7 +301,9 @@ class JarvisDesktop:
                 color = "#34d399"  # idle / ready
                 self._floating_task_status.configure(text="READY", fg="#86efac")
             detail = getattr(self, "_floating_task_detail_text", "Waiting for a task")
-            if getattr(self, "_busy", False):
+            if time.monotonic() < getattr(self, "_floating_outcome_until", 0.0):
+                self._floating_task_detail.configure(text=detail)
+            elif getattr(self, "_busy", False):
                 self._floating_task_detail.configure(text=detail)
             elif getattr(self, "wake_enabled", False):
                 self._floating_task_detail.configure(text="Voice listener is enabled")
