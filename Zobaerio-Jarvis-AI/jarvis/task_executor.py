@@ -128,7 +128,7 @@ def execute_task_plan(
             tool_failures = 0
         verification_succeeded = bool(getattr(agent, "last_verification_succeeded", False))
         outcome = str(getattr(agent, "last_outcome", "failed")).lower()
-        safe_answer = " ".join(str(answer or "").split())[:MAX_STEP_RESULT_CHARS]
+        safe_answer = str(answer or "").strip()[:MAX_STEP_RESULT_CHARS]
         outputs.append(f"Step {index + 1}: {title}\n{safe_answer or '(No step result returned.)'}")
 
         if cancel_event.is_set() or outcome == "cancelled":
