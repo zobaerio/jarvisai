@@ -148,6 +148,12 @@ class JarvisDesktop:
         label.pack(pady=(1, 0))
         self._floating_task_status = tk.Label(shell, text="READY", bg="#07111f", fg="#86efac", font=("Segoe UI", 7, "bold"))
         self._floating_task_status.pack(pady=(0, 2))
+        self._floating_task_detail = tk.Label(
+            shell, text="Waiting for a task", bg="#07111f", fg="#94a3b8",
+            font=("Segoe UI", 7), wraplength=150, justify="center",
+        )
+        self._floating_task_detail.pack(fill="x", padx=5, pady=(0, 3))
+        self._floating_task_detail_text = "Waiting for a task"
         controls = tk.Frame(shell, bg="#07111f")
         self._floating_controls = controls
         controls.pack(fill="x", padx=4, pady=(1, 4))
@@ -260,6 +266,7 @@ class JarvisDesktop:
         if self._floating_mini:
             self._floating_label.pack_forget()
             self._floating_task_status.pack_forget()
+            self._floating_task_detail.pack_forget()
             self._floating_controls.pack_forget()
             self._floating_mic.pack_forget()
             self._floating_mode_button.configure(text="EXPAND")
@@ -269,6 +276,7 @@ class JarvisDesktop:
             self._floating_orb.pack_configure(padx=8, pady=(7, 0))
             self._floating_label.pack(pady=(1, 0))
             self._floating_task_status.pack(pady=(0, 2))
+            self._floating_task_detail.pack(fill="x", padx=5, pady=(0, 3))
             self._floating_controls.pack(fill="x", padx=4, pady=(1, 4))
             self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
             self._floating_mode_button.configure(text="MINI")
@@ -288,6 +296,13 @@ class JarvisDesktop:
             else:
                 color = "#34d399"  # idle / ready
                 self._floating_task_status.configure(text="READY", fg="#86efac")
+            detail = getattr(self, "_floating_task_detail_text", "Waiting for a task")
+            if getattr(self, "_busy", False):
+                self._floating_task_detail.configure(text=detail)
+            elif getattr(self, "wake_enabled", False):
+                self._floating_task_detail.configure(text="Voice listener is enabled")
+            else:
+                self._floating_task_detail.configure(text="Ready for your command")
             self._floating_orb.itemconfigure(self._floating_status_dot, fill=color)
             self._floating_hud.after(900, self._refresh_floating_status)
         except tk.TclError:
@@ -1874,6 +1889,10 @@ class JarvisDesktop:
         self._launch_task(command, task_id=task_id, existing_record=True)
 
     def _record_task_step(self, task_id: str | None, step: str) -> None:
+        # Keep the floating HUD informed about the latest real task step.
+        # The periodic UI refresh reads this short, UI-safe string on the Tk thread.
+        clean_step = " ".join(str(step).split())
+        self._floating_task_detail_text = clean_step[:92] + ("…" if len(clean_step) > 92 else "")
         if not task_id:
             return
         try:
