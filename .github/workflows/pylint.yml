@@ -45,6 +45,10 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Generate Android and iOS host projects
+        if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+        working-directory: mobile
+        run: python bootstrap_platforms.py
       - name: Resolve mobile dependencies
         if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
         working-directory: mobile
