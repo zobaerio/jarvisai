@@ -1842,7 +1842,7 @@ class JarvisDesktop:
                     fg=GREEN,
                 )
                 connection_status.configure(
-                    text="Quick setup saved. Run Test Connection, then try a real task.",
+                    text="Quick setup saved and /models responded successfully. Try a real task now; Test Connection is available for troubleshooting.",
                     fg=GREEN,
                 )
             except tk.TclError:
