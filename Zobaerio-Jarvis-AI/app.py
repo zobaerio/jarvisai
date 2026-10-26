@@ -20,6 +20,7 @@ from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.health import collect_system_health, summarize_system_health
 from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
+from jarvis.task_executor import execute_task_plan
 from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
@@ -1414,13 +1415,17 @@ class JarvisDesktop:
         status: str,
         action_id: str | None,
         note: str = "",
+        *,
+        plan_step_id: str | None = None,
     ) -> str | None:
-        """Persist the tool lifecycle without recording arguments or output payloads."""
+        """Persist tool lifecycle metadata without arguments or output payloads."""
         if not task_id:
             return None
         try:
             if status == "running":
-                return self.task_store.start_action(task_id, name)
+                return self.task_store.start_action(
+                    task_id, name, plan_step_id=plan_step_id
+                )
             if action_id:
                 self.task_store.finish_action(
                     task_id,
@@ -1447,8 +1452,10 @@ class JarvisDesktop:
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
         plan_titles: list[str] | None = None
-        # Generate and persist a side-effect-free plan before normal execution. Planning
-        # failure is non-fatal: the existing agent workflow still handles the request.
+        saved_plan: dict | None = None
+        planned_status: str | None = None
+        # Planning is side-effect-free. When persisted successfully, each step is executed
+        # in a separate bounded agent turn; an unverified state-changing action stops the plan.
         if task_id and not cancel_event.is_set() and should_generate_task_plan(text):
             try:
                 self._record_task_step(task_id, "Generating a proposed task plan")
@@ -1460,7 +1467,7 @@ class JarvisDesktop:
                     if saved_plan is not None:
                         self._record_task_step(
                             task_id,
-                            f"Saved proposed plan with {len(plan_titles)} step(s) to Task History",
+                            f"Saved plan with {len(plan_titles)} step(s) to Task History",
                         )
             except InterruptedError:
                 pass
@@ -1472,21 +1479,44 @@ class JarvisDesktop:
                 )
         if cancel_event.is_set():
             # Cancellation may arrive while the optional planner is waiting on the provider.
-            # Do not start a second model request or any tools after the user has cancelled.
+            # Do not start another model request or any tools after the user has cancelled.
             result = "Task cancelled before execution began. No AI tool actions were started."
         else:
             try:
-                execution_text = format_plan_guidance(text, plan_titles or [])
-                if plan_titles:
-                    self._record_task_step(task_id, "Using proposed plan as guidance; existing approval and safety checks remain active")
-                result = self.agent.respond(
-                    execution_text,
-                    cancel_event=cancel_event,
-                    progress=lambda step: self._record_task_step(task_id, step),
-                    tool_event=lambda name, status, action_id, note: self._record_tool_action(
-                        task_id, name, status, action_id, note
-                    ),
-                )
+                if task_id and plan_titles and isinstance(saved_plan, dict) and isinstance(saved_plan.get("plan"), list):
+                    self._record_task_step(
+                        task_id,
+                        "Executing the persisted plan step by step under one shared tool-action budget",
+                    )
+                    result, planned_status = execute_task_plan(
+                        agent=self.agent,
+                        task_store=self.task_store,
+                        task_id=task_id,
+                        user_text=text,
+                        cancel_event=cancel_event,
+                        progress=lambda step: self._record_task_step(task_id, step),
+                        tool_event_factory=lambda step_id: (
+                            lambda name, event_status, action_id, note: self._record_tool_action(
+                                task_id,
+                                name,
+                                event_status,
+                                action_id,
+                                note,
+                                plan_step_id=step_id,
+                            )
+                        ),
+                    )
+                else:
+                    # If optional planning failed or could not be saved, retain the normal
+                    # single-turn agent path rather than blocking the user's request.
+                    result = self.agent.respond(
+                        format_plan_guidance(text, plan_titles or []),
+                        cancel_event=cancel_event,
+                        progress=lambda step: self._record_task_step(task_id, step),
+                        tool_event=lambda name, event_status, action_id, note: self._record_tool_action(
+                            task_id, name, event_status, action_id, note
+                        ),
+                    )
             except Exception as exc:
                 failed = True
                 result = safe_worker_error(exc)
@@ -1495,13 +1525,14 @@ class JarvisDesktop:
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
         elif failed:
             status = "failed"
+        elif planned_status is not None:
+            status = planned_status
         else:
             status = str(getattr(self.agent, "last_outcome", "completed"))
             if status not in {"completed", "partial", "failed", "cancelled"}:
                 status = "failed"
         if task_id:
             try:
-                # Keep unfinished proposed steps honest; overall task success is not per-step proof.
                 self.task_store.finalize_task_plan(task_id, status)
                 self.task_store.update_task(task_id, status=status, result=result)
             except Exception:
