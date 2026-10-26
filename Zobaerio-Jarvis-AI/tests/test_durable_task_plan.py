@@ -264,7 +264,7 @@ class DurableTaskPlanTests(unittest.TestCase):
             outcome="partial",
         )
         self.store.update_task(source["id"], status="partial", result="Paused")
-        existing_queued = self.store.create_task("Already queued command")
+        existing_queued = self.store.create_task("Already queued command", status="queued")
 
         resumed = self.store.create_resumed_plan_task(source["id"])
         self.assertIsNotNone(resumed)
