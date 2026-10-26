@@ -893,7 +893,7 @@ def _safe_nested_file_path(location: str, relative_path: str) -> Path:
     """Resolve a file path under an approved root; allow existing subfolders, never links/traversal."""
     root = normalize_location(location).resolve()
     raw = str(relative_path).strip()
-    parts = raw.replace("\\\\", "/").split("/")
+    parts = raw.replace("\\", "/").split("/")
     if (
         not raw or len(parts) > 9 or raw.startswith("/") or
         any(not part or part in {".", ".."} or part != part.strip()
