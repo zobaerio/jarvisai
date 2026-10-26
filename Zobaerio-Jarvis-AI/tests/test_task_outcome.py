@@ -136,7 +136,10 @@ class AgentOutcomeTests(unittest.TestCase):
             "tool_calls": [{
                 "id": "create-1",
                 "type": "function",
-                "function": {"name": "create_text_file", "arguments": "{}"},
+                "function": {
+                    "name": "create_text_file",
+                    "arguments": '{"location":"Documents","filename":"report.txt","content":"hello"}',
+                },
             }],
         })
         verify_call = self.provider_response({
@@ -144,7 +147,10 @@ class AgentOutcomeTests(unittest.TestCase):
             "tool_calls": [{
                 "id": "verify-1",
                 "type": "function",
-                "function": {"name": "verify_local_action", "arguments": "{}"},
+                "function": {
+                    "name": "verify_local_action",
+                    "arguments": '{"kind":"file","target":"report.txt","location":"Documents"}',
+                },
             }],
         })
         final = self.provider_response({"role": "assistant", "content": "The file was created and verified."})
@@ -162,6 +168,43 @@ class AgentOutcomeTests(unittest.TestCase):
         self.assertIn("verified", result.lower())
         self.assertEqual(agent.last_tool_call_count, 2)
         self.assertTrue(agent.last_verification_succeeded)
+
+    def test_verification_of_an_unrelated_target_is_not_accepted(self) -> None:
+        agent = self.make_agent()
+        create_call = self.provider_response({
+            "role": "assistant",
+            "tool_calls": [{
+                "id": "create-1",
+                "type": "function",
+                "function": {
+                    "name": "create_text_file",
+                    "arguments": '{"location":"Documents","filename":"report.txt","content":"hello"}',
+                },
+            }],
+        })
+        verify_call = self.provider_response({
+            "role": "assistant",
+            "tool_calls": [{
+                "id": "verify-1",
+                "type": "function",
+                "function": {
+                    "name": "verify_local_action",
+                    "arguments": '{"kind":"file","target":"another.txt","location":"Documents"}',
+                },
+            }],
+        })
+        final = self.provider_response({"role": "assistant", "content": "The action was attempted."})
+
+        with patch("jarvis.agent.automation.direct_command", return_value=None), patch(
+            "jarvis.agent.get_api_key", return_value=""
+        ), patch("jarvis.agent.requests.post", side_effect=[create_call, verify_call, final]), patch.object(
+            agent, "_execute_tool", side_effect=lambda name, _args: (
+                "Verified file exists: another.txt (12 bytes)." if name == "verify_local_action"
+                else "Created file: report.txt"
+            )
+        ):
+            agent.respond("Create report.txt and verify it")
+        self.assertFalse(agent.last_verification_succeeded)
 
     def test_later_state_change_invalidates_an_earlier_verification(self) -> None:
         agent = self.make_agent()
