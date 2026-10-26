@@ -77,3 +77,10 @@ def test_bounded_window_origin_uses_safe_fallback_for_invalid_saved_position():
 
 def test_bounded_window_origin_handles_window_larger_than_screen():
     assert bounded_window_origin(500, 500, 500, 400, 320, 240) == (0, 0)
+
+
+
+def test_bounded_int_supports_saved_floating_hud_resize_limits():
+    # These are the supported expanded HUD dimensions saved by the desktop UI.
+    assert bounded_int("300", 92, 92, 320) == 300
+    assert bounded_int("360", 164, 104, 400) == 360
