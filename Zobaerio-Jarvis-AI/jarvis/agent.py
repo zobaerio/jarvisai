@@ -154,6 +154,7 @@ TOOLS: list[dict[str, Any]] = [
     {"type": "function", "function": {"name": "paste_text_into_window", "description": "Paste provided text into the current field of a named visible Windows window. Always needs explicit user approval and will not press Enter or submit a form. Select the target using a distinctive substring from list_open_windows.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "text": {"type": "string"}}, "required": ["expected_app", "text"]}}},
     {"type": "function", "function": {"name": "press_allowed_shortcut", "description": "Send one user-approved editing/navigation shortcut to a named Windows window. Only supported allow-listed shortcuts are accepted; Enter, Alt+F4, Windows+R and arbitrary key sequences are blocked.", "parameters": {"type": "object", "properties": {"expected_app": {"type": "string"}, "shortcut": {"type": "string", "enum": ["CTRL+S", "CTRL+A", "CTRL+C", "CTRL+V", "CTRL+Z", "CTRL+Y", "CTRL+F", "TAB", "SHIFT+TAB", "ESC", "HOME", "END", "PAGEUP", "PAGEDOWN"]}}, "required": ["expected_app", "shortcut"]}}},
     {"type": "function", "function": {"name": "create_folder", "description": "Create a folder inside Desktop, Documents, or Downloads. The desktop app will ask the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "name": {"type": "string"}}, "required": ["location", "name"]}}},
+    {"type": "function", "function": {"name": "create_folder_structure", "description": "Create multiple nested folders for a project under Desktop, Documents, or Downloads after one explicit approval. Accepts 1–30 relative paths, at most 8 levels deep; never overwrites existing items and verifies no destination already exists.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "folder_paths": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 30}}, "required": ["location", "folder_paths"]}}},
     {"type": "function", "function": {"name": "create_text_file", "description": "Create a new .txt, .md, .csv, .json, or .log file under Desktop, Documents, or Downloads. No overwriting. The app asks the user for confirmation.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}, "content": {"type": "string"}}, "required": ["location", "filename", "content"]}}},
     {"type": "function", "function": {"name": "read_text_file", "description": "Read a small text/code file from Desktop, Documents, or Downloads after explicit user approval. The approval dialog explains that contents may be sent to the configured AI provider. Only common text formats up to 100 KB are supported; paths, symbolic links, and binary files are blocked.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "enum": ["Desktop", "Documents", "Downloads"]}, "filename": {"type": "string"}}, "required": ["location", "filename"]}}},
 
@@ -429,6 +430,11 @@ class JarvisAgent:
             )
         if name == "create_folder":
             return automation.create_folder(str(args.get("location", "")), str(args.get("name", "")), self.approval)
+        if name == "create_folder_structure":
+            raw_paths = args.get("folder_paths", [])
+            if not isinstance(raw_paths, list):
+                return "Folder structure blocked: folder_paths must be a list of relative paths."
+            return automation.create_folder_structure(str(args.get("location", "")), raw_paths, self.approval)
         if name == "create_text_file":
             return automation.create_text_file(str(args.get("location", "")), str(args.get("filename", "")), str(args.get("content", "")), self.approval)
         if name == "read_text_file":
