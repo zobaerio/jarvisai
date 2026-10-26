@@ -88,6 +88,9 @@ jobs:
             - SHA256SUMS.txt: verify downloaded file integrity.
 
             iOS compilation is validated in CI, but an installable iOS package is not attached because Apple distribution/signing is not configured.
+
+            Repository: https://github.com/zobaerio/orvixai
+            Report issues at: https://github.com/zobaerio/orvixai/issues
           generate_release_notes: true
           make_latest: true
           files: |
