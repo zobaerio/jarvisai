@@ -12,9 +12,15 @@ def format_header_clock(value: datetime) -> str:
 def bounded_int(value: object, fallback: int, minimum: int, maximum: int) -> int:
     """Convert a setting to an integer and clamp it to a safe inclusive range."""
     try:
+        safe_fallback = int(fallback)
+    except (TypeError, ValueError, OverflowError):
+        safe_fallback = minimum
+    safe_fallback = max(minimum, min(safe_fallback, maximum))
+
+    try:
         parsed = int(value)
     except (TypeError, ValueError, OverflowError):
-        parsed = fallback
+        parsed = safe_fallback
     return max(minimum, min(parsed, maximum))
 
 
