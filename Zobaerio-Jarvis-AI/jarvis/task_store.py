@@ -602,6 +602,24 @@ class TaskStore:
                     steps = []
                 steps.append({"time": now, "text": recovery_step[:240]})
                 row["steps"] = steps[-MAX_STEPS:]
+                plan = row.get("plan")
+                if isinstance(plan, list):
+                    for plan_step in plan:
+                        if not isinstance(plan_step, dict):
+                            continue
+                        step_status = plan_step.get("status")
+                        if step_status not in {"pending", "running"}:
+                            continue
+                        plan_step["status"] = "unverified" if step_status == "running" else "skipped"
+                        plan_step["updated_at"] = now
+                        plan_step["finished_at"] = now
+                        plan_step["outcome"] = "failed"
+                        plan_step["evidence"] = "none"
+                        plan_step["verification_note"] = (
+                            "App restarted during this step; its real-world state is unknown and it was not replayed."
+                            if step_status == "running"
+                            else "App restarted before this step began; it was not executed or automatically replayed."
+                        )
                 actions = row.get("actions")
                 if not isinstance(actions, list):
                     actions = []
