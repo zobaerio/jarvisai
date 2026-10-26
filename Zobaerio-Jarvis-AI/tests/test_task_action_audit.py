@@ -30,6 +30,44 @@ class TaskActionAuditTests(unittest.TestCase):
                 store.finish_action(task["id"], action_id, status="failed", note="late update")
             )
 
+    def test_action_can_be_linked_to_plan_step_without_storing_step_text(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = TaskStore(Path(directory) / "history.json")
+            task = store.create_task("Create a report")
+            plan = store.set_task_plan(task["id"], ["Create report file"])
+            step_id = plan["plan"][0]["id"]
+            action_id = store.start_action(
+                task["id"], "create_text_file", plan_step_id=step_id
+            )
+            action = store.get_task(task["id"])["actions"][0]
+            self.assertTrue(action_id)
+            self.assertEqual(action["plan_step_id"], step_id)
+            self.assertNotIn("title", action)
+            self.assertNotIn("arguments", action)
+            self.assertNotIn("output", action)
+
+    def test_recovery_marks_active_steps_unverified_and_unstarted_steps_skipped(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = TaskStore(Path(directory) / "history.json")
+            task = store.create_task("Multi-step task")
+            plan = store.set_task_plan(task["id"], ["Current step", "Future step"])
+            store.update_plan_step(task["id"], plan["plan"][0]["id"], status="running")
+
+            with patch("jarvis.task_store._process_is_running", return_value=False):
+                self.assertEqual(store.recover_interrupted_tasks(), 1)
+
+            recovered = store.get_task(task["id"])
+            self.assertEqual(recovered["status"], "failed")
+            active, pending = recovered["plan"]
+            self.assertEqual(active["status"], "unverified")
+            self.assertEqual(active["outcome"], "failed")
+            self.assertIsNotNone(active["finished_at"])
+            self.assertIn("state is unknown", active["verification_note"])
+            self.assertEqual(pending["status"], "skipped")
+            self.assertEqual(pending["outcome"], "failed")
+            self.assertIsNotNone(pending["finished_at"])
+            self.assertIn("before this step began", pending["verification_note"])
+
     def test_tool_failure_note_is_bounded_and_normalized(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             store = TaskStore(Path(directory) / "history.json")

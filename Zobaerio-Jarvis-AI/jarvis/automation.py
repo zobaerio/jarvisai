@@ -775,7 +775,7 @@ def safe_child_path(location: str, name: str) -> Path:
 
 
 def verify_local_action(kind: str, target: str, location: str = "Desktop") -> str:
-    """Verify a visible window title or an exact file/folder name in an allowed user folder."""
+    """Verify a visible window title or a safe relative file/folder path in an allowed user folder."""
     action = str(kind).strip().casefold()
     needle = str(target).strip()
     if not needle:
@@ -793,15 +793,23 @@ def verify_local_action(kind: str, target: str, location: str = "Desktop") -> st
     if action not in {"file", "folder"}:
         return "Verification kind must be window, file, or folder."
     try:
-        path = safe_child_path(location, needle)
+        # Use the same no-symlink, no-traversal containment checks as approved nested
+        # file creation so valid Project/report.txt targets can be verified as well.
+        path = _safe_nested_file_path(location, needle)
     except (ValueError, OSError) as exc:
         return f"Verification blocked: {exc}"
     if action == "file":
-        if path.is_file():
-            return f"Verified file exists: {path} ({path.stat().st_size} bytes)."
+        try:
+            if path.is_file() and not path.is_symlink():
+                return f"Verified file exists: {path} ({path.stat().st_size} bytes)."
+        except OSError:
+            return f"Verification failed while inspecting the file at {path}."
         return f"Not verified: no file exists at {path}."
-    if path.is_dir():
-        return f"Verified folder exists: {path}."
+    try:
+        if path.is_dir() and not path.is_symlink():
+            return f"Verified folder exists: {path}."
+    except OSError:
+        return f"Verification failed while inspecting the folder at {path}."
     return f"Not verified: no folder exists at {path}."
 
 

@@ -4,6 +4,14 @@
 
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
+## নতুন: Step-by-step Task Execution
+
+জটিল অনুরোধের জন্য J.A.R.V.I.S প্রথমে tool ছাড়া একটি সীমিত plan তৈরি করে, তারপর plan-এর প্রতিটি ধাপ আলাদা AI turn-এ চালায়। প্রতিটি ধাপে Task History-তে status, expected evidence type, start/finish time, duration, attempt count, evidence type এবং verification note দেখা যাবে। Tool audit entry-গুলো plan step-এর সঙ্গে link করা হয়, কিন্তু tool arguments বা output payload audit log-এ রাখা হয় না।
+
+**Completion যাচাই:** শুধু AI-এর “কাজ হয়ে গেছে” বলা দিয়ে কোনো file/app/window পরিবর্তনের ধাপ completed হবে না। Text deliverable-এর step text response দিয়ে শেষ হতে পারে; read-only inspection-এর step-এ বাস্তব read-only tool result লাগবে; state-changing step-এ সংশ্লিষ্ট target-এর positive `verify_local_action` result লাগবে; expected target-এর সঙ্গে verification মিলতে হবে, আর পরে আরেকটি state change হলে আগের verification evidence বাতিল হবে। Verification না পাওয়া, tool failure, cancellation বা shared ১২টি tool-action limit পৌঁছালে plan থেমে যায় এবং পরের ধাপ চালু হয় না। Unsupported বা ambiguous action-এ Task History-তে `UNVERIFIED` দেখা যেতে পারে—এর মানে কাজ হয়েছে এমন প্রমাণ পাওয়া যায়নি।
+
+App restart হলে চলমান step `UNVERIFIED` এবং শুরু না হওয়া pending step `SKIPPED` হিসেবে চিহ্নিত হয়; কোনো action নিজে থেকে replay বা resume হয় না। Task History-এর **Resume Plan** বাটনে explicit confirmation দিলে নতুন task record তৈরি হয়; আগের completed step-গুলো replay হয় না, প্রথম unfinished step থেকে শুরু হয়। Unverified step-এর side effect আগেই ঘটতে পারে, তাই resume করার আগে current state দেখে নাও—action পুনরাবৃত্তি হওয়ার ঝুঁকি থাকে এবং approval gates বহাল থাকে। এই feature বিদ্যমান allow-listed tools-এর সীমার মধ্যে কাজ করে; এটি arbitrary shell command, যেকোনো website/app-এ unrestricted control, অথবা প্রতিটি external side effect-এর নিশ্চয়তাপূর্ণ verification নয়.
+
 এই সংস্করণে তোমার দেওয়া তিনটি character image যুক্ত করা হয়েছে এবং সেগুলো `assets/characters/reference/`-এ মূল JPEG bytes অপরিবর্তিত রেখে রাখা হয়েছে।
 
 ## Voice reliability

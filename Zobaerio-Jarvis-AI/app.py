@@ -14,12 +14,13 @@ from pathlib import Path
 from typing import Callable
 
 from jarvis.agent import JarvisAgent
-from jarvis.task_planner import format_plan_guidance, generate_task_plan, should_generate_task_plan
+from jarvis.task_planner import classify_plan_step_kind, format_plan_guidance, generate_task_plan, should_generate_task_plan
 from jarvis.settings import auto_configure_from_api_key, get_api_key, load_settings, save_settings, set_api_key, test_api_connection, validate_api_base_url, validate_api_key_transport
 from jarvis.speech import SpeechEngine
 from jarvis.avatar_studio import launch_avatar_studio
 from jarvis.health import collect_system_health, summarize_system_health
 from jarvis.task_store import TaskStore, filter_task_records, build_safe_diagnostics
+from jarvis.task_executor import execute_task_plan
 from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
@@ -981,9 +982,12 @@ class JarvisDesktop:
                     "RESULT",
                     str(record.get("result", "") or "(No result recorded yet.)"),
                 ]
+                resumed_from = record.get("resumed_from_task_id")
+                if isinstance(resumed_from, str) and resumed_from:
+                    lines.insert(1, f"Resumed from task: #{resumed_from[:64]}")
                 plan = record.get("plan") if isinstance(record.get("plan"), list) else []
                 if plan:
-                    lines.extend(["", "STRUCTURED PLAN (stored progress; not an automatic replay queue)"])
+                    lines.extend(["", "STRUCTURED PLAN (resume is explicit; uncertain actions may repeat)"])
                     for ordinal, plan_step in enumerate(plan, start=1):
                         if not isinstance(plan_step, dict):
                             continue
@@ -993,6 +997,8 @@ class JarvisDesktop:
                         if type(attempts) is not int or attempts < 0:
                             attempts = 0
                         lines.append(f"{ordinal}. [{step_status}] {title} (attempts: {attempts})")
+                        step_kind = " ".join(str(plan_step.get("kind") or "unknown").replace("_", " ").split()).title()
+                        lines.append(f"   Expected evidence type: {step_kind}")
                         started_at = str(plan_step.get("started_at") or "")
                         finished_at = str(plan_step.get("finished_at") or "")
                         lines.append(f"   Started: {started_at or 'Not started'}")
@@ -1012,8 +1018,14 @@ class JarvisDesktop:
                             except (TypeError, ValueError, OverflowError):
                                 # Bad/legacy timestamp data must not break Task History rendering.
                                 pass
-                        if step_status == "UNVERIFIED":
-                            lines.append("   Note: Task ended without an individual verification event for this step.")
+                        evidence = str(plan_step.get("evidence") or "").replace("_", " ").strip().title()
+                        if evidence:
+                            lines.append(f"   Evidence: {evidence}")
+                        verification_note = " ".join(str(plan_step.get("verification_note") or "").split())[:240]
+                        if verification_note:
+                            lines.append(f"   Note: {verification_note}")
+                        elif step_status == "UNVERIFIED":
+                            lines.append("   Note: No individual verification event confirmed this step.")
                 if steps:
                     lines.extend(["", "ACTIVITY LOG"] + [
                         f"[{step.get('time', '')}] {step.get('text', '')}"
@@ -1021,11 +1033,20 @@ class JarvisDesktop:
                     ])
                 if actions:
                     lines.extend(["", "TOOL ACTION AUDIT (arguments and output payloads are not stored)"])
+                    plan_items = record.get("plan", [])
+                    step_ordinals = {
+                        item.get("id"): ordinal
+                        for ordinal, item in enumerate(plan_items, 1)
+                        if isinstance(item, dict) and isinstance(item.get("id"), str)
+                    } if isinstance(plan_items, list) else {}
                     for action in actions:
                         if not isinstance(action, dict):
                             continue
                         started = str(action.get("started_at", ""))
                         name = str(action.get("name", "unknown"))
+                        step_id = action.get("plan_step_id")
+                        if isinstance(step_id, str) and step_id in step_ordinals:
+                            name += f" [plan step {step_ordinals[step_id]}]"
                         status = str(action.get("status", "unknown")).upper()
                         note = str(action.get("note", "")).strip()
                         lines.append(f"[{started}] {name}: {status}" + (f" — {note}" if note else ""))
@@ -1236,6 +1257,123 @@ class JarvisDesktop:
                 parent=win,
             )
 
+        def resume_selected_plan() -> None:
+            selected = tree.selection()
+            record = rows_by_id.get(selected[0]) if selected else None
+            if record is None:
+                messagebox.showinfo("Resume plan", "Select a task from the history list first.", parent=win)
+                return
+            if self._busy:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "A task is already running. Resume this plan after the active task finishes.",
+                    parent=win,
+                )
+                return
+            source_status = str(record.get("status", "")).casefold()
+            if source_status not in {"partial", "failed", "cancelled"}:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "Only a partial, failed, or cancelled task with a saved plan can be resumed.",
+                    parent=win,
+                )
+                return
+            plan = record.get("plan")
+            if not isinstance(plan, list) or not plan:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "This task has no saved step-by-step plan to resume. Use Retry Selected Task for a fresh run.",
+                    parent=win,
+                )
+                return
+            unfinished = [
+                step for step in plan
+                if isinstance(step, dict) and step.get("status") != "completed"
+            ]
+            if not unfinished:
+                messagebox.showinfo("Resume plan", "Every saved plan step is already completed.", parent=win)
+                return
+            first = unfinished[0]
+            title = " ".join(str(first.get("title") or "Unknown step").split())[:180]
+            step_status = str(first.get("status") or "unknown").upper()
+            command = str(record.get("command") or "").strip()
+            source_id = str(record.get("id") or "")
+            if not command or not source_id:
+                messagebox.showerror("Resume plan", "The selected task record is incomplete.", parent=win)
+                return
+            prompt = (
+                f"Create a new task record from task #{source_id}?\n\n"
+                f"Original task status: {source_status.upper()}\n"
+                f"Next unfinished step ({step_status}):\n{title}\n\n"
+                "Previously completed steps will be carried forward and will NOT be replayed. "
+                "The first unfinished step will run again using current AI settings. Approval gates remain active."
+            )
+            if step_status in {"UNVERIFIED", "FAILED", "RUNNING"}:
+                prompt += (
+                    "\n\nIMPORTANT: the step may already have changed a file, folder, app, or external state. "
+                    "Inspect the current state first. Resuming may repeat an action; do not continue if that risk is unacceptable."
+                )
+            if not messagebox.askyesno(
+                "Confirm plan resume",
+                prompt,
+                parent=win,
+                icon="warning",
+            ):
+                return
+            try:
+                resumed = self.task_store.create_resumed_plan_task(source_id)
+            except Exception as exc:
+                messagebox.showerror(
+                    "Resume plan",
+                    f"Could not prepare a resumed task ({type(exc).__name__}).",
+                    parent=win,
+                )
+                return
+            if resumed is None:
+                messagebox.showinfo(
+                    "Resume plan",
+                    "The task changed or no unfinished step is eligible for explicit resume. Refresh Task History and review its state.",
+                    parent=win,
+                )
+                refresh()
+                return
+            self._push_activity("Resumed task plan from task #" + source_id)
+            queued_before_resume = resumed.get("_queued_tasks_ahead", 0)
+            if type(queued_before_resume) is not int or queued_before_resume < 0:
+                # If an old/custom TaskStore doesn't return the atomic queue hint, fail
+                # conservatively rather than bypassing an existing FIFO queue.
+                messagebox.showerror(
+                    "Resume plan",
+                    "Could not verify the saved queue order. The plan was prepared as a queued task; run the saved queue to preserve FIFO order.",
+                    parent=win,
+                )
+                self._refresh_queue_button()
+                refresh()
+                return
+            if queued_before_resume > 0:
+                self._write_message(
+                    "SYSTEM",
+                    f"Plan resume queued as task #{resumed['id']} behind existing queued commands. "
+                    "FIFO order is preserved; use RUN QUEUED TASKS to start the queue.",
+                    "system",
+                )
+                self._refresh_queue_button()
+                refresh()
+                if self._queue_armed:
+                    self.root.after(150, self._start_next_queued_task)
+                return
+            self._write_message(
+                "SYSTEM",
+                f"Plan resume prepared as a new task (#{resumed['id']}). Completed steps will not be replayed.",
+                "system",
+            )
+            refresh()
+            self._launch_task(
+                str(resumed.get("command", command)),
+                task_id=str(resumed["id"]),
+                existing_record=True,
+            )
+
         def retry_selected() -> None:
             selected = tree.selection()
             record = rows_by_id.get(selected[0]) if selected else None
@@ -1265,8 +1403,9 @@ class JarvisDesktop:
         footer = tk.Frame(win, bg=BG)
         footer.pack(fill="x", padx=14, pady=(0, 12))
         ttk.Button(footer, text="Refresh", command=refresh).pack(side="left")
+        ttk.Button(footer, text="Resume Plan", command=resume_selected_plan).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Retry Selected Task", command=retry_selected).pack(side="left", padx=(8, 0))
-        ttk.Button(footer, text="Cancel Selected Queued Task", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
+        ttk.Button(footer, text="Cancel Queued", command=cancel_queued_selected).pack(side="left", padx=(8, 0))
         ttk.Button(footer, text="Export Selected Task", command=export_selected_task).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Export Safe Diagnostics", command=export_safe_diagnostics).pack(side="right", padx=(0, 8))
         ttk.Button(footer, text="Close", command=win.destroy).pack(side="right")
@@ -1414,13 +1553,17 @@ class JarvisDesktop:
         status: str,
         action_id: str | None,
         note: str = "",
+        *,
+        plan_step_id: str | None = None,
     ) -> str | None:
-        """Persist the tool lifecycle without recording arguments or output payloads."""
+        """Persist tool lifecycle metadata without arguments or output payloads."""
         if not task_id:
             return None
         try:
             if status == "running":
-                return self.task_store.start_action(task_id, name)
+                return self.task_store.start_action(
+                    task_id, name, plan_step_id=plan_step_id
+                )
             if action_id:
                 self.task_store.finish_action(
                     task_id,
@@ -1447,20 +1590,56 @@ class JarvisDesktop:
     def _work(self, text: str, task_id: str | None, cancel_event: threading.Event) -> None:
         failed = False
         plan_titles: list[str] | None = None
-        # Generate and persist a side-effect-free plan before normal execution. Planning
-        # failure is non-fatal: the existing agent workflow still handles the request.
-        if task_id and not cancel_event.is_set() and should_generate_task_plan(text):
+        saved_plan: dict | None = None
+        planned_status: str | None = None
+        resume_existing_plan = False
+        if task_id:
+            try:
+                existing_record = self.task_store.get_task(task_id)
+            except Exception:
+                existing_record = None
+            if (
+                isinstance(existing_record, dict)
+                and isinstance(existing_record.get("resumed_from_task_id"), str)
+                and isinstance(existing_record.get("plan"), list)
+                and existing_record.get("plan")
+            ):
+                resumed_titles = [
+                    item.get("title")
+                    for item in existing_record["plan"]
+                    if isinstance(item, dict) and isinstance(item.get("title"), str)
+                ]
+                if len(resumed_titles) == len(existing_record["plan"]):
+                    plan_titles = resumed_titles
+                    saved_plan = existing_record
+                    resume_existing_plan = True
+                    self._record_task_step(
+                        task_id,
+                        "Resuming the saved plan explicitly; completed steps will not be replayed",
+                    )
+        # Planning is side-effect-free. When persisted successfully, each step is executed
+        # in a separate bounded agent turn; an unverified state-changing action stops the plan.
+        if (
+            task_id
+            and not resume_existing_plan
+            and not cancel_event.is_set()
+            and should_generate_task_plan(text)
+        ):
             try:
                 self._record_task_step(task_id, "Generating a proposed task plan")
                 plan_titles = generate_task_plan(self.settings, text, cancel_event=cancel_event)
                 if cancel_event.is_set():
                     self._record_task_step(task_id, "Task cancelled before execution began")
                 else:
-                    saved_plan = self.task_store.set_task_plan(task_id, plan_titles)
+                    saved_plan = self.task_store.set_task_plan(
+                        task_id,
+                        plan_titles,
+                        step_kinds=[classify_plan_step_kind(title, text) for title in plan_titles],
+                    )
                     if saved_plan is not None:
                         self._record_task_step(
                             task_id,
-                            f"Saved proposed plan with {len(plan_titles)} step(s) to Task History",
+                            f"Saved plan with {len(plan_titles)} step(s) to Task History",
                         )
             except InterruptedError:
                 pass
@@ -1472,21 +1651,44 @@ class JarvisDesktop:
                 )
         if cancel_event.is_set():
             # Cancellation may arrive while the optional planner is waiting on the provider.
-            # Do not start a second model request or any tools after the user has cancelled.
+            # Do not start another model request or any tools after the user has cancelled.
             result = "Task cancelled before execution began. No AI tool actions were started."
         else:
             try:
-                execution_text = format_plan_guidance(text, plan_titles or [])
-                if plan_titles:
-                    self._record_task_step(task_id, "Using proposed plan as guidance; existing approval and safety checks remain active")
-                result = self.agent.respond(
-                    execution_text,
-                    cancel_event=cancel_event,
-                    progress=lambda step: self._record_task_step(task_id, step),
-                    tool_event=lambda name, status, action_id, note: self._record_tool_action(
-                        task_id, name, status, action_id, note
-                    ),
-                )
+                if task_id and plan_titles and isinstance(saved_plan, dict) and isinstance(saved_plan.get("plan"), list):
+                    self._record_task_step(
+                        task_id,
+                        "Executing the persisted plan step by step under one shared tool-action budget",
+                    )
+                    result, planned_status = execute_task_plan(
+                        agent=self.agent,
+                        task_store=self.task_store,
+                        task_id=task_id,
+                        user_text=text,
+                        cancel_event=cancel_event,
+                        progress=lambda step: self._record_task_step(task_id, step),
+                        tool_event_factory=lambda step_id: (
+                            lambda name, event_status, action_id, note: self._record_tool_action(
+                                task_id,
+                                name,
+                                event_status,
+                                action_id,
+                                note,
+                                plan_step_id=step_id,
+                            )
+                        ),
+                    )
+                else:
+                    # If optional planning failed or could not be saved, retain the normal
+                    # single-turn agent path rather than blocking the user's request.
+                    result = self.agent.respond(
+                        format_plan_guidance(text, plan_titles or []),
+                        cancel_event=cancel_event,
+                        progress=lambda step: self._record_task_step(task_id, step),
+                        tool_event=lambda name, event_status, action_id, note: self._record_tool_action(
+                            task_id, name, event_status, action_id, note
+                        ),
+                    )
             except Exception as exc:
                 failed = True
                 result = safe_worker_error(exc)
@@ -1495,13 +1697,14 @@ class JarvisDesktop:
             self._record_task_step(task_id, "Cancellation observed; no further AI tool calls will be started")
         elif failed:
             status = "failed"
+        elif planned_status is not None:
+            status = planned_status
         else:
             status = str(getattr(self.agent, "last_outcome", "completed"))
             if status not in {"completed", "partial", "failed", "cancelled"}:
                 status = "failed"
         if task_id:
             try:
-                # Keep unfinished proposed steps honest; overall task success is not per-step proof.
                 self.task_store.finalize_task_plan(task_id, status)
                 self.task_store.update_task(task_id, status=status, result=result)
             except Exception:
