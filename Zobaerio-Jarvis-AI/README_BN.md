@@ -157,3 +157,8 @@ Settings-এ **AUTO SETUP FROM API KEY** চাপলে supported key prefix �
 ## নতুন: Local System Health Check
 
 AI model status panel থেকে **RUN SYSTEM HEALTH CHECK** চাপলে Python runtime, Windows platform, local 3D/branding asset, dependency, endpoint/model configuration এবং cloud API key আছে কি না পরীক্ষা করবে। Key-এর মান কখনও দেখাবে না—শুধু পাওয়া গেছে কি না জানাবে। Local Ollama endpoint-এর জন্য API key বাধ্যতামূলক নয়। প্রতিটি আইটেমে `PASS`, `WARN` বা `FAIL` দেখা যাবে এবং Refresh button থাকবে। এই check কোনো AI request পাঠায় না, microphone/speaker hardware test করে না, user file scan করে না এবং endpoint/key value দেখায় না। Network connection যাচাই করতে Settings-এর আলাদা provider connection test ব্যবহার করো।
+
+
+## Android / Tablet / PC Install ও Update
+
+Android phone/tablet, Windows tablet এবং PC-তে কীভাবে install করবে, GitHub update আর published release-এর পার্থক্য, এবং নিরাপদ update প্রক্রিয়ার জন্য [INSTALL_AND_UPDATE_GUIDE.md](INSTALL_AND_UPDATE_GUIDE.md) দেখো। **বর্তমানে native Android APK প্রকাশিত হয়নি এবং in-app automatic updater এখনো implement করা হয়নি।** GitHub-এ code merge হলেই installed copy নিজে থেকে update হয় না; নতুন version Release হিসেবে publish হলে installer দিয়ে update করতে হবে।
