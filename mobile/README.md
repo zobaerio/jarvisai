@@ -1,6 +1,6 @@
-# J.A.R.V.I.S Mobile (Android + iOS)
+# ORVIX AI Mobile (Android + iOS)
 
-This directory is the first Flutter client foundation for Android and iOS. The existing Python/Tkinter application remains the Windows desktop client.
+This directory contains the initial Flutter mobile client for ORVIX AI. The existing Python/Tkinter application remains the Windows desktop client.
 
 ## Current mobile capabilities
 

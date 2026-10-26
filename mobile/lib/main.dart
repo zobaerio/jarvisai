@@ -11,17 +11,17 @@ import 'provider_response.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const JarvisMobileApp());
+  runApp(const OrvixMobileApp());
 }
 
-class JarvisMobileApp extends StatelessWidget {
-  const JarvisMobileApp({super.key});
+class OrvixMobileApp extends StatelessWidget {
+  const OrvixMobileApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     const accent = Color(0xFF22D3EE);
     return MaterialApp(
-      title: 'J.A.R.V.I.S',
+      title: 'ORVIX AI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -295,7 +295,7 @@ class _ChatScreenState extends State<ChatScreen> {
             {
               'role': 'system',
               'content':
-                  'You are J.A.R.V.I.S, a helpful assistant. Be honest about capabilities. This mobile client cannot control the phone or the user’s Windows desktop. Never claim to have performed device actions unless a supported tool actually did so.',
+                  'You are ORVIX AI, a helpful assistant. Be honest about capabilities. This mobile client cannot control the phone or the user’s Windows desktop. Never claim to have performed device actions unless a supported tool actually did so.',
             },
             ..._messages.skip(_messages.length > 20 ? _messages.length - 20 : 0).map(
               (m) => {'role': m.role, 'content': m.text},
@@ -382,7 +382,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('J.A.R.V.I.S', style: TextStyle(fontWeight: FontWeight.w800)),
+            Text('ORVIX AI', style: TextStyle(fontWeight: FontWeight.w800)),
             Text('MOBILE AI ASSISTANT',
                 style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Color(0xFF22D3EE))),
           ],
@@ -503,7 +503,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _sendMessage(),
                             decoration: const InputDecoration(
-                              hintText: 'Message J.A.R.V.I.S…',
+                              hintText: 'Message ORVIX AI…',
                               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
                           ),
