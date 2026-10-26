@@ -2,7 +2,7 @@
   #define MyAppVersion "0.0.0"
 #endif
 
-#define MyAppName "J.A.R.V.I.S Desktop AI"
+#define MyAppName "ORVIX AI Desktop Assistant"
 #define MyAppPublisher "Zobaerio"
 #define MyAppExeName "JARVIS.exe"
 
