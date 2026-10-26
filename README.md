@@ -85,3 +85,8 @@ The **RUN SYSTEM HEALTH CHECK** control runs fast local preflight checks for the
 ## v1.7.2 reliability fix
 
 The cloud API-key health check now calls the secure keyring getter with its correct zero-argument signature. A regression test confirms that key availability is reported without displaying the secret value.
+
+
+## API key quick setup
+
+In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI, Groq, and Google Gemini API key formats, requests the identified provider's HTTPS model catalog, and selects a recognizable chat model. The key is stored using the existing Windows credential-store integration, not in the settings JSON. Unknown or ambiguous key formats are not sent to guessed providers; configure the provider's OpenAI-compatible base URL and model in Advanced Settings instead. This is not universal native-provider support: an API key alone cannot establish compatibility with every provider, and model discovery does not prove chat generation or tool calling works. After setup, save settings, test the connection, and verify a real chat/task. Provider billing and usage limits still apply.
