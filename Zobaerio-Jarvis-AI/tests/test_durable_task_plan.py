@@ -251,6 +251,29 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.store.update_task(source["id"], status="partial", result="Invalid plan order")
         self.assertIsNone(self.store.create_resumed_plan_task(source["id"]))
 
+    def test_resume_returns_atomic_fifo_hint_without_persisting_ui_metadata(self) -> None:
+        source = self.store.create_task("Source task")
+        plan = self.store.set_task_plan(source["id"], ["Create a file"], step_kinds=["state_change"])
+        self.store.update_plan_step(source["id"], plan["plan"][0]["id"], status="running")
+        self.store.update_plan_step(
+            source["id"],
+            plan["plan"][0]["id"],
+            status="unverified",
+            evidence="none",
+            verification_note="No verified result.",
+            outcome="partial",
+        )
+        self.store.update_task(source["id"], status="partial", result="Paused")
+        existing_queued = self.store.create_task("Already queued command")
+
+        resumed = self.store.create_resumed_plan_task(source["id"])
+        self.assertIsNotNone(resumed)
+        self.assertEqual(resumed["_queued_tasks_ahead"], 1)
+        persisted = self.store.get_task(resumed["id"])
+        self.assertNotIn("_queued_tasks_ahead", persisted)
+        queue = self.store.list_tasks(status="queued")
+        self.assertEqual([item["id"] for item in queue], [existing_queued["id"], resumed["id"]])
+
     def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
         active = self.store.create_task("Still running")
         self.store.update_task(active["id"], status="running")
