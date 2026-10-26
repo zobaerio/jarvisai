@@ -167,17 +167,19 @@ class JarvisDesktop:
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2")
         self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
+        # Build every referenced widget before attaching tooltips. Accessing the
+        # mode button or resize grip before these constructors run crashes startup.
+        self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
+        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 2))
+        self._floating_resize_grip = tk.Label(shell, text="◢", bg="#07111f", fg="#67e8f9", cursor="size_nw_se", font=("Segoe UI", 8))
+        self._floating_resize_grip.pack(side="right", padx=2, pady=(0, 1))
+        self._floating_resize_grip.bind("<ButtonPress-1>", self._floating_resize_start)
         self._bind_floating_tooltip(open_button, "Open the full J.A.R.V.I.S workspace")
         self._bind_floating_tooltip(hide_button, "Hide the floating assistant (Ctrl+Shift+J to restore)")
         self._bind_floating_tooltip(self._floating_mic, "Start voice listening; speech recognition may need microphone permission")
         self._bind_floating_tooltip(self._floating_mode_button, "Switch between compact Mini and Expanded controls")
         self._bind_floating_tooltip(self._floating_resize_grip, "Drag to resize the floating assistant")
         self._bind_floating_tooltip(orb, "Drag to move · Double-click to open · Right-click for options")
-        self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
-        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 2))
-        self._floating_resize_grip = tk.Label(shell, text="◢", bg="#07111f", fg="#67e8f9", cursor="size_nw_se", font=("Segoe UI", 8))
-        self._floating_resize_grip.pack(side="right", padx=2, pady=(0, 1))
-        self._floating_resize_grip.bind("<ButtonPress-1>", self._floating_resize_start)
         self._floating_resize_grip.bind("<B1-Motion>", self._floating_resize_move)
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
