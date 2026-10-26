@@ -271,8 +271,9 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(resumed["_queued_tasks_ahead"], 1)
         persisted = self.store.get_task(resumed["id"])
         self.assertNotIn("_queued_tasks_ahead", persisted)
-        queue = self.store.list_tasks(status="queued")
-        self.assertEqual([item["id"] for item in queue], [existing_queued["id"], resumed["id"]])
+        self.assertEqual(self.store.queued_count(), 2)
+        next_queued = self.store.next_queued_task()
+        self.assertEqual(next_queued["id"], existing_queued["id"])
 
     def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
         active = self.store.create_task("Still running")
