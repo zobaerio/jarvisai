@@ -38,3 +38,22 @@ jobs:
           Path("avatar_studio_check.mjs").write_text(match.group(1), encoding="utf-8")
           PY
           node --check avatar_studio_check.mjs
+
+      - name: Set up Flutter for mobile client
+        if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve mobile dependencies
+        if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+        working-directory: mobile
+        run: flutter pub get
+      - name: Analyze mobile Dart source
+        if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+        working-directory: mobile
+        run: flutter analyze
+      - name: Test mobile provider validation
+        if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+        working-directory: mobile
+        run: flutter test
