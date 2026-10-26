@@ -119,8 +119,8 @@ class JarvisDesktop:
         self._floating_hud.configure(bg="#07111f")
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        hud_w = self._bounded_int(self.settings.get("floating_hud_width", 92), 92, 92, 240)
-        hud_h = self._bounded_int(self.settings.get("floating_hud_height", 164), 164, 104, 320)
+        hud_w = self._bounded_int(self.settings.get("floating_hud_width", 92), 92, 92, 320)
+        hud_h = self._bounded_int(self.settings.get("floating_hud_height", 164), 164, 104, 400)
         hud_x, hud_y = bounded_window_origin(
             self.settings.get("floating_hud_x", 24),
             self.settings.get("floating_hud_y", 120),
