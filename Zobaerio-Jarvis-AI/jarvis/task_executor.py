@@ -148,16 +148,36 @@ def execute_task_plan(
             break
 
         if outcome == "failed":
-            task_store.update_plan_step(
-                task_id,
-                step_id,
-                status="failed",
-                evidence="none",
-                verification_note="The assistant reported a failure while executing this step.",
-                outcome="failed",
-            )
-            final_status = "partial" if completed_count or total_tool_calls else "failed"
-            stop_reason = "A plan step failed; later steps were not started."
+            if tool_count > 0 or tool_failures:
+                # Once any tool has been called, a generic agent failure cannot prove that
+                # a state-changing action did not happen. Keep the step unverified.
+                task_store.update_plan_step(
+                    task_id,
+                    step_id,
+                    status="unverified",
+                    evidence="tool_result" if tool_count else "none",
+                    verification_note=(
+                        "The agent reported a failure after tool activity; the real-world state "
+                        "may be partial and no positive verification was recorded."
+                    ),
+                    outcome="partial",
+                )
+                final_status = "partial"
+                stop_reason = (
+                    "A step failed after tool activity; later steps were not started because "
+                    "the current state may be partial or uncertain."
+                )
+            else:
+                task_store.update_plan_step(
+                    task_id,
+                    step_id,
+                    status="failed",
+                    evidence="none",
+                    verification_note="The assistant reported a failure before any tool action was recorded.",
+                    outcome="failed",
+                )
+                final_status = "partial" if completed_count else "failed"
+                stop_reason = "A plan step failed; later steps were not started."
             break
 
         if outcome == "partial" or tool_failures:
