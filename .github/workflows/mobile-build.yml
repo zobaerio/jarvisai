@@ -58,7 +58,7 @@ jobs:
           name: jarvis-mobile-android-debug
           path: mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
 
   ios-build-check:
     name: iOS no-code-sign build check
