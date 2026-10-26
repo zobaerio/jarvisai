@@ -88,5 +88,22 @@ class DurableSettingsTests(unittest.TestCase):
         self.assertEqual(primary["model"], backup["model"])
 
 
+    def test_floating_hud_preferences_survive_save_and_load(self) -> None:
+        preferences = {
+            "floating_hud_x": 310,
+            "floating_hud_y": 180,
+            "floating_hud_topmost": False,
+            "floating_hud_mini": True,
+            "floating_hud_width": 240,
+            "floating_hud_height": 280,
+            "floating_hud_opacity": 0.85,
+        }
+        settings.save_settings({**settings.DEFAULTS, **preferences})
+        loaded = settings.load_settings()
+        for key, value in preferences.items():
+            self.assertEqual(loaded[key], value, key)
+
+
+
 if __name__ == "__main__":
     unittest.main()
