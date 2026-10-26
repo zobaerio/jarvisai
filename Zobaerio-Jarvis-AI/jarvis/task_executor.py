@@ -76,7 +76,11 @@ def execute_task_plan(
             report(f"Skipping previously completed plan step {index + 1}/{len(plan_steps)}")
             continue
         if saved_status != "pending":
-            final_status = "partial" if completed_count else "failed"
+            final_status = (
+                "partial"
+                if completed_count or saved_status in {"unverified", "running", "skipped"}
+                else "failed"
+            )
             stop_reason = (
                 f"Plan step {index + 1} has status {saved_status.upper()} and was not explicitly "
                 "re-queued. No action was replayed."
