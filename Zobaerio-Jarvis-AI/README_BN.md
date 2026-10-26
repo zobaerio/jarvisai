@@ -34,6 +34,10 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 - Desktop window ছোট করলে ডান পাশের utility panel লুকিয়ে যায়, আর top navigation-এর decorative label collapse হয়—ফলে মূল task workspace বড় জায়গা পায়।
 - Minimum window size 820×560; এটি এখনো desktop software। Android/phone installer পরে আলাদা phase-এ হবে।
 
+## Android/iOS Mobile Status
+
+Android/iOS-এর প্রাথমিক Flutter client `mobile/`-এ আছে। এটি এখন chat ও secure provider settings সমর্থন করার ভিত্তি; Windows desktop agent-এর সব feature-এর সমতুল্য নয়, এবং signed APK/AAB বা iOS App Store build এখনো release করা হয়নি। বিস্তারিত `mobile/README.md` ও `FEATURE_STATUS.md`-এ আছে।
+
 ## Install
 1. Windows 11-এ Python 3.12.x 64-bit ইনস্টল করো: https://www.python.org/downloads/release/python-31210/
 2. ZIP Extract করো অথবা repository clone করো।
