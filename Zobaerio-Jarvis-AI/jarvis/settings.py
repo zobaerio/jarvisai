@@ -24,6 +24,8 @@ DEFAULTS: dict[str, Any] = {
     "floating_hud_y": 120,
     "floating_hud_topmost": True,
     "floating_hud_mini": False,
+    "floating_hud_width": 92,
+    "floating_hud_height": 164,
 }
 
 
