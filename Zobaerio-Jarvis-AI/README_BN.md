@@ -142,7 +142,7 @@ Build script আলাদা `.packaging-venv` ব্যবহার করে, 
 
 ## নতুন: API Key Only Quick Setup
 
-Settings-এ **AUTO SETUP FROM API KEY** চাপলে supported API key prefix থেকে OpenRouter, OpenAI বা Groq provider শনাক্ত করে, শুধু সেই provider-এর HTTPS endpoint-এ key দিয়ে model catalog চেক করে এবং পরিচিত chat model auto-select করে। Key কখনও unrelated providers-এ পরীক্ষা করতে পাঠানো হয় না; key Windows Credential Manager-এ রাখা হয়, settings JSON-এ নয়। API key অবশ্যই ওই provider-এর নিজের official account থেকে নিতে হবে, এবং provider-এর usage/billing rules প্রযোজ্য।
+Settings-এ **AUTO SETUP FROM API KEY** চাপলে supported API key prefix থেকে OpenRouter, OpenAI, Groq বা Google Gemini provider শনাক্ত করে, শুধু সেই provider-এর HTTPS endpoint-এ key দিয়ে model catalog চেক করে এবং পরিচিত chat model auto-select করে। Key কখনও unrelated providers-এ পরীক্ষা করতে পাঠানো হয় না; key Windows Credential Manager-এ রাখা হয়, settings JSON-এ নয়। API key অবশ্যই ওই provider-এর নিজের official account থেকে নিতে হবে, এবং provider-এর usage/billing rules প্রযোজ্য।
 
 সব provider-এর API key একই format নয়; তাই arbitrary/unknown provider-কে key দেখেই নিরাপদে শনাক্ত করা যায় না। এমন key হলে Advanced Settings-এ provider endpoint/model manual configure করতে হবে। Auto setup সফল দেখালেও **Save Settings** করতে হবে, তারপর **Test Connection** ও বাস্তব chat/task চালিয়ে যাচাই করতে হবে। Model catalog endpoint-এ থাকা মানেই tool calling বা প্রতিটি AI capability কাজ করবে—এমন নিশ্চয়তা নয়।
 

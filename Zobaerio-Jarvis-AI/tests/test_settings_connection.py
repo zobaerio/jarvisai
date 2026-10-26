@@ -76,6 +76,44 @@ class ApiEndpointValidationTests(unittest.TestCase):
         )
 
     @patch("requests.get")
+    def test_auto_setup_detects_google_gemini_and_selects_available_model(self, get) -> None:
+        response = Mock(status_code=200)
+        response.json.return_value = {"data": [{"id": "gemini-2.5-flash"}, {"id": "gemini-embedding-001"}]}
+        get.return_value = response
+        result = auto_configure_from_api_key("AIza-test-secret")
+        self.assertEqual(result["provider"], "Google Gemini")
+        self.assertEqual(result["api_base_url"], "https://generativelanguage.googleapis.com/v1beta/openai")
+        self.assertEqual(result["model"], "gemini-2.5-flash")
+        get.assert_called_once_with(
+            "https://generativelanguage.googleapis.com/v1beta/openai/models",
+            headers={"Accept": "application/json", "Authorization": "Bearer AIza-test-secret"},
+            timeout=(3, 8.0),
+        )
+
+
+    @patch("requests.get")
+    def test_auto_setup_fallback_skips_embedding_models(self, get) -> None:
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "data": [
+                {"id": "gemini-embedding-001"},
+                {"id": "gemini-2.5-pro-preview"},
+                {"id": "text-embedding-3-large"},
+            ]
+        }
+        get.return_value = response
+        result = auto_configure_from_api_key("AIza-test-secret")
+        self.assertEqual(result["model"], "gemini-2.5-pro-preview")
+
+    @patch("requests.get")
+    def test_auto_setup_rejects_catalog_without_recognizable_chat_model(self, get) -> None:
+        response = Mock(status_code=200)
+        response.json.return_value = {"data": [{"id": "gemini-embedding-001"}]}
+        get.return_value = response
+        with self.assertRaisesRegex(ValueError, "no safely recognizable chat model"):
+            auto_configure_from_api_key("AIza-test-secret")
+
+    @patch("requests.get")
     def test_auto_setup_never_probes_unknown_provider_with_secret(self, get) -> None:
         with self.assertRaisesRegex(ValueError, "could not be identified safely"):
             auto_configure_from_api_key("unknown-provider-secret")
