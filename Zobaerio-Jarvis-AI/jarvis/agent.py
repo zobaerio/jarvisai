@@ -31,10 +31,19 @@ STATE_CHANGING_TOOL_NAMES = frozenset({
 
 def _verification_target(kind: object, target: object, location: object = "") -> tuple[str, str, str] | None:
     """Normalize a local verification target without storing or exposing it."""
-    safe_kind = " ".join(str(kind or "").casefold().split())
-    safe_target = " ".join(str(target or "").replace("\\", "/").split()).strip(" /").casefold()
-    safe_location = " ".join(str(location or "").casefold().split())
-    if safe_kind not in {"window", "file", "folder"} or not safe_target:
+    raw_target = str(target or "").replace("\\", "/")
+    raw_location = str(location or "")
+    # Refuse unusually large identifiers rather than truncating them into a false match.
+    if len(raw_target) > 512 or len(raw_location) > 128:
+        return None
+    safe_kind = " ".join(str(kind or "").casefold().split())[:32]
+    safe_target = " ".join(raw_target.split()).strip(" /").casefold()
+    safe_location = " ".join(raw_location.casefold().split())
+    if (
+        safe_kind not in {"window", "file", "folder"}
+        or not safe_target
+        or len(safe_target) > 260
+    ):
         return None
     return safe_kind, safe_target, safe_location if safe_kind != "window" else ""
 
@@ -75,7 +84,12 @@ def _expected_verification_targets(name: str, args: dict[str, Any]) -> set[tuple
         return target("folder", args.get("name"), location)
     if name == "create_folder_structure":
         paths = args.get("folder_paths")
-        if not isinstance(paths, list) or not paths:
+        if (
+            not isinstance(paths, list)
+            or not paths
+            or len(paths) > 100
+            or any(not isinstance(path, str) or len(path) > 260 for path in paths)
+        ):
             return set()
         checks: set[tuple[str, str, str]] = set()
         for path in paths:
