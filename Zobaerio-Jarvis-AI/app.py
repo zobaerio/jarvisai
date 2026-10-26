@@ -115,22 +115,27 @@ class JarvisDesktop:
         self._floating_drag_origin: tuple[int, int] | None = None
         self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
         self._floating_save_after_id: str | None = None
+        self._floating_mini = bool(self.settings.get("floating_hud_mini", False))
 
         shell = tk.Frame(self._floating_hud, bg="#07111f",
                          highlightbackground=ACCENT, highlightthickness=2, bd=0)
         shell.pack(fill="both", expand=True)
         orb = tk.Canvas(shell, width=72, height=72, bg="#07111f",
                         highlightthickness=0, bd=0, cursor="fleur")
+        self._floating_orb = orb
         orb.pack(padx=8, pady=(7, 0))
         orb.create_oval(5, 5, 67, 67, outline="#164e63", width=5)
         orb.create_oval(11, 11, 61, 61, outline=ACCENT, width=2)
         orb.create_oval(19, 19, 53, 53, fill="#0e2c3c", outline="#67e8f9", width=1)
         orb.create_text(36, 36, text="J", fill="#e0fbff",
                         font=("Segoe UI Black", 25, "bold"))
+        self._floating_status_dot = orb.create_oval(53, 5, 66, 18, fill="#64748b", outline="#07111f", width=2)
         label = tk.Label(shell, text="J.A.R.V.I.S", bg="#07111f", fg=ACCENT,
                          font=("Segoe UI", 8, "bold"), cursor="fleur")
+        self._floating_label = label
         label.pack(pady=(1, 0))
         controls = tk.Frame(shell, bg="#07111f")
+        self._floating_controls = controls
         controls.pack(fill="x", padx=4, pady=(1, 4))
         tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
                   bg="#123047", fg=TEXT, activebackground="#1b5268",
@@ -140,17 +145,61 @@ class JarvisDesktop:
                   bg="#271b2a", fg="#fda4af", activebackground="#51212d",
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
-        tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
+        self._floating_mic = tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
                   bg="#0e2c3c", fg="#a5f3fc", activebackground="#164e63",
                   activeforeground=TEXT, relief="flat", bd=0,
-                  font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2").pack(fill="x", padx=7, pady=(0, 6))
+                  font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2")
+        self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
+        self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
+        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 5))
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
             widget.bind("<Double-Button-1>", lambda _event: self._show_main_from_floating())
             widget.bind("<Button-3>", self._toggle_floating_pin)
         self._floating_hud.protocol("WM_DELETE_WINDOW", self._hide_floating_hud)
+        if self._floating_mini:
+            self._apply_floating_mode()
         self._floating_hud.deiconify()
+        self._refresh_floating_status()
+
+    def _toggle_floating_mode(self) -> None:
+        """Switch between a compact orb and the expanded floating controls."""
+        self._floating_mini = not self._floating_mini
+        self._apply_floating_mode()
+        self._schedule_floating_preferences_save()
+
+    def _apply_floating_mode(self) -> None:
+        if self._floating_mini:
+            self._floating_label.pack_forget()
+            self._floating_controls.pack_forget()
+            self._floating_mic.pack_forget()
+            self._floating_mode_button.configure(text="EXPAND")
+            self._floating_hud.geometry(f"80x104+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+            self._floating_orb.pack_configure(padx=3, pady=(3, 0))
+        else:
+            self._floating_orb.pack_configure(padx=8, pady=(7, 0))
+            self._floating_label.pack(pady=(1, 0))
+            self._floating_controls.pack(fill="x", padx=4, pady=(1, 4))
+            self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
+            self._floating_mode_button.configure(text="MINI")
+            self._floating_hud.geometry(f"92x164+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+
+    def _refresh_floating_status(self) -> None:
+        """Reflect local assistant activity without claiming remote provider health."""
+        try:
+            if not self._floating_hud.winfo_exists():
+                return
+            if getattr(self, "_busy", False):
+                color = "#f59e0b"  # task running
+            elif getattr(self, "wake_enabled", False):
+                color = "#22d3ee"  # wake-word listener enabled
+            else:
+                color = "#34d399"  # idle / ready
+            self._floating_orb.itemconfigure(self._floating_status_dot, fill=color)
+            self._floating_hud.after(900, self._refresh_floating_status)
+        except tk.TclError:
+            return
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
@@ -188,6 +237,7 @@ class JarvisDesktop:
             self.settings["floating_hud_x"] = self._bounded_int(self._floating_hud.winfo_x(), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
             self.settings["floating_hud_y"] = self._bounded_int(self._floating_hud.winfo_y(), 120, 0, max(0, self.root.winfo_screenheight() - 125))
             self.settings["floating_hud_topmost"] = bool(self._floating_pin)
+            self.settings["floating_hud_mini"] = bool(self._floating_mini)
             save_settings(self.settings)
         except (tk.TclError, OSError, ValueError):
             # A preferences write failure must never interrupt the assistant UI.
