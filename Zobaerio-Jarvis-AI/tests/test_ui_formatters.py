@@ -40,7 +40,7 @@ def test_bounded_int_sanitizes_invalid_fallback_values():
     assert bounded_int(None, 10, 80, 320) == 80
 
 
-from jarvis.ui_formatters import bounded_float
+from jarvis.ui_formatters import bounded_float, bounded_window_origin
 
 
 def test_bounded_float_clamps_opacity_to_supported_range():
@@ -63,3 +63,17 @@ def test_bounded_float_sanitizes_invalid_fallback_values():
     assert bounded_float(None, "not-a-number", 0.55, 1.0) == 0.55
     assert bounded_float(None, 5.0, 0.55, 1.0) == 1.0
     assert bounded_float(None, 0.1, 0.55, 1.0) == 0.55
+
+
+
+def test_bounded_window_origin_keeps_the_full_window_on_screen():
+    assert bounded_window_origin(1300, 700, 240, 320, 1366, 768) == (1126, 448)
+    assert bounded_window_origin(-20, -50, 92, 164, 1366, 768) == (0, 0)
+
+
+def test_bounded_window_origin_uses_safe_fallback_for_invalid_saved_position():
+    assert bounded_window_origin("invalid", None, 92, 164, 1366, 768) == (24, 120)
+
+
+def test_bounded_window_origin_handles_window_larger_than_screen():
+    assert bounded_window_origin(500, 500, 500, 400, 320, 240) == (0, 0)
