@@ -381,6 +381,103 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
+    def create_resumed_plan_task(self, source_task_id: str) -> dict[str, Any] | None:
+        """Create a new queued task from an explicitly confirmed incomplete plan.
+
+        Completed steps keep their evidence and are skipped; every non-completed step
+        is reset to pending in the new record. The source record remains untouched.
+        Callers must obtain an explicit user confirmation before invoking this method.
+        """
+        with self._lock:
+            rows = self._read()
+            source = next((row for row in rows if row.get("id") == source_task_id), None)
+            if source is None or source.get("status") not in {"partial", "failed", "cancelled"}:
+                return None
+            source_plan = source.get("plan")
+            if not isinstance(source_plan, list) or not source_plan or len(source_plan) > MAX_STEPS:
+                return None
+
+            validated: list[dict[str, Any]] = []
+            valid_statuses = {"pending", "running", "completed", "failed", "skipped", "unverified"}
+            valid_kinds = {"response", "read_only", "state_change", "unknown"}
+            for item in source_plan:
+                if not isinstance(item, dict):
+                    return None
+                title = item.get("title")
+                step_id = item.get("id")
+                status = item.get("status")
+                kind = item.get("kind", "unknown")
+                if (
+                    not isinstance(title, str)
+                    or not title.strip()
+                    or len(title) > 240
+                    or not isinstance(step_id, str)
+                    or not step_id
+                    or not isinstance(status, str)
+                    or status not in valid_statuses
+                    or not isinstance(kind, str)
+                    or kind not in valid_kinds
+                ):
+                    return None
+                validated.append(item)
+
+            first_unfinished = next(
+                (i for i, item in enumerate(validated) if item.get("status") != "completed"),
+                None,
+            )
+            if first_unfinished is None:
+                return None
+            # Don't skip a failed/uncertain step and start later actions out of order.
+            if validated[first_unfinished].get("status") not in {
+                "pending", "running", "failed", "skipped", "unverified"
+            }:
+                return None
+
+            now = _now()
+            resumed_plan: list[dict[str, Any]] = []
+            for item in validated:
+                step = dict(item)
+                step["id"] = uuid.uuid4().hex[:12]
+                step["kind"] = item.get("kind", "unknown")
+                attempts = item.get("attempts", 0)
+                step["attempts"] = attempts if type(attempts) is int and 0 <= attempts <= 999 else 0
+                if item.get("status") == "completed":
+                    # Preserve verified completion evidence, but generate a new step ID
+                    # so audit records from the old task cannot attach to this record.
+                    step["status"] = "completed"
+                else:
+                    step["status"] = "pending"
+                    step["updated_at"] = now
+                    for key in ("started_at", "finished_at", "evidence", "verification_note", "outcome"):
+                        step.pop(key, None)
+                resumed_plan.append(step)
+
+            command = str(source.get("command", "")).strip()[:MAX_COMMAND_LENGTH]
+            if not command:
+                return None
+            new_id = uuid.uuid4().hex[:12]
+            note = (
+                f"Explicitly resumed from task #{source_task_id}. Previously completed plan steps "
+                "were carried forward and will not be replayed; confirm any uncertain side effects."
+            )
+            record: dict[str, Any] = {
+                "id": new_id,
+                "command": command,
+                "status": "queued",
+                "created_at": now,
+                "updated_at": now,
+                "finished_at": None,
+                "result": "",
+                "steps": [{"time": now, "text": note[:240]}],
+                "actions": [],
+                "process_id": os.getpid(),
+                "plan": resumed_plan,
+                "resumed_from_task_id": source_task_id,
+            }
+            rows.append(record)
+            self._write(rows[-MAX_TASKS:])
+            return dict(record)
+
     def update_plan_step(
         self,
         task_id: str,
