@@ -32,6 +32,14 @@ def test_bounded_int_handles_string_integer_settings():
     assert bounded_int("240", 92, 80, 320) == 240
 
 
+def test_bounded_int_sanitizes_invalid_fallback_values():
+    assert bounded_int("invalid", "not-a-number", 80, 320) == 80
+    assert bounded_int(None, float("inf"), 80, 320) == 80
+    assert bounded_int(None, float("-inf"), 80, 320) == 80
+    assert bounded_int(None, 500, 80, 320) == 320
+    assert bounded_int(None, 10, 80, 320) == 80
+
+
 from jarvis.ui_formatters import bounded_float
 
 
