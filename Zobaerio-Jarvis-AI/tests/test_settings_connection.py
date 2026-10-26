@@ -114,6 +114,28 @@ class ApiEndpointValidationTests(unittest.TestCase):
             auto_configure_from_api_key("AIza-test-secret")
 
     @patch("requests.get")
+    def test_auto_setup_prefers_current_groq_models_over_retired_ids(self, get) -> None:
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "data": [
+                {"id": "llama-3.3-70b-versatile"},
+                {"id": "llama-3.1-8b-instant"},
+                {"id": "openai/gpt-oss-120b"},
+                {"id": "openai/gpt-oss-20b"},
+            ]
+        }
+        get.return_value = response
+        result = auto_configure_from_api_key("gsk-test-secret")
+        self.assertEqual(result["provider"], "Groq")
+        self.assertEqual(result["model"], "openai/gpt-oss-120b")
+        self.assertEqual(result["api_base_url"], "https://api.groq.com/openai/v1")
+        get.assert_called_once_with(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Accept": "application/json", "Authorization": "Bearer gsk-test-secret"},
+            timeout=(3, 8.0),
+        )
+
+    @patch("requests.get")
     def test_auto_setup_detects_xai_and_selects_available_grok_model(self, get) -> None:
         response = Mock(status_code=200)
         response.json.return_value = {"data": [{"id": "grok-4.7"}, {"id": "grok-3-mini"}]}
