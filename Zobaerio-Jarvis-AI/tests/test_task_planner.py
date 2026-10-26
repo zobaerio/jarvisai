@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan, format_plan_guidance, should_generate_task_plan
+from jarvis.task_planner import MAX_PLAN_STEPS, parse_plan_response, generate_task_plan, format_plan_guidance, format_plan_step_guidance, should_generate_task_plan
 
 
 def response_with(content: str) -> dict:
@@ -64,6 +64,24 @@ class TaskPlannerTests(unittest.TestCase):
         self.assertIn("1. Inspect inputs", result)
         self.assertIn("2. Verify output", result)
         self.assertIn("existing safety/approval rules", result)
+
+    def test_step_guidance_focuses_one_step_and_preserves_safety_rules(self) -> None:
+        original = "Create a report and verify the output"
+        result = format_plan_step_guidance(
+            original,
+            ["Inspect inputs", "Create draft", "Verify output"],
+            1,
+        )
+        self.assertIn("ORIGINAL USER REQUEST: " + original, result)
+        self.assertIn("ACTIVE STEP 2/3: Create draft", result)
+        self.assertIn("1. Inspect inputs", result)
+        self.assertIn("3. Verify output", result)
+        self.assertIn("Execute only the ACTIVE STEP", result)
+        self.assertIn("verify_local_action", result)
+        self.assertIn("approval, privacy, and safety", result)
+        self.assertFalse(result.startswith(original))
+        with self.assertRaises(ValueError):
+            format_plan_step_guidance(original, ["Only step"], 1)
 
     def test_plan_guidance_bounds_and_filters_titles(self) -> None:
         result = format_plan_guidance("Do work", [" A  step ", "", "B" * 500, 123])
