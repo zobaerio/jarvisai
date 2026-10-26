@@ -87,7 +87,7 @@ class DurableTaskPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.update_plan_step(task["id"], step_id, status="running")
 
-    def test_finalizing_task_marks_only_unfinished_plan_steps_unverified(self) -> None:
+    def test_finalizing_task_marks_active_steps_unverified_and_pending_steps_skipped(self) -> None:
         task = self.store.create_task("Prepare a report")
         plan = self.store.set_task_plan(task["id"], ["Inspect inputs", "Create draft"])
         first_id = plan["plan"][0]["id"]
@@ -96,13 +96,14 @@ class DurableTaskPlanTests(unittest.TestCase):
 
         finalized = self.store.finalize_task_plan(task["id"], "partial")
         self.assertEqual(finalized["plan"][0]["status"], "completed")
-        self.assertEqual(finalized["plan"][1]["status"], "unverified")
+        self.assertEqual(finalized["plan"][1]["status"], "skipped")
         self.assertEqual(finalized["plan"][1]["outcome"], "partial")
         self.assertIsNotNone(finalized["plan"][0]["started_at"])
         self.assertIsNotNone(finalized["plan"][0]["finished_at"])
         self.assertNotIn("started_at", finalized["plan"][1])
         self.assertIsNotNone(finalized["plan"][1]["finished_at"])
-        self.assertIn("without a dedicated", finalized["plan"][1]["verification_note"])
+        self.assertIn("before this step began", finalized["plan"][1]["verification_note"])
+        self.assertEqual(finalized["plan"][1]["evidence"], "none")
 
     def test_running_step_can_be_marked_unverified_with_bounded_evidence(self) -> None:
         task = self.store.create_task("Run and verify")
@@ -224,7 +225,7 @@ class DurableTaskPlanTests(unittest.TestCase):
         # The original record stays terminal and unchanged.
         original = self.store.get_task(source["id"])
         self.assertEqual(original["status"], "partial")
-        self.assertEqual([step["status"] for step in original["plan"]], ["completed", "unverified", "unverified"])
+        self.assertEqual([step["status"] for step in original["plan"]], ["completed", "unverified", "skipped"])
 
     def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
         active = self.store.create_task("Still running")
