@@ -50,6 +50,22 @@ jobs:
       - name: Run mobile tests
         working-directory: mobile
         run: flutter test
+      - name: Install Android NDK with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          package="ndk;28.2.13676358"
+          for attempt in 1 2 3; do
+            if yes | "$SDKMANAGER" --install "$package"; then
+              exit 0
+            fi
+            echo "::warning::NDK installation attempt ${attempt} failed; retrying after a short delay."
+            rm -rf "${ANDROID_HOME}/ndk/28.2.13676358"
+            sleep $((attempt * 10))
+          done
+          echo "::error::Could not install Android NDK after 3 attempts."
+          exit 1
       - name: Build installable debug APK
         working-directory: mobile
         run: flutter build apk --debug
