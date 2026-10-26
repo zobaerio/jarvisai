@@ -202,14 +202,7 @@ class DurableTaskPlanTests(unittest.TestCase):
             verification_note="The file state was not verified.",
             outcome="partial",
         )
-        self.store.update_plan_step(
-            source["id"],
-            future["id"],
-            status="unverified",
-            evidence="none",
-            verification_note="Task stopped before this step.",
-            outcome="partial",
-        )
+        self.store.finalize_task_plan(source["id"], "partial")
         self.store.update_task(source["id"], status="partial", result="Stopped before verification.")
 
         resumed = self.store.create_resumed_plan_task(source["id"])
