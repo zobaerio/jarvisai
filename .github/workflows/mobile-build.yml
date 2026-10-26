@@ -1,6 +1,7 @@
 name: Mobile Build Validation
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - "mobile/**"
