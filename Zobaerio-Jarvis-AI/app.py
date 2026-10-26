@@ -86,6 +86,7 @@ class JarvisDesktop:
         self._prepare_avatar_images()
         self._build_ui()
         self._build_floating_hud()
+        self.root.bind_all("<Control-Shift-j>", self._floating_hud_hotkey)
         self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. তিনটি character profile থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
         self._write_message("SYSTEM", "নিরাপত্তা: file read/create/copy/move/rename বা Recycle Bin-এ পাঠানোর আগে আমি নির্দিষ্ট action-এর অনুমতি চাইব। File read করলে contents AI provider-এ যেতে পারে। arbitrary PowerShell/terminal command চালানো হয় না।", "system")
         if self._startup_recovered_task_count:
@@ -107,14 +108,17 @@ class JarvisDesktop:
         """Create a compact, draggable always-on-top J.A.R.V.I.S orb."""
         self._floating_hud = tk.Toplevel(self.root)
         self._floating_hud.withdraw()
+        self._floating_hud.title("J.A.R.V.I.S Floating Assistant")
         self._floating_hud.overrideredirect(True)
-        self._floating_hud.attributes("-topmost", self._floating_pin if hasattr(self, "_floating_pin") else True)
+        self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
+        self._floating_hud.attributes("-topmost", self._floating_pin)
         self._floating_hud.configure(bg="#07111f")
         hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
-        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 125))
-        self._floating_hud.geometry(f"92x116+{hud_x}+{hud_y}")
+        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
+        hud_w = self._bounded_int(self.settings.get("floating_hud_width", 92), 92, 92, 240)
+        hud_h = self._bounded_int(self.settings.get("floating_hud_height", 164), 164, 104, 320)
+        self._floating_hud.geometry(f"{hud_w}x{hud_h}+{hud_x}+{hud_y}")
         self._floating_drag_origin: tuple[int, int] | None = None
-        self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
         self._floating_save_after_id: str | None = None
         self._floating_mini = bool(self.settings.get("floating_hud_mini", False))
 
@@ -122,7 +126,9 @@ class JarvisDesktop:
                          highlightbackground=ACCENT, highlightthickness=2, bd=0)
         shell.pack(fill="both", expand=True)
         orb = tk.Canvas(shell, width=72, height=72, bg="#07111f",
-                        highlightthickness=0, bd=0, cursor="fleur")
+                        highlightthickness=0, bd=0, cursor="fleur",
+                        takefocus=True)
+        orb.configure(name="jarvis_orb")
         self._floating_orb = orb
         orb.pack(padx=8, pady=(7, 0))
         orb.create_oval(5, 5, 67, 67, outline="#164e63", width=5)
@@ -133,31 +139,41 @@ class JarvisDesktop:
         self._floating_status_dot = orb.create_oval(53, 5, 66, 18, fill="#64748b", outline="#07111f", width=2)
         label = tk.Label(shell, text="J.A.R.V.I.S", bg="#07111f", fg=ACCENT,
                          font=("Segoe UI", 8, "bold"), cursor="fleur")
+        label.configure(takefocus=True)
         self._floating_label = label
         label.pack(pady=(1, 0))
+        self._floating_task_status = tk.Label(shell, text="READY", bg="#07111f", fg="#86efac", font=("Segoe UI", 7, "bold"))
+        self._floating_task_status.pack(pady=(0, 2))
         controls = tk.Frame(shell, bg="#07111f")
         self._floating_controls = controls
         controls.pack(fill="x", padx=4, pady=(1, 4))
-        tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
+        open_button = tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
                   bg="#123047", fg=TEXT, activebackground="#1b5268",
                   activeforeground=TEXT, relief="flat", bd=0,
-                  font=("Segoe UI", 7, "bold"), padx=3, cursor="hand2").pack(side="left", expand=True, fill="x")
-        tk.Button(controls, text="×", command=self._hide_floating_hud,
+                  font=("Segoe UI", 7, "bold"), padx=3, cursor="hand2")
+        open_button.pack(side="left", expand=True, fill="x")
+        hide_button = tk.Button(controls, text="×", command=self._hide_floating_hud,
                   bg="#271b2a", fg="#fda4af", activebackground="#51212d",
                   activeforeground=TEXT, relief="flat", bd=0,
-                  font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
+                  font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2")
+        hide_button.configure(takefocus=True)
+        hide_button.pack(side="right")
         self._floating_mic = tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
                   bg="#0e2c3c", fg="#a5f3fc", activebackground="#164e63",
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2")
         self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
         self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
-        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 5))
+        self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 2))
+        self._floating_resize_grip = tk.Label(shell, text="◢", bg="#07111f", fg="#67e8f9", cursor="size_nw_se", font=("Segoe UI", 8))
+        self._floating_resize_grip.pack(side="right", padx=2, pady=(0, 1))
+        self._floating_resize_grip.bind("<ButtonPress-1>", self._floating_resize_start)
+        self._floating_resize_grip.bind("<B1-Motion>", self._floating_resize_move)
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
             widget.bind("<Double-Button-1>", lambda _event: self._show_main_from_floating())
-            widget.bind("<Button-3>", self._toggle_floating_pin)
+            widget.bind("<Button-3>", self._show_floating_context_menu)
         self._floating_hud.protocol("WM_DELETE_WINDOW", self._hide_floating_hud)
         if self._floating_mini:
             self._apply_floating_mode()
@@ -173,6 +189,7 @@ class JarvisDesktop:
     def _apply_floating_mode(self) -> None:
         if self._floating_mini:
             self._floating_label.pack_forget()
+            self._floating_task_status.pack_forget()
             self._floating_controls.pack_forget()
             self._floating_mic.pack_forget()
             self._floating_mode_button.configure(text="EXPAND")
@@ -181,6 +198,7 @@ class JarvisDesktop:
         else:
             self._floating_orb.pack_configure(padx=8, pady=(7, 0))
             self._floating_label.pack(pady=(1, 0))
+            self._floating_task_status.pack(pady=(0, 2))
             self._floating_controls.pack(fill="x", padx=4, pady=(1, 4))
             self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
             self._floating_mode_button.configure(text="MINI")
@@ -193,14 +211,48 @@ class JarvisDesktop:
                 return
             if getattr(self, "_busy", False):
                 color = "#f59e0b"  # task running
+                self._floating_task_status.configure(text="TASK RUNNING", fg="#fcd34d")
             elif getattr(self, "wake_enabled", False):
                 color = "#22d3ee"  # wake-word listener enabled
+                self._floating_task_status.configure(text="LISTENING", fg="#67e8f9")
             else:
                 color = "#34d399"  # idle / ready
+                self._floating_task_status.configure(text="READY", fg="#86efac")
             self._floating_orb.itemconfigure(self._floating_status_dot, fill=color)
             self._floating_hud.after(900, self._refresh_floating_status)
         except tk.TclError:
             return
+
+    def _floating_resize_start(self, event: tk.Event) -> None:
+        self._floating_resize_origin = (event.x_root, event.y_root, self._floating_hud.winfo_width(), self._floating_hud.winfo_height())
+
+    def _floating_resize_move(self, event: tk.Event) -> None:
+        if not hasattr(self, "_floating_resize_origin"):
+            return
+        sx, sy, sw, sh = self._floating_resize_origin
+        minimum_w, minimum_h = ((80, 104) if self._floating_mini else (92, 150))
+        max_w = max(minimum_w, min(320, self.root.winfo_screenwidth() - self._floating_hud.winfo_x()))
+        max_h = max(minimum_h, min(400, self.root.winfo_screenheight() - self._floating_hud.winfo_y()))
+        width = self._bounded_int(sw + event.x_root - sx, sw, minimum_w, max_w)
+        height = self._bounded_int(sh + event.y_root - sy, sh, minimum_h, max_h)
+        self._floating_hud.geometry(f"{width}x{height}+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+        self._schedule_floating_preferences_save()
+
+    def _show_floating_context_menu(self, event: tk.Event) -> str:
+        """Offer common HUD actions from a compact right-click menu."""
+        menu = tk.Menu(self._floating_hud, tearoff=0, bg="#0b1728", fg=TEXT,
+                       activebackground="#164e63", activeforeground=TEXT)
+        menu.add_command(label="Open J.A.R.V.I.S", command=self._show_main_from_floating)
+        menu.add_command(label="Switch Mini / Expanded", command=self._toggle_floating_mode)
+        menu.add_command(label="Unpin from top" if self._floating_pin else "Pin on top",
+                         command=self._toggle_floating_pin)
+        menu.add_separator()
+        menu.add_command(label="Hide Floating HUD", command=self._hide_floating_hud)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+        return "break"
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
@@ -239,6 +291,8 @@ class JarvisDesktop:
             self.settings["floating_hud_y"] = self._bounded_int(self._floating_hud.winfo_y(), 120, 0, max(0, self.root.winfo_screenheight() - 125))
             self.settings["floating_hud_topmost"] = bool(self._floating_pin)
             self.settings["floating_hud_mini"] = bool(self._floating_mini)
+            self.settings["floating_hud_width"] = self._bounded_int(self._floating_hud.winfo_width(), 92, 80, 320)
+            self.settings["floating_hud_height"] = self._bounded_int(self._floating_hud.winfo_height(), 164, 104, 400)
             save_settings(self.settings)
         except (tk.TclError, OSError, ValueError):
             # A preferences write failure must never interrupt the assistant UI.
@@ -263,6 +317,17 @@ class JarvisDesktop:
             self._listen()
         except Exception as exc:
             self._write_message("SYSTEM", f"Voice input could not start ({type(exc).__name__}). Check microphone and speech settings.", "system")
+
+    def _floating_hud_hotkey(self, _event: tk.Event | None = None) -> str:
+        """Toggle the HUD while the J.A.R.V.I.S application has keyboard focus."""
+        try:
+            if self._floating_hud.state() == "withdrawn":
+                self._show_floating_hud()
+            else:
+                self._hide_floating_hud()
+        except tk.TclError:
+            self._show_floating_hud()
+        return "break"
 
     def _show_floating_hud(self) -> None:
         """Restore the floating orb after it has been hidden."""
