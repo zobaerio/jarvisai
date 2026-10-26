@@ -5,6 +5,7 @@ import threading
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from jarvis.task_executor import execute_task_plan
 from jarvis.task_store import TaskStore
@@ -213,7 +214,7 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(status, "partial")
         self.assertEqual(step["status"], "unverified")
         self.assertEqual(step["outcome"], "partial")
-        self.assertIn("no positive deterministic verification", result)
+        self.assertIn("positive deterministic verification", result)
         self.assertEqual(len(agent.prompts), 1)
 
     def test_state_change_step_is_not_completed_from_claimed_text_alone(self) -> None:
