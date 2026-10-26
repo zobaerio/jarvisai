@@ -25,7 +25,7 @@ from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 from jarvis.startup import is_windows_startup_enabled, set_windows_startup
-from jarvis.ui_formatters import bounded_float, bounded_int, format_header_clock
+from jarvis.ui_formatters import bounded_float, bounded_int, bounded_window_origin, format_header_clock
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -117,10 +117,18 @@ class JarvisDesktop:
         self._floating_hud.attributes("-topmost", self._floating_pin)
         self._floating_hud.attributes("-alpha", self._floating_opacity)
         self._floating_hud.configure(bg="#07111f")
-        hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
-        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
         hud_w = self._bounded_int(self.settings.get("floating_hud_width", 92), 92, 92, 240)
         hud_h = self._bounded_int(self.settings.get("floating_hud_height", 164), 164, 104, 320)
+        hud_x, hud_y = bounded_window_origin(
+            self.settings.get("floating_hud_x", 24),
+            self.settings.get("floating_hud_y", 120),
+            hud_w,
+            hud_h,
+            screen_width,
+            screen_height,
+        )
         self._floating_hud.geometry(f"{hud_w}x{hud_h}+{hud_x}+{hud_y}")
         self._floating_drag_origin: tuple[int, int] | None = None
         self._floating_save_after_id: str | None = None
