@@ -32,7 +32,7 @@ STATE_CHANGING_TOOL_NAMES = frozenset({
 def _verification_target(kind: object, target: object, location: object = "") -> tuple[str, str, str] | None:
     """Normalize a local verification target without storing or exposing it."""
     safe_kind = " ".join(str(kind or "").casefold().split())
-    safe_target = " ".join(str(target or "").replace("\\\\", "/").split()).strip(" /").casefold()
+    safe_target = " ".join(str(target or "").replace("\\", "/").split()).strip(" /").casefold()
     safe_location = " ".join(str(location or "").casefold().split())
     if safe_kind not in {"window", "file", "folder"} or not safe_target:
         return None
