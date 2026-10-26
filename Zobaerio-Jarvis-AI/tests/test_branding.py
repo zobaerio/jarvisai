@@ -33,6 +33,49 @@ class BrandingTests(unittest.TestCase):
         self.assertEqual(image.getpixel((0, 0))[3], 0)
         self.assertGreater(image.getpixel((64, 64))[3], 0)
 
+    def test_generation_failure_preserves_existing_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app_dir = Path(directory)
+            png_path = app_dir / "jarvis_logo.png"
+            ico_path = app_dir / "jarvis.ico"
+            png_path.write_bytes(b"existing-png")
+            ico_path.write_bytes(b"existing-ico")
+
+            with patch.object(branding, "APP_DIR", app_dir), patch.object(
+                branding, "_paint_icon", side_effect=RuntimeError("simulated render failure")
+            ):
+                with self.assertRaisesRegex(RuntimeError, "simulated render failure"):
+                    branding.ensure_brand_assets()
+
+            self.assertEqual(png_path.read_bytes(), b"existing-png")
+            self.assertEqual(ico_path.read_bytes(), b"existing-ico")
+            self.assertEqual(list(app_dir.glob("*.tmp.*")), [])
+
+    def test_save_failure_does_not_replace_existing_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app_dir = Path(directory)
+            png_path = app_dir / "jarvis_logo.png"
+            ico_path = app_dir / "jarvis.ico"
+            png_path.write_bytes(b"existing-png")
+            ico_path.write_bytes(b"existing-ico")
+
+            original_save = Image.Image.save
+
+            def fail_on_ico(image, fp, format=None, **kwargs):
+                if format == "ICO":
+                    raise OSError("simulated icon save failure")
+                return original_save(image, fp, format=format, **kwargs)
+
+            with patch.object(branding, "APP_DIR", app_dir), patch.object(
+                Image.Image, "save", new=fail_on_ico
+            ):
+                with self.assertRaisesRegex(OSError, "simulated icon save failure"):
+                    branding.ensure_brand_assets()
+
+            self.assertEqual(png_path.read_bytes(), b"existing-png")
+            self.assertEqual(ico_path.read_bytes(), b"existing-ico")
+            self.assertEqual(list(app_dir.glob("*.tmp.*")), [])
+
 
 if __name__ == "__main__":
     unittest.main()
