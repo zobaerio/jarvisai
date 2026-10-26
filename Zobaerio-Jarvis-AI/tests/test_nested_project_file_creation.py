@@ -51,6 +51,30 @@ class NestedProjectFileCreationTests(unittest.TestCase):
                 self.assertIn("blocked", result.casefold())
         self.assertFalse((Path(self.temp.name) / "outside.md").exists())
 
+    def test_verifies_nested_file_and_folder_targets(self) -> None:
+        nested_file = self.root / "CivilOS" / "Reports" / "verified.md"
+        nested_file.write_text("# Verified", encoding="utf-8")
+        folder_result = automation.verify_local_action(
+            "folder", "CivilOS/Reports", "Desktop"
+        )
+        file_result = automation.verify_local_action(
+            "file", "CivilOS/Reports/verified.md", "Desktop"
+        )
+        self.assertTrue(folder_result.startswith("Verified folder exists:"))
+        self.assertTrue(file_result.startswith("Verified file exists:"))
+        self.assertIn("verified.md", file_result)
+
+    def test_nested_verification_blocks_traversal_and_symbolic_links(self) -> None:
+        outside = Path(self.temp.name) / "outside.md"
+        outside.write_text("outside", encoding="utf-8")
+        link = self.root / "CivilOS" / "Reports" / "outside-link.md"
+        link.symlink_to(outside)
+        for target in ("../outside.md", "CivilOS/../../outside.md", "CivilOS/Reports/outside-link.md"):
+            with self.subTest(target=target):
+                result = automation.verify_local_action("file", target, "Desktop")
+                self.assertIn("blocked", result.casefold())
+        self.assertTrue(outside.is_file())
+
     def test_requires_parent_folder_to_exist(self) -> None:
         result = automation.create_text_file(
             "Desktop", "CivilOS/Missing/file.md", "x", lambda *_: True

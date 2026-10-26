@@ -15,6 +15,105 @@ from . import automation
 from .settings import get_api_key, is_local_api_endpoint, validate_api_key_transport
 from .safe_errors import safe_tool_error
 
+MAX_TOOL_CALLS_PER_TASK = 12
+READ_ONLY_TOOL_NAMES = frozenset({
+    "search_files", "get_system_info", "list_open_windows", "get_active_window_title",
+    "search_file_contents", "find_duplicate_files", "read_text_file",
+})
+STATE_CHANGING_TOOL_NAMES = frozenset({
+    "open_application", "open_website", "prepare_whatsapp_message", "prepare_email_draft",
+    "prepare_calendar_event_draft", "open_folder", "paste_text_into_window",
+    "press_allowed_shortcut", "create_folder", "create_folder_structure", "create_text_file",
+    "copy_file", "move_file", "rename_file", "create_zip_archive",
+    "move_file_to_recycle_bin", "open_file",
+})
+
+
+def _verification_target(kind: object, target: object, location: object = "") -> tuple[str, str, str] | None:
+    """Normalize a local verification target without storing or exposing it."""
+    raw_target = str(target or "").replace("\\", "/")
+    raw_location = str(location or "")
+    # Refuse unusually large identifiers rather than truncating them into a false match.
+    if len(raw_target) > 512 or len(raw_location) > 128:
+        return None
+    safe_kind = " ".join(str(kind or "").casefold().split())[:32]
+    safe_target = " ".join(raw_target.split()).strip(" /").casefold()
+    safe_location = " ".join(raw_location.casefold().split())
+    if (
+        safe_kind not in {"window", "file", "folder"}
+        or not safe_target
+        or len(safe_target) > 260
+    ):
+        return None
+    return safe_kind, safe_target, safe_location if safe_kind != "window" else ""
+
+
+def _expected_verification_targets(name: str, args: dict[str, Any]) -> set[tuple[str, str, str]]:
+    """Return the exact local checks that can prove a supported state-changing action."""
+    def target(kind: str, value: object, location: object = "") -> set[tuple[str, str, str]]:
+        normalized = _verification_target(kind, value, location)
+        return {normalized} if normalized else set()
+
+    location = str(args.get("location", "Desktop") or "Desktop")
+    if name == "open_application":
+        return target("window", args.get("app_name"))
+    if name == "open_website":
+        value = str(args.get("url_or_query", "") or "").strip()
+        folded = value.casefold()
+        # Known aliases have recognizable human-readable tab titles; using the alias
+        # avoids pretending "Google" is the target for Gmail/Drive/etc.
+        for mapping_name in ("SOCIAL_WEBSITE_ALIASES", "WORKSPACE_WEBSITE_ALIASES"):
+            aliases = getattr(automation, mapping_name, {})
+            if isinstance(aliases, dict) and folded in aliases:
+                return target("window", folded)
+        parsed = None
+        if "://" in value:
+            parsed = urlparse(value)
+        elif value and " " not in value and "." in value:
+            # A host may be supplied without a scheme (e.g. example.com).
+            # Plain-language search queries still open the search provider.
+            parsed = urlparse("https://" + value)
+        expected = parsed.hostname if parsed is not None else ""
+        expected = expected or ("Google" if value else "")
+        if expected.startswith("www."):
+            expected = expected[4:]
+        return target("window", expected)
+    if name == "open_folder":
+        return target("window", location)
+    if name in {"create_folder"}:
+        return target("folder", args.get("name"), location)
+    if name == "create_folder_structure":
+        paths = args.get("folder_paths")
+        if (
+            not isinstance(paths, list)
+            or not paths
+            or len(paths) > 100
+            or any(not isinstance(path, str) or len(path) > 260 for path in paths)
+        ):
+            return set()
+        checks: set[tuple[str, str, str]] = set()
+        for path in paths:
+            checks.update(target("folder", path, location))
+        # Empty/invalid items mean we cannot prove the whole structure was created.
+        return checks if len(checks) == len(paths) else set()
+    if name == "create_text_file":
+        return target("file", args.get("filename"), location)
+    if name in {"copy_file", "move_file"}:
+        destination = str(args.get("destination_location", "") or "")
+        filename = args.get("destination_filename")
+        return target("file", filename, destination)
+    if name == "rename_file":
+        return target("file", args.get("new_filename"), location)
+    if name == "create_zip_archive":
+        return target("file", args.get("archive_filename"), location)
+    if name == "open_file":
+        return target("window", args.get("filename"))
+    # These actions need stronger evidence than a generic visible-window title can give:
+    # a draft can be empty, text can be pasted into the wrong field, and Recycle Bin absence
+    # does not prove an item was recoverably moved rather than deleted. Fail closed.
+    return set()
+
+
 SYSTEM_PROMPT = """You are J.A.R.V.I.S, a careful desktop personal assistant for a Windows 11 user. Speak naturally and warmly, matching the user's language (Bangla or English). Be concise but useful. Your primary purpose is to complete supported user requests, not merely describe how to do them: when the user asks you to perform an action and a supplied tool can do it safely, call the tool, inspect its result, verify outcomes with verify_local_action when a deterministic check exists, and then report what is completed, partially completed, or blocked. For multi-step requests, continue the tool workflow rather than stopping at a plan. You may use only the tools explicitly provided. Never claim an action succeeded unless the tool result confirms it. After a meaningful app/file/folder action, use verify_local_action when the result can be checked with an allowed deterministic signal; distinguish 'requested/launched' from 'verified'. For potentially destructive or external actions, explain the action and ask for approval first; moving a file to the Recycle Bin requires explicit, action-specific approval and must never be described as permanent deletion; reading local file contents, creating, copying, moving, or renaming files requires explicit, action-specific approval. Before reading a file, the approval dialog must show the exact path and size and warn that contents enter the AI conversation and may be sent to the configured AI provider. File operations are restricted to regular files inside Desktop, Documents, or Downloads; symbolic links are blocked and existing destinations must never be overwritten. Creating a ZIP may include up to 100 user-selected regular files from one approved folder, capped at 100 MiB total, with explicit approval and no-overwrite publication. Duplicate-file scans operate only in Desktop/Documents/Downloads (or All), require approval, hash bounded same-size candidates locally, report shortened hashes and file paths, and never modify or delete files. Only search file contents when the user asks to search inside files; search results require explicit approval and disclose that short matching excerpts enter the AI conversation. Do not ask for or expose passwords, API keys, or private credentials. Never attempt to bypass security, antivirus, permissions, or user consent. For foreground-window text or shortcut actions, inspect the visible window title, specify the intended target window, request the explicit approval supplied by the tool, never press Enter to submit a form, and never claim text insertion has been independently verified. You cannot control every app or perform literally every possible task. For unsupported tasks, explain the limitation honestly and suggest a safe next step. Prefer Bangla if the user writes in Bangla."""
 
 
@@ -177,6 +276,10 @@ class JarvisAgent:
         self.settings = settings
         self.approval = approval
         self.history: list[dict[str, Any]] = []
+        self.last_tool_call_count = 0
+        self.last_tool_call_names: list[str] = []
+        self.last_tool_call_failures = 0
+        self.last_verification_succeeded = False
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         self.settings = settings
@@ -187,9 +290,24 @@ class JarvisAgent:
         cancel_event: threading.Event | None = None,
         progress: Callable[[str], None] | None = None,
         tool_event: Callable[[str, str, str | None, str], str | None] | None = None,
+        tool_budget: int = MAX_TOOL_CALLS_PER_TASK,
     ) -> str:
-        """Answer a user request; cancellation is cooperative between blocking operations."""
+        """Answer a user request; cancellation is cooperative between blocking operations.
+
+        tool_budget caps tool actions for this response, allowing a caller to enforce one
+        aggregate budget across a multi-step task. Completion evidence is bounded metadata;
+        tool arguments and results are never copied into these fields.
+        """
         self.last_outcome = "completed"
+        self.last_tool_call_count = 0
+        self.last_tool_call_names = []
+        self.last_tool_call_failures = 0
+        self.last_verification_succeeded = False
+        required_verification_targets: set[tuple[str, str, str]] = set()
+        verified_targets: set[tuple[str, str, str]] = set()
+        if type(tool_budget) is not int:
+            tool_budget = MAX_TOOL_CALLS_PER_TASK
+        max_tool_calls = min(MAX_TOOL_CALLS_PER_TASK, max(0, tool_budget))
         had_tool_failure = False
 
         def invalid_response(message: str = "AI provider returned an invalid or unsupported response format.") -> str:
@@ -263,7 +381,6 @@ class JarvisAgent:
             headers["Authorization"] = f"Bearer {key}"
         url = base_url + "/chat/completions"
         max_rounds = 8
-        max_tool_calls = 12
         tool_call_count = 0
         try:
             for turn in range(max_rounds):
@@ -334,27 +451,65 @@ class JarvisAgent:
                         return cancelled_response("কাজটি বাতিল করা হয়েছে। বাতিলের পরে আর কোনো নতুন tool action চালানো হয়নি।")
                     if tool_call_count >= max_tool_calls:
                         self.last_outcome = "partial"
-                        report("Task action budget reached; no further tools will start")
+                        report(f"Task action budget reached ({max_tool_calls} action limit); no further tools will start")
                         return (
-                            "Partially completed: নিরাপত্তার জন্য এই task-এ ১২টি tool action-এর সীমা পৌঁছেছে। "
+                            f"Partially completed: নিরাপত্তার জন্য এই task-এর {max_tool_calls}টি tool action সীমা পৌঁছেছে। "
                             "যে ফলাফলগুলো পাওয়া গেছে তা যাচাই করো, তারপর বাকি কাজের জন্য নতুন নির্দেশনা দাও।"
                         )
                     tool_call_count += 1
+                    self.last_tool_call_count = tool_call_count
                     function = call.get("function", {})
-                    name = str(function.get("name", "") or "")
+                    name = str(function.get("name", "") or "")[:80] or "unknown"
+                    self.last_tool_call_names.append(name)
                     raw_args = function.get("arguments", "{}")
                     report(f"Running tool: {name or 'unknown'}")
                     audit_id = notify_tool_event(name or "unknown", "running")
                     try:
                         args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                        if not isinstance(args, dict):
+                            raise ValueError("Tool arguments must be an object.")
+                        if name in STATE_CHANGING_TOOL_NAMES:
+                            # Any later side effect invalidates prior checks. Keep target details
+                            # in memory only; the task audit still stores no arguments/results.
+                            required_verification_targets.update(
+                                _expected_verification_targets(name, args)
+                            )
+                            if not _expected_verification_targets(name, args):
+                                required_verification_targets.add(("unverifiable", name, ""))
+                            verified_targets.clear()
+                            self.last_verification_succeeded = False
                         result = self._execute_tool(name, args)
                     except Exception as exc:
                         had_tool_failure = True
+                        self.last_tool_call_failures += 1
                         result = safe_tool_error(exc)
                         notify_tool_event(name or "unknown", "failed", audit_id, type(exc).__name__)
                     else:
                         # Store only the fact that the tool returned; never copy its arguments or payload.
                         notify_tool_event(name or "unknown", "result_received", audit_id)
+                        if (
+                            name == "verify_local_action"
+                            and isinstance(result, str)
+                            and result.strip().casefold().startswith("verified")
+                            and isinstance(args, dict)
+                        ):
+                            actual_target = _verification_target(
+                                args.get("kind"),
+                                args.get("target"),
+                                args.get("location", "Desktop"),
+                            )
+                            if actual_target is not None and actual_target in required_verification_targets:
+                                verified_targets.add(actual_target)
+                            self.last_verification_succeeded = (
+                                bool(required_verification_targets)
+                                and ("unverifiable", "", "") not in required_verification_targets
+                                and all(
+                                    requirement in verified_targets
+                                    for requirement in required_verification_targets
+                                    if requirement[0] != "unverifiable"
+                                )
+                                and not any(item[0] == "unverifiable" for item in required_verification_targets)
+                            )
                     messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "name": name, "content": str(result)[:12000]})
                     # Do not copy tool output into progress history; it may contain paths or user data.
                     report(f"Tool returned: {name or 'unknown'}")
