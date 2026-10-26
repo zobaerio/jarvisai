@@ -83,28 +83,35 @@ def generate_task_plan(
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    response = requests.post(
-        base_url + "/chat/completions",
-        headers=headers,
-        json={
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Create a concise execution plan for a Windows desktop assistant. "
-                        "Return ONLY JSON shaped as {\"steps\":[\"step title\"]}. "
-                        "Provide 2-8 short, ordered, user-facing steps. Do not execute actions, "
-                        "request tools, invent completed results, include secrets, or put commands "
-                        "or code in steps. Include approval and verification where relevant."
-                    ),
-                },
-                {"role": "user", "content": command},
-            ],
-            "temperature": 0.2,
-        },
-        timeout=(8, 25),
-    )
+    try:
+        response = requests.post(
+            base_url + "/chat/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Create a concise execution plan for a Windows desktop assistant. "
+                            "Return ONLY JSON shaped as {\"steps\":[\"step title\"]}. "
+                            "Provide 2-8 short, ordered, user-facing steps. Do not execute actions, "
+                            "request tools, invent completed results, include secrets, or put commands "
+                            "or code in steps. Include approval and verification where relevant."
+                        ),
+                    },
+                    {"role": "user", "content": command},
+                ],
+                "temperature": 0.2,
+            },
+
+            timeout=(8, 25),
+        )
+    except requests.RequestException:
+        # Raw exception text may expose a private endpoint or authorization details.
+        raise ValueError(
+            "Planner could not reach the AI provider. Check your connection and provider settings."
+        ) from None
     if cancel_event is not None and cancel_event.is_set():
         raise InterruptedError("Task cancelled after planning request")
     if response.status_code >= 400:

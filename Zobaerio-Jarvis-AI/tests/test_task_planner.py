@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import requests
 import unittest
 from unittest.mock import Mock, patch
 
@@ -117,6 +118,36 @@ class TaskPlannerTests(unittest.TestCase):
         ):
             with self.subTest(request=request):
                 self.assertTrue(should_generate_task_plan(request))
+
+
+    @patch("jarvis.task_planner.get_api_key", return_value="sensitive-test-key")
+    @patch("jarvis.task_planner.validate_api_key_transport", side_effect=lambda url, key: url)
+    @patch("jarvis.task_planner.is_local_api_endpoint", return_value=False)
+    @patch("jarvis.task_planner.requests.post", side_effect=requests.ConnectionError("https://private.example Authorization: Bearer sensitive-test-key"))
+    def test_network_failure_returns_safe_actionable_error(
+        self, _post: Mock, _local: Mock, _validate: Mock, _key: Mock
+    ) -> None:
+        with self.assertRaisesRegex(ValueError, "could not reach the AI provider") as caught:
+            generate_task_plan(
+                {"api_base_url": "https://private.example/v1", "model": "test-model"},
+                "Create a report",
+            )
+        self.assertNotIn("sensitive-test-key", str(caught.exception))
+        self.assertNotIn("private.example", str(caught.exception))
+
+    @patch("jarvis.task_planner.get_api_key", return_value="test-key")
+    @patch("jarvis.task_planner.validate_api_key_transport", side_effect=lambda url, key: url)
+    @patch("jarvis.task_planner.is_local_api_endpoint", return_value=False)
+    @patch("jarvis.task_planner.requests.post", side_effect=requests.Timeout("provider internal detail"))
+    def test_timeout_is_reported_without_raw_exception_details(
+        self, _post: Mock, _local: Mock, _validate: Mock, _key: Mock
+    ) -> None:
+        with self.assertRaisesRegex(ValueError, "Check your connection and provider settings") as caught:
+            generate_task_plan(
+                {"api_base_url": "https://example.test/v1", "model": "test-model"},
+                "Create a report",
+            )
+        self.assertNotIn("provider internal detail", str(caught.exception))
 
     def test_cancellation_avoids_network_request(self) -> None:
         import threading
