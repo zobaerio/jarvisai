@@ -51,7 +51,7 @@ For the end-to-end image → 3D model → rig → GLB import process, see [3D_CH
 1. Install Python 3.12 (64-bit) from https://www.python.org/downloads/release/python-31210/.
 2. Extract or clone this repository into a normal writable folder.
 3. Double-click `install.bat` and allow it to create `.venv` and install requirements.
-4. Double-click `run.bat` to open J.A.R.V.I.S.
+4. Double-click `run.bat` to open ORVIX AI.
 5. Choose LUNA, RUBY, or MAYA on the left. The selected personality updates the preferred speech voice.
 6. For local LLM support, install Ollama, run `ollama pull qwen2.5:3b`, then configure `http://localhost:11434/v1` and model `qwen2.5:3b` in Settings.
 
@@ -63,7 +63,7 @@ A per-user Windows installer definition and CI build are available in [`installe
 
 ## Safe Recycle Bin action
 
-J.A.R.V.I.S can send one regular file from Desktop, Documents or Downloads to the Windows Recycle Bin. It displays the exact path, size and type and asks for approval. It rejects directories, symbolic links, path traversal, missing files and files that change while the approval dialog is open. This is a recoverable OS trash operation, not a permanent-delete command; recovery still depends on the Recycle Bin not having been emptied and Windows permitting the move.
+ORVIX AI can send one regular file from Desktop, Documents or Downloads to the Windows Recycle Bin. It displays the exact path, size and type and asks for approval. It rejects directories, symbolic links, path traversal, missing files and files that change while the approval dialog is open. This is a recoverable OS trash operation, not a permanent-delete command; recovery still depends on the Recycle Bin not having been emptied and Windows permitting the move.
 
 ## Safe duplicate-file finder
 
@@ -75,11 +75,11 @@ J.A.R.V.I.S can create a ZIP from 1–100 selected regular files in a single all
 
 ## Startup recovery for interrupted tasks
 
-At startup, J.A.R.V.I.S checks persisted task history. Tasks left in a running/cancelling state from a process that is no longer active are marked failed with a recovery note and a timestamp. They are not automatically replayed because desktop/file actions may already have partially occurred; the user must review Task History before retrying. Queued tasks remain queued and are never started automatically during recovery. Tasks belonging to a process that still appears active are left untouched.
+At startup, ORVIX AI checks persisted task history. Tasks left in a running/cancelling state from a process that is no longer active are marked failed with a recovery note and a timestamp. They are not automatically replayed because desktop/file actions may already have partially occurred; the user must review Task History before retrying. Queued tasks remain queued and are never started automatically during recovery. Tasks belonging to a process that still appears active are left untouched.
 
 ## Safe AI provider error handling
 
-Provider HTTP error bodies are no longer echoed into the conversation because a provider or proxy could reflect private prompts, file excerpts or credentials. J.A.R.V.I.S maps common HTTP statuses to safe, actionable messages instead. It also validates the outer JSON/choices/message/tool-call shapes and returns a bounded, neutral diagnostic for malformed responses. Unexpected request/library errors are reduced to their exception type; their raw message and response body are not exposed to the user.
+Provider HTTP error bodies are no longer echoed into the conversation because a provider or proxy could reflect private prompts, file excerpts or credentials. ORVIX AI maps common HTTP statuses to safe, actionable messages instead. It also validates the outer JSON/choices/message/tool-call shapes and returns a bounded, neutral diagnostic for malformed responses. Unexpected request/library errors are reduced to their exception type; their raw message and response body are not exposed to the user.
 
 ## AI endpoint validation and connection test
 
@@ -89,7 +89,7 @@ Settings validates the API base URL, rejects embedded URL credentials and query/
 
 ## Durable settings storage
 
-Settings are written through a unique same-directory temporary file, flush/fsync and atomic replace. A local `settings.json.bak` recovery copy is refreshed after a successful save; if the primary settings file is unreadable, J.A.R.V.I.S attempts to load the backup. This helps avoid partial JSON after an interrupted save, but does not encrypt settings or replace normal device backups. API keys remain in the Windows credential store, not in this JSON file.
+Settings are written through a unique same-directory temporary file, flush/fsync and atomic replace. A local `settings.json.bak` recovery copy is refreshed after a successful save; if the primary settings file is unreadable, ORVIX AI attempts to load the backup. This helps avoid partial JSON after an interrupted save, but does not encrypt settings or replace normal device backups. API keys remain in the Windows credential store, not in this JSON file.
 
 ## Task history and cancellation (v1.3.0)
 
