@@ -1800,9 +1800,9 @@ class JarvisDesktop:
 
                 # A successful quick setup persists just the provider/model and credential,
                 # so the user does not have to configure a second form or press Save Settings.
-                variables["api_base_url"].set(result["api_base_url"])
-                variables["model"].set(result["model"])
                 previous_settings = dict(self.settings)
+                previous_base_url = variables["api_base_url"].get()
+                previous_model = variables["model"].get()
                 new_settings = dict(previous_settings)
                 new_settings["api_base_url"] = result["api_base_url"]
                 new_settings["model"] = result["model"]
@@ -1810,17 +1810,25 @@ class JarvisDesktop:
                     save_settings(new_settings)
                 except (ValueError, OSError) as exc:
                     auto_setup_status.configure(
-                        text=f"Model detected, but settings could not be saved ({type(exc).__name__}). Use Save Settings to retry.",
+                        text=f"Model detected, but settings could not be saved ({type(exc).__name__}). Existing configuration was left unchanged.",
                         fg=ORANGE,
                     )
                     return
                 if not set_api_key(detected_key):
+                    rollback_failed = False
                     try:
                         save_settings(previous_settings)
                     except (ValueError, OSError):
-                        pass
+                        rollback_failed = True
+                    variables["api_base_url"].set(previous_base_url)
+                    variables["model"].set(previous_model)
                     auto_setup_status.configure(
-                        text="Provider/model detected, but Windows Credential Manager could not store the API key. No quick setup was applied.",
+                        text=(
+                            "API key storage failed. Existing configuration rollback also failed; "
+                            "reopen Settings and check the saved endpoint before running tasks."
+                            if rollback_failed
+                            else "Windows Credential Manager could not store the API key. Existing configuration was restored."
+                        ),
                         fg=ORANGE,
                     )
                     connection_status.configure(
@@ -1829,6 +1837,8 @@ class JarvisDesktop:
                     )
                     return
 
+                variables["api_base_url"].set(result["api_base_url"])
+                variables["model"].set(result["model"])
                 self.settings = new_settings
                 self.agent.update_settings(self.settings)
                 self.model_status.configure(text=self._model_status_text())
