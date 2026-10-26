@@ -109,10 +109,9 @@ def execute_task_plan(
             # Keep exception text out of the step record and user-facing result.
             answer = "This plan step could not be completed because an internal worker error occurred."
             try:
+                # Preserve any tool activity already recorded before the exception.
+                # The caller uses that metadata to avoid claiming no side effect occurred.
                 agent.last_outcome = "failed"
-                agent.last_tool_call_count = 0
-                agent.last_tool_call_names = []
-                agent.last_tool_call_failures = 1
                 agent.last_verification_succeeded = False
             except Exception:
                 pass
