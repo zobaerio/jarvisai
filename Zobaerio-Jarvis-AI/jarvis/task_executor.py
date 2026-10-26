@@ -49,6 +49,9 @@ def execute_task_plan(
     if not plan_steps or len(plan_steps) != len(raw_plan):
         return "The stored task plan is malformed. No plan steps were started.", "failed"
 
+    step_ids = [str(item["id"]) for item in plan_steps]
+    if len(set(step_ids)) != len(step_ids):
+        return "The stored task plan contains duplicate step identifiers. No plan steps were started.", "failed"
     titles = [" ".join(str(item["title"]).split())[:180] for item in plan_steps]
     if any(not title for title in titles):
         return "The stored task plan contains an empty step. No plan steps were started.", "failed"
