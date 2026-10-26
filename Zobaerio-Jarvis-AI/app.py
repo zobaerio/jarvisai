@@ -107,13 +107,13 @@ class JarvisDesktop:
         self._floating_hud = tk.Toplevel(self.root)
         self._floating_hud.withdraw()
         self._floating_hud.overrideredirect(True)
-        self._floating_hud.attributes("-topmost", self._floating_pin if hasattr(self, "_floating_pin") else True)
+        self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
+        self._floating_hud.attributes("-topmost", self._floating_pin)
         self._floating_hud.configure(bg="#07111f")
         hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
-        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 125))
-        self._floating_hud.geometry(f"92x116+{hud_x}+{hud_y}")
+        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
+        self._floating_hud.geometry(f"92x164+{hud_x}+{hud_y}")
         self._floating_drag_origin: tuple[int, int] | None = None
-        self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
         self._floating_save_after_id: str | None = None
         self._floating_mini = bool(self.settings.get("floating_hud_mini", False))
 
