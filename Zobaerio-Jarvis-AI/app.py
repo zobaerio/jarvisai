@@ -1013,8 +1013,14 @@ class JarvisDesktop:
                             except (TypeError, ValueError, OverflowError):
                                 # Bad/legacy timestamp data must not break Task History rendering.
                                 pass
-                        if step_status == "UNVERIFIED":
-                            lines.append("   Note: Task ended without an individual verification event for this step.")
+                        evidence = str(plan_step.get("evidence") or "").replace("_", " ").strip().title()
+                        if evidence:
+                            lines.append(f"   Evidence: {evidence}")
+                        verification_note = " ".join(str(plan_step.get("verification_note") or "").split())[:240]
+                        if verification_note:
+                            lines.append(f"   Note: {verification_note}")
+                        elif step_status == "UNVERIFIED":
+                            lines.append("   Note: No individual verification event confirmed this step.")
                 if steps:
                     lines.extend(["", "ACTIVITY LOG"] + [
                         f"[{step.get('time', '')}] {step.get('text', '')}"
@@ -1022,11 +1028,20 @@ class JarvisDesktop:
                     ])
                 if actions:
                     lines.extend(["", "TOOL ACTION AUDIT (arguments and output payloads are not stored)"])
+                    plan_items = record.get("plan", [])
+                    step_ordinals = {
+                        item.get("id"): ordinal
+                        for ordinal, item in enumerate(plan_items, 1)
+                        if isinstance(item, dict) and isinstance(item.get("id"), str)
+                    } if isinstance(plan_items, list) else {}
                     for action in actions:
                         if not isinstance(action, dict):
                             continue
                         started = str(action.get("started_at", ""))
                         name = str(action.get("name", "unknown"))
+                        step_id = action.get("plan_step_id")
+                        if isinstance(step_id, str) and step_id in step_ordinals:
+                            name += f" [plan step {step_ordinals[step_id]}]"
                         status = str(action.get("status", "unknown")).upper()
                         note = str(action.get("note", "")).strip()
                         lines.append(f"[{started}] {name}: {status}" + (f" — {note}" if note else ""))
