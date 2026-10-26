@@ -409,7 +409,9 @@ class TaskStore:
             elif status in {"completed", "failed", "skipped", "unverified"}:
                 item["finished_at"] = now
             elif status == "pending":
-                # Explicit retry resets the active interval but preserves attempt history.
+                # An explicit retry is queued but not active yet. Preserve attempt count,
+                # while clearing timestamps belonging to the previous attempt.
+                item.pop("started_at", None)
                 item.pop("finished_at", None)
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
@@ -434,6 +436,7 @@ class TaskStore:
                     continue
                 item["status"] = "unverified"
                 item["updated_at"] = now
+                item["finished_at"] = now
                 item["outcome"] = outcome
                 item["verification_note"] = "Task ended without a dedicated execution/verification event for this plan step."
                 changed = True
