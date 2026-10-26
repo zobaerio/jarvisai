@@ -107,11 +107,14 @@ class JarvisDesktop:
         self._floating_hud = tk.Toplevel(self.root)
         self._floating_hud.withdraw()
         self._floating_hud.overrideredirect(True)
-        self._floating_hud.attributes("-topmost", True)
+        self._floating_hud.attributes("-topmost", self._floating_pin if hasattr(self, "_floating_pin") else True)
         self._floating_hud.configure(bg="#07111f")
-        self._floating_hud.geometry("92x116+24+120")
+        hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
+        hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 125))
+        self._floating_hud.geometry(f"92x116+{hud_x}+{hud_y}")
         self._floating_drag_origin: tuple[int, int] | None = None
-        self._floating_pin = True
+        self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
+        self._floating_save_after_id: str | None = None
 
         shell = tk.Frame(self._floating_hud, bg="#07111f",
                          highlightbackground=ACCENT, highlightthickness=2, bd=0)
@@ -137,6 +140,10 @@ class JarvisDesktop:
                   bg="#271b2a", fg="#fda4af", activebackground="#51212d",
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
+        tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
+                  bg="#0e2c3c", fg="#a5f3fc", activebackground="#164e63",
+                  activeforeground=TEXT, relief="flat", bd=0,
+                  font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2").pack(fill="x", padx=7, pady=(0, 6))
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
@@ -157,10 +164,39 @@ class JarvisDesktop:
         y = max(0, min(event.y_root - self._floating_drag_origin[1],
                        self.root.winfo_screenheight() - self._floating_hud.winfo_height()))
         self._floating_hud.geometry(f"+{x}+{y}")
+        self._schedule_floating_preferences_save()
+
+    @staticmethod
+    def _bounded_int(value: object, fallback: int, minimum: int, maximum: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError, OverflowError):
+            parsed = fallback
+        return max(minimum, min(parsed, maximum))
+
+    def _schedule_floating_preferences_save(self) -> None:
+        if self._floating_save_after_id is not None:
+            try:
+                self.root.after_cancel(self._floating_save_after_id)
+            except tk.TclError:
+                pass
+        self._floating_save_after_id = self.root.after(400, self._persist_floating_preferences)
+
+    def _persist_floating_preferences(self) -> None:
+        self._floating_save_after_id = None
+        try:
+            self.settings["floating_hud_x"] = self._bounded_int(self._floating_hud.winfo_x(), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
+            self.settings["floating_hud_y"] = self._bounded_int(self._floating_hud.winfo_y(), 120, 0, max(0, self.root.winfo_screenheight() - 125))
+            self.settings["floating_hud_topmost"] = bool(self._floating_pin)
+            save_settings(self.settings)
+        except (tk.TclError, OSError, ValueError):
+            # A preferences write failure must never interrupt the assistant UI.
+            pass
 
     def _toggle_floating_pin(self, _event: tk.Event | None = None) -> None:
         self._floating_pin = not self._floating_pin
         self._floating_hud.attributes("-topmost", self._floating_pin)
+        self._schedule_floating_preferences_save()
         state = "Always-on-top ON" if self._floating_pin else "Always-on-top OFF"
         self._write_message("SYSTEM", f"Floating Assistant: {state}", "system")
 
@@ -168,6 +204,14 @@ class JarvisDesktop:
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+
+    def _floating_listen(self) -> None:
+        """Start speech input using the same flow as the main TALK button."""
+        self._show_main_from_floating()
+        try:
+            self._listen()
+        except Exception as exc:
+            self._write_message("SYSTEM", f"Voice input could not start ({type(exc).__name__}). Check microphone and speech settings.", "system")
 
     def _hide_floating_hud(self) -> None:
         self._floating_hud.withdraw()
