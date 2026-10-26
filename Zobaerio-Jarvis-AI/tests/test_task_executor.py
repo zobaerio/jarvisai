@@ -246,6 +246,32 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(saved["plan"][1]["status"], "pending")
         self.assertEqual(len(agent.prompts), 1)
 
+    def test_executor_never_replays_uncertain_steps_without_explicit_resume(self) -> None:
+        task_id, plan = self.make_plan(["Create a file", "Inspect result"], ["state_change", "read_only"])
+        self.store.update_plan_step(task_id, plan[0]["id"], status="running")
+        self.store.update_plan_step(
+            task_id,
+            plan[0]["id"],
+            status="unverified",
+            evidence="tool_result",
+            verification_note="The action may have occurred.",
+            outcome="partial",
+        )
+        agent = FakeStepAgent([])
+        result, status = execute_task_plan(
+            agent=agent,
+            task_store=self.store,
+            task_id=task_id,
+            user_text="Create a file and inspect it",
+            cancel_event=self.no_cancel(),
+        )
+        self.assertEqual(status, "partial")
+        self.assertIn("No action was replayed", result)
+        self.assertEqual(agent.prompts, [])
+        saved = self.store.get_task(task_id)
+        self.assertEqual(saved["plan"][0]["status"], "unverified")
+        self.assertEqual(saved["plan"][1]["status"], "pending")
+
     def test_failure_after_tool_activity_leaves_step_unverified(self) -> None:
         task_id, _plan = self.make_plan(["Create a file", "Verify the file"], ["state_change", "read_only"])
         agent = FakeStepAgent([{
