@@ -140,6 +140,12 @@ Task History থেকে **Export Safe Diagnostics** চাপলে আগে 
 Build script আলাদা `.packaging-venv` ব্যবহার করে, তাই app-এর runtime environment-এ PyInstaller যোগ হয় না। Package-এ `version.json` থাকবে; এতে app version, Python version, architecture এবং unsigned portable package-এর ধরন লেখা থাকবে। Windows CI manifest-এর version source-এর version constant-এর সঙ্গে মিলে কি না যাচাই করে। GitHub Actions executable, 3D page ও ZIP যাচাই করে artifact ১৪ দিনের জন্য রাখে। এই build **unsigned**—এটি signed installer/MSIX নয় এবং auto-update নেই; Windows SmartScreen warning দিতে পারে। 3D Studio-এর Three.js CDN, AI provider ও speech service-এর কারণে app পুরোপুরি offline নয়।
 
 
+## নতুন: API Key Only Quick Setup
+
+Settings-এ **AUTO SETUP FROM API KEY** চাপলে supported API key prefix থেকে OpenRouter, OpenAI বা Groq provider শনাক্ত করে, শুধু সেই provider-এর HTTPS endpoint-এ key দিয়ে model catalog চেক করে এবং পরিচিত chat model auto-select করে। Key কখনও unrelated providers-এ পরীক্ষা করতে পাঠানো হয় না; key Windows Credential Manager-এ রাখা হয়, settings JSON-এ নয়। API key অবশ্যই ওই provider-এর নিজের official account থেকে নিতে হবে, এবং provider-এর usage/billing rules প্রযোজ্য।
+
+সব provider-এর API key একই format নয়; তাই arbitrary/unknown provider-কে key দেখেই নিরাপদে শনাক্ত করা যায় না। এমন key হলে Advanced Settings-এ provider endpoint/model manual configure করতে হবে। Auto setup সফল দেখালেও **Save Settings** করতে হবে, তারপর **Test Connection** ও বাস্তব chat/task চালিয়ে যাচাই করতে হবে। Model catalog endpoint-এ থাকা মানেই tool calling বা প্রতিটি AI capability কাজ করবে—এমন নিশ্চয়তা নয়।
+
 ## নতুন: Local System Health Check
 
 AI model status panel থেকে **RUN SYSTEM HEALTH CHECK** চাপলে Python runtime, Windows platform, local 3D/branding asset, dependency, endpoint/model configuration এবং cloud API key আছে কি না পরীক্ষা করবে। Key-এর মান কখনও দেখাবে না—শুধু পাওয়া গেছে কি না জানাবে। Local Ollama endpoint-এর জন্য API key বাধ্যতামূলক নয়। প্রতিটি আইটেমে `PASS`, `WARN` বা `FAIL` দেখা যাবে এবং Refresh button থাকবে। এই check কোনো AI request পাঠায় না, microphone/speaker hardware test করে না, user file scan করে না এবং endpoint/key value দেখায় না। Network connection যাচাই করতে Settings-এর আলাদা provider connection test ব্যবহার করো।
