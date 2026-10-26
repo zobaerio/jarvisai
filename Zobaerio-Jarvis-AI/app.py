@@ -111,7 +111,12 @@ class JarvisDesktop:
         self._floating_hud.title("J.A.R.V.I.S Floating Assistant")
         self._floating_hud.overrideredirect(True)
         self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
+        try:
+            self._floating_opacity = max(0.55, min(1.0, float(self.settings.get("floating_hud_opacity", 1.0))))
+        except (TypeError, ValueError):
+            self._floating_opacity = 1.0
         self._floating_hud.attributes("-topmost", self._floating_pin)
+        self._floating_hud.attributes("-alpha", self._floating_opacity)
         self._floating_hud.configure(bg="#07111f")
         hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
         hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
@@ -163,6 +168,12 @@ class JarvisDesktop:
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2")
         self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
+        self._bind_floating_tooltip(open_button, "Open the full J.A.R.V.I.S workspace")
+        self._bind_floating_tooltip(hide_button, "Hide the floating assistant (Ctrl+Shift+J to restore)")
+        self._bind_floating_tooltip(self._floating_mic, "Start voice listening; speech recognition may need microphone permission")
+        self._bind_floating_tooltip(self._floating_mode_button, "Switch between compact Mini and Expanded controls")
+        self._bind_floating_tooltip(self._floating_resize_grip, "Drag to resize the floating assistant")
+        self._bind_floating_tooltip(orb, "Drag to move · Double-click to open · Right-click for options")
         self._floating_mode_button = tk.Button(shell, text="EXPAND" if self._floating_mini else "MINI", command=self._toggle_floating_mode, bg="#122137", fg=TEXT, activebackground="#263e58", activeforeground=TEXT, relief="flat", bd=0, font=("Segoe UI", 7, "bold"), pady=2, cursor="hand2")
         self._floating_mode_button.pack(fill="x", padx=7, pady=(0, 2))
         self._floating_resize_grip = tk.Label(shell, text="◢", bg="#07111f", fg="#67e8f9", cursor="size_nw_se", font=("Segoe UI", 8))
@@ -179,6 +190,66 @@ class JarvisDesktop:
             self._apply_floating_mode()
         self._floating_hud.deiconify()
         self._refresh_floating_status()
+
+    def _bind_floating_tooltip(self, widget: tk.Widget, message: str) -> None:
+        """Show a small, delayed help tooltip for floating HUD controls."""
+        widget.bind("<Enter>", lambda _event, w=widget, m=message: self._schedule_floating_tooltip(w, m), add="+")
+        widget.bind("<Leave>", lambda _event: self._hide_floating_tooltip(), add="+")
+        widget.bind("<ButtonPress-1>", lambda _event: self._hide_floating_tooltip(), add="+")
+
+    def _schedule_floating_tooltip(self, widget: tk.Widget, message: str) -> None:
+        self._hide_floating_tooltip()
+        try:
+            self._floating_tooltip_after = self._floating_hud.after(
+                650, lambda: self._show_floating_tooltip(widget, message)
+            )
+        except tk.TclError:
+            self._floating_tooltip_after = None
+
+    def _show_floating_tooltip(self, widget: tk.Widget, message: str) -> None:
+        try:
+            if not widget.winfo_exists() or not self._floating_hud.winfo_exists():
+                return
+            tip = tk.Toplevel(self._floating_hud)
+            tip.wm_overrideredirect(True)
+            tip.attributes("-topmost", self._floating_pin)
+            tip.configure(bg="#0b1728")
+            label = tk.Label(
+                tip, text=message, bg="#0b1728", fg="#e2e8f0",
+                font=("Segoe UI", 8), padx=8, pady=5,
+                wraplength=250, justify="left",
+                highlightbackground=ACCENT, highlightthickness=1,
+            )
+            label.pack()
+            tip.update_idletasks()
+            x = widget.winfo_rootx()
+            y = widget.winfo_rooty() + widget.winfo_height() + 5
+            screen_w = self.root.winfo_screenwidth()
+            screen_h = self.root.winfo_screenheight()
+            x = max(0, min(x, screen_w - tip.winfo_reqwidth()))
+            if y + tip.winfo_reqheight() > screen_h:
+                y = max(0, widget.winfo_rooty() - tip.winfo_reqheight() - 5)
+            tip.geometry(f"+{x}+{y}")
+            self._floating_tooltip_window = tip
+            self._floating_tooltip_after = None
+        except tk.TclError:
+            self._floating_tooltip_window = None
+
+    def _hide_floating_tooltip(self) -> None:
+        after_id = getattr(self, "_floating_tooltip_after", None)
+        if after_id:
+            try:
+                self._floating_hud.after_cancel(after_id)
+            except tk.TclError:
+                pass
+            self._floating_tooltip_after = None
+        tip = getattr(self, "_floating_tooltip_window", None)
+        if tip is not None:
+            try:
+                tip.destroy()
+            except tk.TclError:
+                pass
+            self._floating_tooltip_window = None
 
     def _toggle_floating_mode(self) -> None:
         """Switch between a compact orb and the expanded floating controls."""
@@ -243,9 +314,15 @@ class JarvisDesktop:
         menu = tk.Menu(self._floating_hud, tearoff=0, bg="#0b1728", fg=TEXT,
                        activebackground="#164e63", activeforeground=TEXT)
         menu.add_command(label="Open J.A.R.V.I.S", command=self._show_main_from_floating)
+        menu.add_command(label="Reset HUD Position", command=self._reset_floating_position)
         menu.add_command(label="Switch Mini / Expanded", command=self._toggle_floating_mode)
         menu.add_command(label="Unpin from top" if self._floating_pin else "Pin on top",
                          command=self._toggle_floating_pin)
+        opacity_menu = tk.Menu(menu, tearoff=0, bg="#0b1728", fg=TEXT,
+                                activebackground="#164e63", activeforeground=TEXT)
+        for label, value in (("100% — Solid", 1.0), ("90%", 0.9), ("80%", 0.8), ("65%", 0.65)):
+            opacity_menu.add_command(label=label, command=lambda v=value: self._set_floating_opacity(v))
+        menu.add_cascade(label="HUD Opacity", menu=opacity_menu)
         menu.add_separator()
         menu.add_command(label="Hide Floating HUD", command=self._hide_floating_hud)
         try:
@@ -253,6 +330,25 @@ class JarvisDesktop:
         finally:
             menu.grab_release()
         return "break"
+
+    def _reset_floating_position(self) -> None:
+        """Move the HUD to a safe default position and persist the new coordinates."""
+        try:
+            x = 24
+            y = min(120, max(0, self.root.winfo_screenheight() - self._floating_hud.winfo_height()))
+            self._floating_hud.geometry(f"+{x}+{y}")
+            self._schedule_floating_preferences_save()
+        except tk.TclError as exc:
+            self._write_message("SYSTEM", f"Could not reset HUD position: {type(exc).__name__}.", "system")
+
+    def _set_floating_opacity(self, value: float) -> None:
+        """Set a bounded window opacity and persist it with the other HUD preferences."""
+        self._floating_opacity = max(0.55, min(1.0, float(value)))
+        try:
+            self._floating_hud.attributes("-alpha", self._floating_opacity)
+            self._schedule_floating_preferences_save()
+        except tk.TclError as exc:
+            self._write_message("SYSTEM", f"HUD transparency is unavailable on this desktop: {type(exc).__name__}.", "system")
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
@@ -293,6 +389,7 @@ class JarvisDesktop:
             self.settings["floating_hud_mini"] = bool(self._floating_mini)
             self.settings["floating_hud_width"] = self._bounded_int(self._floating_hud.winfo_width(), 92, 80, 320)
             self.settings["floating_hud_height"] = self._bounded_int(self._floating_hud.winfo_height(), 164, 104, 400)
+            self.settings["floating_hud_opacity"] = self._floating_opacity
             save_settings(self.settings)
         except (tk.TclError, OSError, ValueError):
             # A preferences write failure must never interrupt the assistant UI.
