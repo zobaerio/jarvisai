@@ -1,4 +1,4 @@
-# J.A.R.V.I.S Desktop AI — বাংলা Setup Guide
+# ORVIX AI Desktop Assistant — বাংলা Setup Guide
 
 **সংস্করণ:** 1.7.3 — voice timeout reliability
 
@@ -27,9 +27,9 @@ LUNA, RUBY ও MAYA-র ছোট ছবি শুধু reference thumbnail হ
 
 এটি সত্যিকারের 3D geometry-র prototype, কিন্তু procedural character-এর reference art-এর সঙ্গে 100% exact 3D likeness নয়। আরও বাস্তব model থাকলে **IMPORT RIGGED .GLB** চাপ দিয়ে নিজের PC-র `.glb` file বেছে নিতে পারবে। File browser-এর ভেতরেই load হয়, server-এ upload হয় না। GLB-তে idle/wave/talk animation clip থাকলে নাম দেখে সেগুলো চালানোর চেষ্টা করবে; clip না থাকলে Studio সেই motion নিজে তৈরি করতে পারবে না। Natural walking, realistic hair/cloth physics, custom model creation, proper facial rig ও phoneme-level lip-sync এখনও বাকি। Maya-র source শুধু portrait হওয়ায় সেখান থেকে hidden full-body anatomy পাওয়া যায় না। Three.js CDN থেকে load হয়, তাই 3D preview-এর জন্য internet ও WebGL-compatible browser লাগবে। অসম্পূর্ণ feature-গুলোর বিস্তারিত `FEATURE_STATUS.md`-এ আছে। Character-এর 2D art থেকে 3D model, rig, animation clip তৈরি ও import করার ধাপগুলোর জন্য [3D_CHARACTER_PIPELINE_BN.md](3D_CHARACTER_PIPELINE_BN.md) দেখো।
 
-## Logo ও Responsive Design
+## ORVIX AI Logo ও Responsive Design
 
-- `assets/branding/jarvis-mark.svg` হলো app icon-এর source; `jarvis-wordmark.svg` হলো official wordmark।
+- `assets/branding/jarvis-mark.svg` হলো ORVIX AI app icon-এর source; `jarvis-wordmark.svg` হলো official wordmark। Legacy file name compatibility-এর জন্য রাখা হয়েছে।
 - `install.bat` এখন app logo ও multi-size Windows `.ico` তৈরি করে এবং Desktop shortcut-এ সেট করে।
 - Desktop window ছোট করলে ডান পাশের utility panel লুকিয়ে যায়, আর top navigation-এর decorative label collapse হয়—ফলে মূল task workspace বড় জায়গা পায়।
 - Minimum window size 820×560; এটি এখনো desktop software। Android/phone installer পরে আলাদা phase-এ হবে।
