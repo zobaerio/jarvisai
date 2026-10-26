@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">ORVIX AI</title><desc id="desc">ORVIX AI orbital mark in blue, cyan and orange.</desc>
+<defs><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#06B6D4"/><stop offset="1" stop-color="#2563EB"/></linearGradient><linearGradient id="warm" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F97316"/><stop offset="1" stop-color="#FDBA36"/></linearGradient></defs>
+<rect width="512" height="512" rx="112" fill="#061329"/>
+<path d="M347 126a156 156 0 1 0 39 184" fill="none" stroke="url(#blue)" stroke-width="48" stroke-linecap="round"/>
+<path d="M348 318a156 156 0 0 1-100 54" fill="none" stroke="url(#warm)" stroke-width="48" stroke-linecap="round"/>
+<path d="M70 318 431 102 292 267 442 206 81 410 216 247Z" fill="url(#blue)"/>
+<path d="M292 267 442 206 379 292 335 312Z" fill="url(#warm)"/>
+</svg>
