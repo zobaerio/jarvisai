@@ -229,15 +229,34 @@ class _ChatScreenState extends State<ChatScreen> {
       _status = 'Checking provider…';
     });
     try {
-      final uri = Uri.parse('$_baseUrl/models');
-      final response = await http.get(
-        uri,
-        headers: {'Authorization': 'Bearer $_apiKey', 'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 15));
-      if (!mounted) return;
-      setState(() => _status = response.statusCode >= 200 && response.statusCode < 300
-          ? 'Provider endpoint is reachable. A chat request has not been sent.'
-          : 'Provider check failed (HTTP ${response.statusCode}). Check endpoint, key, and provider permissions.');
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse('$_baseUrl/models'))
+          ..headers.addAll({
+            'Authorization': 'Bearer $_apiKey',
+            'Accept': 'application/json',
+          });
+        final response = await client.send(request).timeout(const Duration(seconds: 15));
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          await readBoundedResponse(
+            response.stream.timeout(const Duration(seconds: 15)),
+            maxBytes: 1024 * 1024,
+          );
+        } else {
+          try {
+            await readBoundedResponse(
+              response.stream.timeout(const Duration(seconds: 5)),
+              maxBytes: 64 * 1024,
+            );
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        setState(() => _status = response.statusCode >= 200 && response.statusCode < 300
+            ? 'Provider endpoint is reachable. A chat request has not been sent.'
+            : 'Provider check failed (HTTP ${response.statusCode}). Check endpoint, key, and provider permissions.');
+      } finally {
+        client.close();
+      }
     } catch (_) {
       if (mounted) setState(() => _status =
           'Could not reach the provider. Check internet access, HTTPS endpoint, and model settings.');
