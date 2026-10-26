@@ -84,6 +84,7 @@ class JarvisDesktop:
         self._configure_styles()
         self._prepare_avatar_images()
         self._build_ui()
+        self._build_floating_hud()
         self._write_message("J.A.R.V.I.S", "হ্যালো! আমি তোমার J.A.R.V.I.S Desktop Assistant. তিনটি character profile থেকে পছন্দ করো, বাংলা বা English-এ টাইপ করো অথবা TALK বোতামে ক্লিক করে বলো।\n\nচাইলে উপরের WAKE WORD mode চালু করে ‘Jarvis’ বলেও নির্দেশনা দিতে পারো। শুরু করো: ‘Notepad kholo’, ‘YouTube kholo’, ‘Downloads kholo’, অথবা AI model connect করে আমাকে আরও জটিল কাজ দাও।", "assistant")
         self._write_message("SYSTEM", "নিরাপত্তা: file read/create/copy/move/rename বা Recycle Bin-এ পাঠানোর আগে আমি নির্দিষ্ট action-এর অনুমতি চাইব। File read করলে contents AI provider-এ যেতে পারে। arbitrary PowerShell/terminal command চালানো হয় না।", "system")
         if self._startup_recovered_task_count:
@@ -100,6 +101,76 @@ class JarvisDesktop:
             )
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(100, self._drain_events)
+
+    def _build_floating_hud(self) -> None:
+        """Create a compact, draggable always-on-top J.A.R.V.I.S orb."""
+        self._floating_hud = tk.Toplevel(self.root)
+        self._floating_hud.withdraw()
+        self._floating_hud.overrideredirect(True)
+        self._floating_hud.attributes("-topmost", True)
+        self._floating_hud.configure(bg="#07111f")
+        self._floating_hud.geometry("92x116+24+120")
+        self._floating_drag_origin: tuple[int, int] | None = None
+        self._floating_pin = True
+
+        shell = tk.Frame(self._floating_hud, bg="#07111f",
+                         highlightbackground=ACCENT, highlightthickness=2, bd=0)
+        shell.pack(fill="both", expand=True)
+        orb = tk.Canvas(shell, width=72, height=72, bg="#07111f",
+                        highlightthickness=0, bd=0, cursor="fleur")
+        orb.pack(padx=8, pady=(7, 0))
+        orb.create_oval(5, 5, 67, 67, outline="#164e63", width=5)
+        orb.create_oval(11, 11, 61, 61, outline=ACCENT, width=2)
+        orb.create_oval(19, 19, 53, 53, fill="#0e2c3c", outline="#67e8f9", width=1)
+        orb.create_text(36, 36, text="J", fill="#e0fbff",
+                        font=("Segoe UI Black", 25, "bold"))
+        label = tk.Label(shell, text="J.A.R.V.I.S", bg="#07111f", fg=ACCENT,
+                         font=("Segoe UI", 8, "bold"), cursor="fleur")
+        label.pack(pady=(1, 0))
+        controls = tk.Frame(shell, bg="#07111f")
+        controls.pack(fill="x", padx=4, pady=(1, 4))
+        tk.Button(controls, text="OPEN", command=self._show_main_from_floating,
+                  bg="#123047", fg=TEXT, activebackground="#1b5268",
+                  activeforeground=TEXT, relief="flat", bd=0,
+                  font=("Segoe UI", 7, "bold"), padx=3, cursor="hand2").pack(side="left", expand=True, fill="x")
+        tk.Button(controls, text="×", command=self._hide_floating_hud,
+                  bg="#271b2a", fg="#fda4af", activebackground="#51212d",
+                  activeforeground=TEXT, relief="flat", bd=0,
+                  font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
+        for widget in (shell, orb, label):
+            widget.bind("<ButtonPress-1>", self._floating_drag_start)
+            widget.bind("<B1-Motion>", self._floating_drag_move)
+            widget.bind("<Double-Button-1>", lambda _event: self._show_main_from_floating())
+            widget.bind("<Button-3>", self._toggle_floating_pin)
+        self._floating_hud.protocol("WM_DELETE_WINDOW", self._hide_floating_hud)
+        self._floating_hud.deiconify()
+
+    def _floating_drag_start(self, event: tk.Event) -> None:
+        self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
+                                      event.y_root - self._floating_hud.winfo_y())
+
+    def _floating_drag_move(self, event: tk.Event) -> None:
+        if self._floating_drag_origin is None:
+            return
+        x = max(0, min(event.x_root - self._floating_drag_origin[0],
+                       self.root.winfo_screenwidth() - self._floating_hud.winfo_width()))
+        y = max(0, min(event.y_root - self._floating_drag_origin[1],
+                       self.root.winfo_screenheight() - self._floating_hud.winfo_height()))
+        self._floating_hud.geometry(f"+{x}+{y}")
+
+    def _toggle_floating_pin(self, _event: tk.Event | None = None) -> None:
+        self._floating_pin = not self._floating_pin
+        self._floating_hud.attributes("-topmost", self._floating_pin)
+        state = "Always-on-top ON" if self._floating_pin else "Always-on-top OFF"
+        self._write_message("SYSTEM", f"Floating Assistant: {state}", "system")
+
+    def _show_main_from_floating(self) -> None:
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+
+    def _hide_floating_hud(self) -> None:
+        self._floating_hud.withdraw()
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self.root)
