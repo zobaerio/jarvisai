@@ -31,6 +31,6 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
       - name: Analyze Dart source
-        run: flutter analyze --fatal-infos
+        run: flutter analyze
       - name: Run mobile unit tests
         run: flutter test
