@@ -51,8 +51,12 @@ class DurableTaskPlanTests(unittest.TestCase):
 
         pending = self.store.update_plan_step(task["id"], step_id, status="pending")
         self.assertEqual(pending["plan"][0]["status"], "pending")
+        self.assertNotIn("started_at", pending["plan"][0])
+        self.assertNotIn("finished_at", pending["plan"][0])
         retried = self.store.update_plan_step(task["id"], step_id, status="running")
         self.assertEqual(retried["plan"][0]["attempts"], 2)
+        self.assertIsNotNone(retried["plan"][0]["started_at"])
+        self.assertNotIn("finished_at", retried["plan"][0])
 
     def test_completed_step_cannot_be_replayed_or_rewritten(self) -> None:
         task = self.store.create_task("Do one thing")
@@ -74,6 +78,10 @@ class DurableTaskPlanTests(unittest.TestCase):
         self.assertEqual(finalized["plan"][0]["status"], "completed")
         self.assertEqual(finalized["plan"][1]["status"], "unverified")
         self.assertEqual(finalized["plan"][1]["outcome"], "partial")
+        self.assertIsNotNone(finalized["plan"][0]["started_at"])
+        self.assertIsNotNone(finalized["plan"][0]["finished_at"])
+        self.assertNotIn("started_at", finalized["plan"][1])
+        self.assertIsNotNone(finalized["plan"][1]["finished_at"])
         self.assertIn("without a dedicated", finalized["plan"][1]["verification_note"])
 
     def test_finalizing_missing_plan_is_safe_and_invalid_outcome_rejected(self) -> None:
