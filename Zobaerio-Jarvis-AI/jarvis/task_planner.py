@@ -83,7 +83,8 @@ def generate_task_plan(
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    response = requests.post(
+    try:
+        response = requests.post(
         base_url + "/chat/completions",
         headers=headers,
         json={
@@ -103,8 +104,13 @@ def generate_task_plan(
             ],
             "temperature": 0.2,
         },
-        timeout=(8, 25),
-    )
+            timeout=(8, 25),
+        )
+    except requests.RequestException:
+        # Raw exception text may expose a private endpoint or authorization details.
+        raise ValueError(
+            "Planner could not reach the AI provider. Check your connection and provider settings."
+        ) from None
     if cancel_event is not None and cancel_event.is_set():
         raise InterruptedError("Task cancelled after planning request")
     if response.status_code >= 400:
