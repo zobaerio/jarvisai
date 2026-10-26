@@ -2,7 +2,7 @@
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
 **Version:** 1.7.3 — bounded voice timeouts  
-**Repository:** https://github.com/zobaerio/jarvisai
+**Repository:** https://github.com/zobaerio/orvixai
 
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
 
@@ -95,14 +95,14 @@ In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI
 ## Install ORVIX AI on Windows, iPhone/iPad (iOS), and Android
 
 **Official project links**
-- [Permanent releases and downloads](https://github.com/zobaerio/jarvisai/releases)
-- [ORVIX AI GitHub repository](https://github.com/zobaerio/jarvisai)
-- [All GitHub Actions builds](https://github.com/zobaerio/jarvisai/actions)
-- [Windows Installer build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml)
-- [Windows Portable build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml)
-- [Android/iOS Mobile build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml)
+- [Permanent releases and downloads](https://github.com/zobaerio/orvixai/releases)
+- [ORVIX AI GitHub repository](https://github.com/zobaerio/orvixai)
+- [All GitHub Actions builds](https://github.com/zobaerio/orvixai/actions)
+- [Windows Installer build workflow](https://github.com/zobaerio/orvixai/actions/workflows/windows-installer-build.yml)
+- [Windows Portable build workflow](https://github.com/zobaerio/orvixai/actions/workflows/windows-portable-build.yml)
+- [Android/iOS Mobile build workflow](https://github.com/zobaerio/orvixai/actions/workflows/mobile-build.yml)
 
-For everyday installation, first check the [Releases page](https://github.com/zobaerio/jarvisai/releases). Download the Windows installer, portable ZIP, or Android APK attached to the latest successful release. Use the temporary Actions-artifact instructions below only when testing a build that has not yet been published as a release.
+For everyday installation, first check the [Releases page](https://github.com/zobaerio/orvixai/releases). Download the Windows installer, portable ZIP, or Android APK attached to the latest successful release. Use the temporary Actions-artifact instructions below only when testing a build that has not yet been published as a release.
 
 ### 1. Windows 10/11 — Installer (recommended) or Portable version
 
@@ -111,7 +111,7 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 ![ORVIX AI Windows installation visual guide](docs/images/install-windows.svg)
 
 #### Option A — Install using the Windows installer
-1. Open the [Windows Installer workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml).
+1. Open the [Windows Installer workflow](https://github.com/zobaerio/orvixai/actions/workflows/windows-installer-build.yml).
 2. Select the newest run marked **Success** (green tick). Open the run details.
 3. Scroll to **Artifacts** and download **ORVIX-Windows-Installer** (ZIP).
 4. Extract the ZIP first. Inside it, locate and run `ORVIX-Setup.exe`.
@@ -120,13 +120,13 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 **Windows security note:** The installer is currently unsigned, so Windows SmartScreen may show a warning. Check that the file came from this repository and review the warning before deciding whether to continue. Never run installers from unknown sources.
 
 #### Option B — Portable ZIP (no installation wizard)
-1. Open the [Windows Portable workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml).
+1. Open the [Windows Portable workflow](https://github.com/zobaerio/orvixai/actions/workflows/windows-portable-build.yml).
 2. Select the latest **successful** run and download **ORVIX-Windows-Portable** from **Artifacts**.
 3. Extract the ZIP to a folder you control, such as Documents\ORVIX.
 4. Open the extracted folder and run `ORVIX.exe`. Keep the extracted app folder and its files together; do not move only the EXE.
 
 #### Option C — Run from source
-1. Download the [repository ZIP](https://github.com/zobaerio/jarvisai/archive/refs/heads/main.zip) or clone the repository.
+1. Download the [repository ZIP](https://github.com/zobaerio/orvixai/archive/refs/heads/main.zip) or clone the repository.
 2. Open the `Zobaerio-Jarvis-AI/` folder.
 3. Install [Python 3.12.x for Windows](https://www.python.org/downloads/).
 4. Run `install.bat`, then `run.bat`.
@@ -139,7 +139,7 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 
 ![ORVIX AI Android APK installation visual guide](docs/images/install-android.svg)
 
-1. Open the [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml).
+1. Open the [Mobile Build workflow](https://github.com/zobaerio/orvixai/actions/workflows/mobile-build.yml).
 2. Open the newest run marked **Success** and look for the **Android debug APK** job.
 3. Scroll to **Artifacts** and download `jarvis-mobile-android-debug` (ZIP).
 4. On your Android device, extract the ZIP using the Files app or another archive app.
@@ -153,7 +153,7 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 
 ![ORVIX AI iOS installation availability status](docs/images/install-ios-status.svg)
 
-**An installable iPhone/iPad release is not available yet.** The current [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml) runs an iOS compile check using `--no-codesign`; it does not produce a signed IPA, TestFlight invitation, or App Store release. Therefore, there is currently no iOS package that you can install from the GitHub Actions artifacts.
+**An installable iPhone/iPad release is not available yet.** The current [Mobile Build workflow](https://github.com/zobaerio/orvixai/actions/workflows/mobile-build.yml) runs an iOS compile check using `--no-codesign`; it does not produce a signed IPA, TestFlight invitation, or App Store release. Therefore, there is currently no iOS package that you can install from the GitHub Actions artifacts.
 
 When an official iOS release is available, the intended user flow will be:
 1. Open the official TestFlight invitation or App Store listing shared by this project.
