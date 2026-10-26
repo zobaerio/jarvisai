@@ -331,8 +331,15 @@ class TaskStore:
             return dict(target)
 
 
-    def set_task_plan(self, task_id: str, step_titles: list[str]) -> dict[str, Any] | None:
-        """Persist a bounded, resumable plan without executing or auto-replaying any step."""
+    def set_task_plan(
+        self,
+        task_id: str,
+        step_titles: list[str],
+        *,
+        step_kinds: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """Persist a bounded plan and the evidence class expected for each step."""
+        valid_kinds = {"response", "read_only", "state_change", "unknown"}
         if not isinstance(step_titles, list) or not step_titles or len(step_titles) > MAX_STEPS:
             raise ValueError(f"A task plan must contain 1 to {MAX_STEPS} steps.")
         titles: list[str] = []
@@ -343,6 +350,14 @@ class TaskStore:
             if not normalized or len(normalized) > 240:
                 raise ValueError("Task-plan steps must contain 1 to 240 characters.")
             titles.append(normalized)
+        if step_kinds is None:
+            kinds = ["unknown"] * len(titles)
+        else:
+            if not isinstance(step_kinds, list) or len(step_kinds) != len(titles):
+                raise ValueError("Task-plan step kinds must match the number of step titles.")
+            if any(not isinstance(kind, str) or kind not in valid_kinds for kind in step_kinds):
+                raise ValueError("Task plan contains an unsupported step kind.")
+            kinds = list(step_kinds)
 
         with self._lock:
             rows = self._read()
@@ -354,26 +369,151 @@ class TaskStore:
                 {
                     "id": uuid.uuid4().hex[:12],
                     "title": title,
+                    "kind": kinds[index],
                     "status": "pending",
                     "attempts": 0,
                     "created_at": now,
                     "updated_at": now,
                 }
-                for title in titles
+                for index, title in enumerate(titles)
             ]
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
+    def create_resumed_plan_task(self, source_task_id: str) -> dict[str, Any] | None:
+        """Create a new queued task from an explicitly confirmed incomplete plan.
+
+        Completed steps keep their evidence and are skipped; every non-completed step
+        is reset to pending in the new record. The source record remains untouched.
+        Callers must obtain an explicit user confirmation before invoking this method.
+        """
+        with self._lock:
+            rows = self._read()
+            source = next((row for row in rows if row.get("id") == source_task_id), None)
+            if source is None or source.get("status") not in {"partial", "failed", "cancelled"}:
+                return None
+            source_plan = source.get("plan")
+            if not isinstance(source_plan, list) or not source_plan or len(source_plan) > MAX_STEPS:
+                return None
+
+            validated: list[dict[str, Any]] = []
+            valid_statuses = {"pending", "running", "completed", "failed", "skipped", "unverified"}
+            valid_kinds = {"response", "read_only", "state_change", "unknown"}
+            for item in source_plan:
+                if not isinstance(item, dict):
+                    return None
+                title = item.get("title")
+                step_id = item.get("id")
+                status = item.get("status")
+                kind = item.get("kind", "unknown")
+                if (
+                    not isinstance(title, str)
+                    or not title.strip()
+                    or len(title) > 240
+                    or not isinstance(step_id, str)
+                    or not step_id
+                    or not isinstance(status, str)
+                    or status not in valid_statuses
+                    or not isinstance(kind, str)
+                    or kind not in valid_kinds
+                ):
+                    return None
+                validated.append(item)
+
+            step_ids = [item["id"] for item in validated]
+            if len(set(step_ids)) != len(step_ids):
+                return None
+            first_unfinished = next(
+                (i for i, item in enumerate(validated) if item.get("status") != "completed"),
+                None,
+            )
+            if first_unfinished is None:
+                return None
+            # A completed step after the first unfinished step violates sequential-plan
+            # ordering. Refuse to resume a malformed record rather than skip over uncertainty.
+            if any(item.get("status") == "completed" for item in validated[first_unfinished + 1 :]):
+                return None
+            # Don't skip a failed/uncertain step and start later actions out of order.
+            if validated[first_unfinished].get("status") not in {
+                "pending", "running", "failed", "skipped", "unverified"
+            }:
+                return None
+
+            now = _now()
+            resumed_plan: list[dict[str, Any]] = []
+            for item in validated:
+                step = dict(item)
+                step["id"] = uuid.uuid4().hex[:12]
+                step["kind"] = item.get("kind", "unknown")
+                attempts = item.get("attempts", 0)
+                step["attempts"] = attempts if type(attempts) is int and 0 <= attempts <= 999 else 0
+                if item.get("status") == "completed":
+                    # Preserve verified completion evidence, but generate a new step ID
+                    # so audit records from the old task cannot attach to this record.
+                    step["status"] = "completed"
+                else:
+                    step["status"] = "pending"
+                    step["updated_at"] = now
+                    for key in ("started_at", "finished_at", "evidence", "verification_note", "outcome"):
+                        step.pop(key, None)
+                resumed_plan.append(step)
+
+            command = str(source.get("command", "")).strip()[:MAX_COMMAND_LENGTH]
+            if not command:
+                return None
+            new_id = uuid.uuid4().hex[:12]
+            queued_ahead = sum(1 for row in rows if row.get("status") == "queued")
+            note = (
+                f"Explicitly resumed from task #{source_task_id}. Previously completed plan steps "
+                "were carried forward and will not be replayed; confirm any uncertain side effects."
+            )
+            record: dict[str, Any] = {
+                "id": new_id,
+                "command": command,
+                "status": "queued",
+                "created_at": now,
+                "updated_at": now,
+                "finished_at": None,
+                "result": "",
+                "steps": [{"time": now, "text": note[:240]}],
+                "actions": [],
+                "process_id": os.getpid(),
+                "plan": resumed_plan,
+                "resumed_from_task_id": source_task_id,
+            }
+            rows.append(record)
+            self._write(rows[-MAX_TASKS:])
+            # Return the number of existing queued items observed atomically before this
+            # record was appended. Keep the transient UI hint out of persistent task history.
+            result = dict(record)
+            result["_queued_tasks_ahead"] = queued_ahead
+            return result
+
     def update_plan_step(
-        self, task_id: str, step_id: str, *, status: str
+        self,
+        task_id: str,
+        step_id: str,
+        *,
+        status: str,
+        evidence: str | None = None,
+        verification_note: str | None = None,
+        outcome: str | None = None,
     ) -> dict[str, Any] | None:
-        """Persist one step transition; retrying a failed step is always explicit."""
-        if status not in {"pending", "running", "completed", "failed", "skipped", "unverified"}:
+        """Persist one step transition and bounded evidence metadata; retries are explicit."""
+        valid_statuses = {"pending", "running", "completed", "failed", "skipped", "unverified"}
+        valid_evidence = {"assistant_response", "verified_local_action", "tool_result", "none"}
+        valid_outcomes = {"completed", "partial", "failed", "cancelled"}
+        if not isinstance(status, str) or status not in valid_statuses:
             raise ValueError(f"Unsupported plan-step status: {status}")
+        if evidence is not None and (not isinstance(evidence, str) or evidence not in valid_evidence):
+            raise ValueError(f"Unsupported plan-step evidence type: {evidence}")
+        if outcome is not None and (not isinstance(outcome, str) or outcome not in valid_outcomes):
+            raise ValueError(f"Unsupported plan-step outcome: {outcome}")
+        safe_note = " ".join(str(verification_note or "").split())[:240]
         allowed_transitions = {
             "pending": {"running", "skipped"},
-            "running": {"completed", "failed"},
+            "running": {"completed", "failed", "unverified"},
             "failed": {"pending"},
             "completed": set(),
             "skipped": set(),
@@ -406,19 +546,31 @@ class TaskStore:
                 item["attempts"] = min(999, attempts + 1)
                 item["started_at"] = now
                 item.pop("finished_at", None)
+                item.pop("evidence", None)
+                item.pop("verification_note", None)
+                item.pop("outcome", None)
             elif status in {"completed", "failed", "skipped", "unverified"}:
                 item["finished_at"] = now
             elif status == "pending":
                 # An explicit retry is queued but not active yet. Preserve attempt count,
-                # while clearing timestamps belonging to the previous attempt.
+                # while clearing metadata belonging to the previous attempt.
                 item.pop("started_at", None)
                 item.pop("finished_at", None)
+                item.pop("evidence", None)
+                item.pop("verification_note", None)
+                item.pop("outcome", None)
+            if evidence is not None:
+                item["evidence"] = evidence
+            if safe_note:
+                item["verification_note"] = safe_note
+            if outcome is not None:
+                item["outcome"] = outcome
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
     def finalize_task_plan(self, task_id: str, outcome: str) -> dict[str, Any] | None:
-        """Mark untouched plan items unverified when the task ends; never infer completion."""
+        """Mark never-started steps skipped and in-flight steps unverified; infer no completion."""
         if outcome not in {"completed", "partial", "failed", "cancelled"}:
             raise ValueError(f"Unsupported task outcome: {outcome}")
         with self._lock:
@@ -434,11 +586,17 @@ class TaskStore:
             for item in plan:
                 if not isinstance(item, dict) or item.get("status") not in {"pending", "running"}:
                     continue
-                item["status"] = "unverified"
+                prior_status = item["status"]
+                item["status"] = "skipped" if prior_status == "pending" else "unverified"
                 item["updated_at"] = now
                 item["finished_at"] = now
                 item["outcome"] = outcome
-                item["verification_note"] = "Task ended without a dedicated execution/verification event for this plan step."
+                item["evidence"] = "none"
+                item["verification_note"] = (
+                    "Task ended before this step began; it was not executed."
+                    if prior_status == "pending"
+                    else "Task ended during this step without a dedicated execution/verification event; its real-world state may be uncertain."
+                )
                 changed = True
             if changed:
                 target["updated_at"] = now
@@ -468,8 +626,14 @@ class TaskStore:
             self._write(rows[-MAX_TASKS:])
             return dict(target)
 
-    def start_action(self, task_id: str, name: str) -> str | None:
-        """Record a tool start without persisting its arguments or returned content."""
+    def start_action(
+        self,
+        task_id: str,
+        name: str,
+        *,
+        plan_step_id: str | None = None,
+    ) -> str | None:
+        """Record a tool start without storing its arguments or returned content."""
         safe_name = " ".join(str(name).split())[:80] or "unknown"
         action_id = uuid.uuid4().hex[:12]
         with self._lock:
@@ -481,14 +645,18 @@ class TaskStore:
             actions = target.get("actions")
             if not isinstance(actions, list):
                 actions = []
-            actions.append({
+            action = {
                 "id": action_id,
                 "name": safe_name,
                 "status": "running",
                 "started_at": now,
                 "finished_at": None,
                 "note": "",
-            })
+            }
+            if isinstance(plan_step_id, str) and plan_step_id:
+                # Only persist a generated step identifier, never a title or arguments.
+                action["plan_step_id"] = plan_step_id[:64]
+            actions.append(action)
             target["actions"] = actions[-MAX_ACTIONS_PER_TASK:]
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
@@ -565,6 +733,24 @@ class TaskStore:
                     steps = []
                 steps.append({"time": now, "text": recovery_step[:240]})
                 row["steps"] = steps[-MAX_STEPS:]
+                plan = row.get("plan")
+                if isinstance(plan, list):
+                    for plan_step in plan:
+                        if not isinstance(plan_step, dict):
+                            continue
+                        step_status = plan_step.get("status")
+                        if step_status not in {"pending", "running"}:
+                            continue
+                        plan_step["status"] = "unverified" if step_status == "running" else "skipped"
+                        plan_step["updated_at"] = now
+                        plan_step["finished_at"] = now
+                        plan_step["outcome"] = "failed"
+                        plan_step["evidence"] = "none"
+                        plan_step["verification_note"] = (
+                            "App restarted during this step; its real-world state is unknown and it was not replayed."
+                            if step_status == "running"
+                            else "App restarted before this step began; it was not executed or automatically replayed."
+                        )
                 actions = row.get("actions")
                 if not isinstance(actions, list):
                     actions = []
