@@ -212,7 +212,7 @@ class ApiEndpointValidationTests(unittest.TestCase):
         bad_values = [
             "",
             "   ",
-            "https://api.example.com/v1\\nAuthorization: Bearer secret",
+            "https://api.example.com/v1\nAuthorization: Bearer secret",
             "https://api.example.com/" + ("a" * 2050),
         ]
         for value in bad_values:
