@@ -129,6 +129,7 @@ class JarvisDesktop:
         orb.create_oval(19, 19, 53, 53, fill="#0e2c3c", outline="#67e8f9", width=1)
         orb.create_text(36, 36, text="J", fill="#e0fbff",
                         font=("Segoe UI Black", 25, "bold"))
+        self._floating_status_dot = orb.create_oval(53, 5, 66, 18, fill="#64748b", outline="#07111f", width=2)
         label = tk.Label(shell, text="J.A.R.V.I.S", bg="#07111f", fg=ACCENT,
                          font=("Segoe UI", 8, "bold"), cursor="fleur")
         self._floating_label = label
@@ -160,6 +161,7 @@ class JarvisDesktop:
         if self._floating_mini:
             self._apply_floating_mode()
         self._floating_hud.deiconify()
+        self._refresh_floating_status()
 
     def _toggle_floating_mode(self) -> None:
         """Switch between a compact orb and the expanded floating controls."""
@@ -182,6 +184,22 @@ class JarvisDesktop:
             self._floating_mic.pack(fill="x", padx=7, pady=(0, 6))
             self._floating_mode_button.configure(text="MINI")
             self._floating_hud.geometry(f"92x164+{self._floating_hud.winfo_x()}+{self._floating_hud.winfo_y()}")
+
+    def _refresh_floating_status(self) -> None:
+        """Reflect local assistant activity without claiming remote provider health."""
+        try:
+            if not self._floating_hud.winfo_exists():
+                return
+            if getattr(self, "_busy", False):
+                color = "#f59e0b"  # task running
+            elif getattr(self, "wake_enabled", False):
+                color = "#22d3ee"  # wake-word listener enabled
+            else:
+                color = "#34d399"  # idle / ready
+            self._floating_orb.itemconfigure(self._floating_status_dot, fill=color)
+            self._floating_hud.after(900, self._refresh_floating_status)
+        except tk.TclError:
+            return
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
