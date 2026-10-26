@@ -69,6 +69,20 @@ def execute_task_plan(
             pass
 
     for index, item in enumerate(plan_steps):
+        saved_status = str(item.get("status", "pending"))
+        if saved_status == "completed":
+            # A resumed task preserves already completed steps under fresh IDs; never replay them.
+            completed_count += 1
+            report(f"Skipping previously completed plan step {index + 1}/{len(plan_steps)}")
+            continue
+        if saved_status != "pending":
+            final_status = "partial" if completed_count else "failed"
+            stop_reason = (
+                f"Plan step {index + 1} has status {saved_status.upper()} and was not explicitly "
+                "re-queued. No action was replayed."
+            )
+            report(f"Plan step {index + 1} is not pending; stopping without replay")
+            break
         if cancel_event.is_set():
             final_status = "cancelled"
             stop_reason = "Task cancellation was received; remaining steps were not started."
