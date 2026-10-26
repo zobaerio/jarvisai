@@ -228,6 +228,7 @@ class DurableTaskPlanTests(unittest.TestCase):
 
     def test_explicit_resume_rejects_active_or_fully_completed_tasks(self) -> None:
         active = self.store.create_task("Still running")
+        self.store.update_task(active["id"], status="running")
         self.store.set_task_plan(active["id"], ["Step"])
         self.assertIsNone(self.store.create_resumed_plan_task(active["id"]))
 
