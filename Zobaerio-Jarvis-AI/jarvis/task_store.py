@@ -404,6 +404,13 @@ class TaskStore:
                 if type(attempts) is not int or attempts < 0:
                     attempts = 0
                 item["attempts"] = min(999, attempts + 1)
+                item["started_at"] = now
+                item.pop("finished_at", None)
+            elif status in {"completed", "failed", "skipped", "unverified"}:
+                item["finished_at"] = now
+            elif status == "pending":
+                # Explicit retry resets the active interval but preserves attempt history.
+                item.pop("finished_at", None)
             target["updated_at"] = now
             self._write(rows[-MAX_TASKS:])
             return dict(target)

@@ -22,12 +22,21 @@ class DurableTaskPlanTests(unittest.TestCase):
         first = planned["plan"][0]
         started = self.store.update_plan_step(task["id"], first["id"], status="running")
         self.assertEqual(started["plan"][0]["attempts"], 1)
+        self.assertIsNotNone(started["plan"][0]["started_at"])
+        self.assertNotIn("finished_at", started["plan"][0])
         completed = self.store.update_plan_step(task["id"], first["id"], status="completed")
         self.assertEqual(completed["plan"][0]["status"], "completed")
+        self.assertIsNotNone(completed["plan"][0]["finished_at"])
+        self.assertGreaterEqual(
+            completed["plan"][0]["finished_at"],
+            completed["plan"][0]["started_at"],
+        )
 
         reloaded = TaskStore(self.path).get_task(task["id"])
         self.assertEqual(reloaded["plan"][0]["status"], "completed")
         self.assertEqual(reloaded["plan"][0]["attempts"], 1)
+        self.assertEqual(reloaded["plan"][0]["started_at"], started["plan"][0]["started_at"])
+        self.assertEqual(reloaded["plan"][0]["finished_at"], completed["plan"][0]["finished_at"])
         self.assertEqual(reloaded["plan"][1]["status"], "pending")
 
     def test_failed_step_requires_explicit_retry_transition(self) -> None:
