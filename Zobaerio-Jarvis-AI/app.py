@@ -25,6 +25,7 @@ from jarvis.safe_errors import safe_worker_error
 from jarvis.version import APP_NAME, APP_VERSION
 from jarvis.branding import ensure_brand_assets
 from jarvis.startup import is_windows_startup_enabled, set_windows_startup
+from jarvis.ui_formatters import format_header_clock
 
 BG = "#0b1120"
 PANEL = "#111a2e"
@@ -388,8 +389,9 @@ class JarvisDesktop:
             self.nav_items.append(label)
         self.nav_bar = nav
 
-        self.clock_label = tk.Label(top, text="--:--:--", bg="#050b17", fg="#d8eafa",
-                                    font=("Consolas", 13, "bold"))
+        self.clock_label = tk.Label(top, text="--:--:--\n---, -- ---", bg="#050b17", fg="#d8eafa",
+                                    font=("Consolas", 10, "bold"), justify="right",
+                                    anchor="e", width=13)
         self.clock_label.pack(side="right", padx=(10, 20))
         self.wake_btn = tk.Button(top, text="WAKE WORD: OFF", command=self._toggle_wake_word,
                                   bg="#122137", fg="#c4d4e8", activebackground="#263e58",
@@ -849,9 +851,11 @@ class JarvisDesktop:
             label.configure(text=("●  " if value else "") + value, fg=color if value else PANEL)
 
     def _update_clock(self) -> None:
+        """Show local system time and date in the header."""
         if not self.root.winfo_exists():
             return
-        self.clock_label.configure(text=__import__("datetime").datetime.now().strftime("%H:%M:%S"))
+        now = datetime.now()
+        self.clock_label.configure(text=format_header_clock(now))
         self.root.after(1000, self._update_clock)
 
     def _refresh_stats(self) -> None:
