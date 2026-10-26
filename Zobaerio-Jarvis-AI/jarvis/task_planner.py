@@ -146,7 +146,7 @@ def format_plan_step_guidance(
     active_step_index: int,
 ) -> str:
     """Format one bounded plan step as untrusted guidance for a separate agent turn."""
-    original = " ".join(str(user_text or "").split())[:MAX_REQUEST_CHARS]
+    original = str(user_text or "").strip()[:MAX_REQUEST_CHARS]
     if not original or not isinstance(step_titles, list):
         return original
     if type(active_step_index) is not int or not 0 <= active_step_index < len(step_titles):
@@ -160,7 +160,7 @@ def format_plan_step_guidance(
     if not safe_titles or active_step_index >= len(safe_titles):
         raise ValueError("Active task-plan step is not available.")
 
-    plan = "\\n".join(
+    plan = "\n".join(
         f"{index}. {title}" for index, title in enumerate(safe_titles, 1)
     )
     active_title = safe_titles[active_step_index]
