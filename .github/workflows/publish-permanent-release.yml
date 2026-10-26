@@ -1,4 +1,4 @@
-name: Publish Permanent J.A.R.V.I.S Release
+name: Publish Permanent ORVIX AI Release
 
 on:
   push:
@@ -59,28 +59,39 @@ jobs:
           name: jarvis-mobile-android-debug
           path: release-assets/android
 
-      - name: Rename Android package for clarity
+      - name: Rename release assets and generate checksums
         shell: bash
         run: |
           test -f release-assets/windows-installer/JARVIS-Setup.exe
           test -f release-assets/windows-portable/JARVIS-Windows-Portable.zip
           test -f release-assets/android/app-debug.apk
-          mv release-assets/android/app-debug.apk release-assets/android/JARVIS-Android-Debug.apk
+          mv release-assets/windows-installer/JARVIS-Setup.exe release-assets/windows-installer/ORVIX-AI-Windows-Setup.exe
+          mv release-assets/windows-portable/JARVIS-Windows-Portable.zip release-assets/windows-portable/ORVIX-AI-Windows-Portable.zip
+          mv release-assets/android/app-debug.apk release-assets/android/ORVIX-AI-Android-Debug.apk
           sha256sum \
-            release-assets/windows-installer/JARVIS-Setup.exe \
-            release-assets/windows-portable/JARVIS-Windows-Portable.zip \
-            release-assets/android/JARVIS-Android-Debug.apk \
+            release-assets/windows-installer/ORVIX-AI-Windows-Setup.exe \
+            release-assets/windows-portable/ORVIX-AI-Windows-Portable.zip \
+            release-assets/android/ORVIX-AI-Android-Debug.apk \
             > release-assets/SHA256SUMS.txt
 
       - name: Publish GitHub Release with permanent assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: J.A.R.V.I.S ${{ github.ref_name }}
+          name: ORVIX AI ${{ github.ref_name }}
+          body: |
+            ORVIX AI release downloads.
+
+            - Windows Setup: per-user installer; currently unsigned.
+            - Windows Portable: extract the ZIP and run the included app.
+            - Android Debug APK: for device testing; it is not a Play Store release.
+            - SHA256SUMS.txt: verify downloaded file integrity.
+
+            iOS compilation is validated in CI, but an installable iOS package is not attached because Apple distribution/signing is not configured.
           generate_release_notes: true
           make_latest: true
           files: |
-            release-assets/windows-installer/JARVIS-Setup.exe
-            release-assets/windows-portable/JARVIS-Windows-Portable.zip
-            release-assets/android/JARVIS-Android-Debug.apk
+            release-assets/windows-installer/ORVIX-AI-Windows-Setup.exe
+            release-assets/windows-portable/ORVIX-AI-Windows-Portable.zip
+            release-assets/android/ORVIX-AI-Android-Debug.apk
             release-assets/SHA256SUMS.txt
