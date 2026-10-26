@@ -275,7 +275,9 @@ class _ChatScreenState extends State<ChatScreen> {
               'content':
                   'You are J.A.R.V.I.S, a helpful assistant. Be honest about capabilities. This mobile client cannot control the phone or the user’s Windows desktop. Never claim to have performed device actions unless a supported tool actually did so.',
             },
-            ..._messages.map((m) => {'role': m.role, 'content': m.text}),
+            ..._messages.skip(_messages.length > 20 ? _messages.length - 20 : 0).map(
+              (m) => {'role': m.role, 'content': m.text},
+            ),
           ],
           'temperature': 0.4,
         }),
@@ -288,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final first = choices is List && choices.isNotEmpty ? choices.first : null;
       final message = first is Map ? first['message'] : null;
       final content = message is Map ? message['content'] : null;
-      if (content is! String || content.trim().isEmpty) {
+      if (content is! String || content.trim().isEmpty || content.length > 20000) {
         throw _ProviderException('Provider returned an empty or unsupported response.');
       }
       if (!mounted) return;
@@ -440,6 +442,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             controller: _input,
                             minLines: 1,
                             maxLines: 5,
+                            maxLength: 4000,
+                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _sendMessage(),
                             decoration: const InputDecoration(
