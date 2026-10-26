@@ -110,7 +110,12 @@ class JarvisDesktop:
         self._floating_hud.title("J.A.R.V.I.S Floating Assistant")
         self._floating_hud.overrideredirect(True)
         self._floating_pin = bool(self.settings.get("floating_hud_topmost", True))
+        try:
+            self._floating_opacity = max(0.55, min(1.0, float(self.settings.get("floating_hud_opacity", 1.0))))
+        except (TypeError, ValueError):
+            self._floating_opacity = 1.0
         self._floating_hud.attributes("-topmost", self._floating_pin)
+        self._floating_hud.attributes("-alpha", self._floating_opacity)
         self._floating_hud.configure(bg="#07111f")
         hud_x = self._bounded_int(self.settings.get("floating_hud_x", 24), 24, 0, max(0, self.root.winfo_screenwidth() - 100))
         hud_y = self._bounded_int(self.settings.get("floating_hud_y", 120), 120, 0, max(0, self.root.winfo_screenheight() - 180))
@@ -245,6 +250,11 @@ class JarvisDesktop:
         menu.add_command(label="Switch Mini / Expanded", command=self._toggle_floating_mode)
         menu.add_command(label="Unpin from top" if self._floating_pin else "Pin on top",
                          command=self._toggle_floating_pin)
+        opacity_menu = tk.Menu(menu, tearoff=0, bg="#0b1728", fg=TEXT,
+                                activebackground="#164e63", activeforeground=TEXT)
+        for label, value in (("100% — Solid", 1.0), ("90%", 0.9), ("80%", 0.8), ("65%", 0.65)):
+            opacity_menu.add_command(label=label, command=lambda v=value: self._set_floating_opacity(v))
+        menu.add_cascade(label="HUD Opacity", menu=opacity_menu)
         menu.add_separator()
         menu.add_command(label="Hide Floating HUD", command=self._hide_floating_hud)
         try:
@@ -252,6 +262,15 @@ class JarvisDesktop:
         finally:
             menu.grab_release()
         return "break"
+
+    def _set_floating_opacity(self, value: float) -> None:
+        """Set a bounded window opacity and persist it with the other HUD preferences."""
+        self._floating_opacity = max(0.55, min(1.0, float(value)))
+        try:
+            self._floating_hud.attributes("-alpha", self._floating_opacity)
+            self._schedule_floating_preferences_save()
+        except tk.TclError as exc:
+            self._write_message("SYSTEM", f"HUD transparency is unavailable on this desktop: {type(exc).__name__}.", "system")
 
     def _floating_drag_start(self, event: tk.Event) -> None:
         self._floating_drag_origin = (event.x_root - self._floating_hud.winfo_x(),
@@ -292,6 +311,7 @@ class JarvisDesktop:
             self.settings["floating_hud_mini"] = bool(self._floating_mini)
             self.settings["floating_hud_width"] = self._bounded_int(self._floating_hud.winfo_width(), 92, 80, 320)
             self.settings["floating_hud_height"] = self._bounded_int(self._floating_hud.winfo_height(), 164, 104, 400)
+            self.settings["floating_hud_opacity"] = self._floating_opacity
             save_settings(self.settings)
         except (tk.TclError, OSError, ValueError):
             # A preferences write failure must never interrupt the assistant UI.
