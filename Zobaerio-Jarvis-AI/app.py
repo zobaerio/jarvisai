@@ -1471,9 +1471,39 @@ class JarvisDesktop:
         plan_titles: list[str] | None = None
         saved_plan: dict | None = None
         planned_status: str | None = None
+        resume_existing_plan = False
+        if task_id:
+            try:
+                existing_record = self.task_store.get_task(task_id)
+            except Exception:
+                existing_record = None
+            if (
+                isinstance(existing_record, dict)
+                and isinstance(existing_record.get("resumed_from_task_id"), str)
+                and isinstance(existing_record.get("plan"), list)
+                and existing_record.get("plan")
+            ):
+                resumed_titles = [
+                    item.get("title")
+                    for item in existing_record["plan"]
+                    if isinstance(item, dict) and isinstance(item.get("title"), str)
+                ]
+                if len(resumed_titles) == len(existing_record["plan"]):
+                    plan_titles = resumed_titles
+                    saved_plan = existing_record
+                    resume_existing_plan = True
+                    self._record_task_step(
+                        task_id,
+                        "Resuming the saved plan explicitly; completed steps will not be replayed",
+                    )
         # Planning is side-effect-free. When persisted successfully, each step is executed
         # in a separate bounded agent turn; an unverified state-changing action stops the plan.
-        if task_id and not cancel_event.is_set() and should_generate_task_plan(text):
+        if (
+            task_id
+            and not resume_existing_plan
+            and not cancel_event.is_set()
+            and should_generate_task_plan(text)
+        ):
             try:
                 self._record_task_step(task_id, "Generating a proposed task plan")
                 plan_titles = generate_task_plan(self.settings, text, cancel_event=cancel_event)
