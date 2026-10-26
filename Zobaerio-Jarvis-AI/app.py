@@ -854,7 +854,7 @@ class JarvisDesktop:
         if not self.root.winfo_exists():
             return
         now = datetime.now()
-        self.clock_label.configure(text=f"{now:%H:%M:%S}\\n{now:%a, %d %b}".upper())
+        self.clock_label.configure(text=f"{now:%H:%M:%S}\n{now:%a, %d %b}".upper())
         self.root.after(1000, self._update_clock)
 
     def _refresh_stats(self) -> None:
