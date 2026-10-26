@@ -889,17 +889,56 @@ def create_folder_structure(location: str, folder_paths: list[str], approve) -> 
     return f"Created {len(created)} folders under {root}:\n" + "\n".join(str(path) for path in created)
 
 
+def _safe_nested_file_path(location: str, relative_path: str) -> Path:
+    """Resolve a file path under an approved root; allow existing subfolders, never links/traversal."""
+    root = normalize_location(location).resolve()
+    raw = str(relative_path).strip()
+    parts = raw.replace("\\", "/").split("/")
+    if (
+        not raw or len(parts) > 9 or raw.startswith("/") or
+        any(not part or part in {".", ".."} or part != part.strip()
+            or any(c in part for c in '<>:"|?*')
+            or any(ord(c) < 32 for c in part) for part in parts)
+    ):
+        raise ValueError("Use a relative file path with simple names, no traversal or reserved characters, and at most 8 folders.")
+    candidate = root.joinpath(*parts)
+    current = root
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("Symbolic links are not supported for file creation.")
+    resolved = candidate.resolve(strict=False)
+    if root not in resolved.parents:
+        raise ValueError("That path is outside the allowed folder.")
+    if not candidate.parent.is_dir():
+        raise ValueError("The parent folder must already exist. Create the folder structure first.")
+    return candidate
+
+
 def create_text_file(location: str, filename: str, content: str, approve) -> str:
-    path = safe_child_path(location, filename)
+    try:
+        path = _safe_nested_file_path(location, filename)
+    except (ValueError, OSError) as exc:
+        return f"File creation blocked: {exc}"
     if path.suffix.lower() not in {".txt", ".md", ".csv", ".json", ".log"}:
         return "For safety, I can create .txt, .md, .csv, .json, or .log files only."
     if path.exists():
         return f"File already exists at {path}. I will not overwrite it."
     if len(content) > 100_000:
         return "The content is too long (maximum 100,000 characters)."
-    if not approve("Create file", f"Create this file?\n\n{path}\n\nContent preview:\n{content[:700]}"):
-        return "Cancelled. No file was created."
-    path.write_text(content, encoding="utf-8")
+    try:
+        if not approve("Create file", f"Create this file?\\n\\n{path}\\n\\nContent preview:\\n{content[:700]}"):
+            return "Cancelled. No file was created."
+    except Exception as exc:
+        return f"Could not obtain approval ({type(exc).__name__}). No file was created."
+    # Exclusive creation prevents overwriting a file created while approval was open.
+    try:
+        with path.open("x", encoding="utf-8", newline="") as stream:
+            stream.write(content)
+    except FileExistsError:
+        return f"File already exists at {path}. I will not overwrite it."
+    except OSError as exc:
+        return f"File creation failed safely ({type(exc).__name__})."
     return f"Created file: {path}"
 
 
