@@ -1776,7 +1776,7 @@ class JarvisDesktop:
 
         auto_setup_status = tk.Label(
             pad,
-            text="Quick setup supports recognizable OpenRouter, OpenAI, and Groq API keys.",
+            text="Quick setup supports recognizable OpenRouter, OpenAI project/service-account, Groq, Google Gemini and xAI keys. Generic 'sk-' keys are not guessed.",
             bg=BG, fg=MUTED, font=("Segoe UI", 8), wraplength=540, justify="left",
         )
         auto_setup_status.pack(fill="x", pady=(5, 2))
