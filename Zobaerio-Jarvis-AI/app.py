@@ -7,6 +7,7 @@ import queue
 import re
 import threading
 import time
+from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
@@ -992,6 +993,25 @@ class JarvisDesktop:
                         if type(attempts) is not int or attempts < 0:
                             attempts = 0
                         lines.append(f"{ordinal}. [{step_status}] {title} (attempts: {attempts})")
+                        started_at = str(plan_step.get("started_at") or "")
+                        finished_at = str(plan_step.get("finished_at") or "")
+                        lines.append(f"   Started: {started_at or 'Not started'}")
+                        lines.append(f"   Finished: {finished_at or 'Not finished'}")
+                        if started_at and finished_at:
+                            try:
+                                started_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+                                finished_dt = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+                                # Normalize legacy naive timestamps to the other timestamp's zone.
+                                if started_dt.tzinfo is None and finished_dt.tzinfo is not None:
+                                    started_dt = started_dt.replace(tzinfo=finished_dt.tzinfo)
+                                elif finished_dt.tzinfo is None and started_dt.tzinfo is not None:
+                                    finished_dt = finished_dt.replace(tzinfo=started_dt.tzinfo)
+                                elapsed = max(0.0, (finished_dt - started_dt).total_seconds())
+                                duration = f"{elapsed:.1f} seconds" if elapsed < 60 else f"{elapsed / 60:.1f} minutes"
+                                lines.append(f"   Duration: {duration}")
+                            except (TypeError, ValueError, OverflowError):
+                                # Bad/legacy timestamp data must not break Task History rendering.
+                                pass
                         if step_status == "UNVERIFIED":
                             lines.append("   Note: Task ended without an individual verification event for this step.")
                 if steps:
