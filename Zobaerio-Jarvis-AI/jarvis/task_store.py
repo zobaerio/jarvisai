@@ -567,7 +567,7 @@ class TaskStore:
             return dict(target)
 
     def finalize_task_plan(self, task_id: str, outcome: str) -> dict[str, Any] | None:
-        """Mark untouched plan items unverified when the task ends; never infer completion."""
+        """Mark never-started steps skipped and in-flight steps unverified; infer no completion."""
         if outcome not in {"completed", "partial", "failed", "cancelled"}:
             raise ValueError(f"Unsupported task outcome: {outcome}")
         with self._lock:
