@@ -355,7 +355,7 @@ class TaskStore:
         else:
             if not isinstance(step_kinds, list) or len(step_kinds) != len(titles):
                 raise ValueError("Task-plan step kinds must match the number of step titles.")
-            if any(kind not in valid_kinds for kind in step_kinds):
+            if any(not isinstance(kind, str) or kind not in valid_kinds for kind in step_kinds):
                 raise ValueError("Task plan contains an unsupported step kind.")
             kinds = list(step_kinds)
 
@@ -395,11 +395,11 @@ class TaskStore:
         valid_statuses = {"pending", "running", "completed", "failed", "skipped", "unverified"}
         valid_evidence = {"assistant_response", "verified_local_action", "tool_result", "none"}
         valid_outcomes = {"completed", "partial", "failed", "cancelled"}
-        if status not in valid_statuses:
+        if not isinstance(status, str) or status not in valid_statuses:
             raise ValueError(f"Unsupported plan-step status: {status}")
-        if evidence is not None and evidence not in valid_evidence:
+        if evidence is not None and (not isinstance(evidence, str) or evidence not in valid_evidence):
             raise ValueError(f"Unsupported plan-step evidence type: {evidence}")
-        if outcome is not None and outcome not in valid_outcomes:
+        if outcome is not None and (not isinstance(outcome, str) or outcome not in valid_outcomes):
             raise ValueError(f"Unsupported plan-step outcome: {outcome}")
         safe_note = " ".join(str(verification_note or "").split())[:240]
         allowed_transitions = {
