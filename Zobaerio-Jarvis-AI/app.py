@@ -1796,29 +1796,85 @@ class JarvisDesktop:
 
         auto_setup_status = tk.Label(
             pad,
-            text="Quick setup supports recognizable OpenRouter, OpenAI, and Groq API keys.",
+            text="Quick setup supports recognizable OpenRouter, OpenAI project/service-account, Groq, Google Gemini and xAI keys. Generic 'sk-' keys are not guessed.",
             bg=BG, fg=MUTED, font=("Segoe UI", 8), wraplength=540, justify="left",
         )
         auto_setup_status.pack(fill="x", pady=(5, 2))
 
-        def apply_auto_setup(result: dict | None, error: str | None = None) -> None:
+        def apply_auto_setup(
+            result: dict | None,
+            error: str | None = None,
+            detected_key: str | None = None,
+        ) -> None:
             try:
                 if not win.winfo_exists():
                     return
                 auto_setup_button.configure(state="normal", text="AUTO SETUP FROM API KEY")
+                key_entry.configure(state="normal")
                 if error:
                     auto_setup_status.configure(text=error, fg=ORANGE)
                     return
-                if not result:
+                if not result or not detected_key:
                     auto_setup_status.configure(text="Could not configure this API key.", fg=ORANGE)
                     return
+
+                # A successful quick setup persists just the provider/model and credential,
+                # so the user does not have to configure a second form or press Save Settings.
+                previous_settings = dict(self.settings)
+                previous_base_url = variables["api_base_url"].get()
+                previous_model = variables["model"].get()
+                new_settings = dict(previous_settings)
+                new_settings["api_base_url"] = result["api_base_url"]
+                new_settings["model"] = result["model"]
+                try:
+                    save_settings(new_settings)
+                except (ValueError, OSError) as exc:
+                    auto_setup_status.configure(
+                        text=f"Model detected, but settings could not be saved ({type(exc).__name__}). Existing configuration was left unchanged.",
+                        fg=ORANGE,
+                    )
+                    return
+                if not set_api_key(detected_key):
+                    rollback_failed = False
+                    try:
+                        save_settings(previous_settings)
+                    except (ValueError, OSError):
+                        rollback_failed = True
+                    variables["api_base_url"].set(previous_base_url)
+                    variables["model"].set(previous_model)
+                    auto_setup_status.configure(
+                        text=(
+                            "API key storage failed. Existing configuration rollback also failed; "
+                            "reopen Settings and check the saved endpoint before running tasks."
+                            if rollback_failed
+                            else "Windows Credential Manager could not store the API key. Existing configuration was restored."
+                        ),
+                        fg=ORANGE,
+                    )
+                    connection_status.configure(
+                        text="API key storage failed. Check Windows Credential Manager/keyring, then retry.",
+                        fg=ORANGE,
+                    )
+                    return
+
                 variables["api_base_url"].set(result["api_base_url"])
                 variables["model"].set(result["model"])
+                self.settings = new_settings
+                self.agent.update_settings(self.settings)
+                self.model_status.configure(text=self._model_status_text())
+                if hasattr(self, "llm_detail_label"):
+                    self.llm_detail_label.configure(
+                        text=f"{new_settings.get('model', '')}\\n{new_settings.get('api_base_url', '')}"
+                    )
+                self.ai_dot.configure(text="● CONFIGURED ENDPOINT", fg=ACCENT)
                 auto_setup_status.configure(
-                    text=f"Detected {result['provider']} · model selected automatically: {result['model']}. Save Settings to apply.",
+                    text=f"Detected {result['provider']} · selected {result['model']} · API key and model settings saved automatically.",
                     fg=GREEN,
                 )
-                connection_status.configure(text="Model discovered. Save settings, then run Test Connection.", fg=GREEN)
+                connection_status.configure(
+                    text="Quick setup saved and /models responded successfully. Try a real task now; Test Connection is available for troubleshooting.",
+                    fg=GREEN,
+                )
             except tk.TclError:
                 pass
 
@@ -1829,16 +1885,17 @@ class JarvisDesktop:
                 key_entry.focus_set()
                 return
             auto_setup_button.configure(state="disabled", text="DETECTING PROVIDER…")
+            key_entry.configure(state="disabled")
             auto_setup_status.configure(text="Identifying provider and discovering available models securely…", fg=MUTED)
 
             def worker() -> None:
                 try:
                     result = auto_configure_from_api_key(secret)
-                    self.events.put((apply_auto_setup, (result, None)))
+                    self.events.put((apply_auto_setup, (result, None, secret)))
                 except ValueError as exc:
-                    self.events.put((apply_auto_setup, (None, str(exc))))
+                    self.events.put((apply_auto_setup, (None, str(exc), None)))
                 except Exception as exc:
-                    self.events.put((apply_auto_setup, (None, f"Auto setup failed safely ({type(exc).__name__}). Try Advanced Settings.")))
+                    self.events.put((apply_auto_setup, (None, f"Auto setup failed safely ({type(exc).__name__}). Try Advanced Settings.", None)))
 
             threading.Thread(target=worker, daemon=True).start()
 
