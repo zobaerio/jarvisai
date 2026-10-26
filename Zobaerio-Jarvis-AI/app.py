@@ -1322,8 +1322,13 @@ class JarvisDesktop:
                 return
             try:
                 queued_before_resume = self.task_store.queued_count()
-            except Exception:
-                queued_before_resume = 0
+            except Exception as exc:
+                messagebox.showerror(
+                    "Resume plan",
+                    f"Could not verify the saved queue order ({type(exc).__name__}). No resume task was created; refresh Task History and retry.",
+                    parent=win,
+                )
+                return
             try:
                 resumed = self.task_store.create_resumed_plan_task(source_id)
             except Exception as exc:
