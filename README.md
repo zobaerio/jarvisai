@@ -1,4 +1,4 @@
-# J.A.R.V.I.S Desktop AI — Windows 11
+# ORVIX AI Desktop Assistant — Windows 11
 
 **Latest source:** `Zobaerio-Jarvis-AI/`  
 **Version:** 1.7.3 — bounded voice timeouts  
@@ -25,12 +25,12 @@ The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Downlo
 - Create bounded ZIP archives from selected files with explicit approval, source-change checks, no-overwrite publication and source files left unchanged.
 - Find duplicate files read-only by local SHA-256 hashes within bounded, user-approved folders; never delete or alter files.
 - Consent-based text search across allow-listed user folders, with bounded file/result limits and a warning that matching snippets may reach the configured AI provider.
-- A consistent J.A.R.V.I.S icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
+- A consistent ORVIX AI icon/wordmark generated from SVG source, installed as the Windows shortcut/window icon, and responsive desktop layout for smaller resizable windows.
 - Approved foreground-app actions: title-only window discovery, user-confirmed text paste, strict allow-listed shortcuts, and deterministic checks for local file/folder existence or visible window titles.
 
 The built-in characters are stylized procedural models—not photorealistic or 1:1 recreations of the reference drawings. The app does not automatically generate a matching 3D model from those pictures or invent absent animation clips. For close likeness, create/license a rigged GLB with the needed motion clips first. Natural walking, hair/cloth physics, expressive facial rigging and phoneme-level lip-sync remain unfinished. Maya's supplied source is only a portrait and cannot define missing full-body geometry. The viewer loads Three.js from a CDN and needs internet access plus WebGL support.
 
-Task history and queued commands are stored in `%APPDATA%\\Zobaerio\\Jarvis\\task_history.json` as local, unencrypted JSON. Avoid entering secrets as commands. Saved queued commands require explicit resumption after an app restart. Cancellation cannot interrupt an in-flight model network read immediately and cannot undo an action already started.
+Task history and queued commands are stored in `%APPDATA%\\Zobaerio\\ORVIX\\task_history.json` as local, unencrypted JSON. Avoid entering secrets as commands. Saved queued commands require explicit resumption after an app restart. Cancellation cannot interrupt an in-flight model network read immediately and cannot undo an action already started.
 
 ## AI Agent desktop actions
 
@@ -70,7 +70,7 @@ Unexpected tool/worker errors show a bounded exception type and next-step guidan
 
 ## Windows portable build
 
-A reproducible PyInstaller one-folder build is defined in `Zobaerio-Jarvis-AI/JARVIS.spec` and `build_portable.bat`. On Windows with Python 3.12 x64, run `install.bat` only if you want the source-based setup; to create a portable package, open `Zobaerio-Jarvis-AI` and run `build_portable.bat`. The output is `dist/JARVIS-Windows-Portable.zip`. GitHub Actions also builds this ZIP on Windows and uploads it as a 14-day workflow artifact. This is an **unsigned** portable build, not a signed installer/MSIX. Online AI endpoints, speech services, and the 3D viewer's Three.js CDN still require their respective connectivity; this does not make the app fully offline.
+A reproducible PyInstaller one-folder build is defined in `Zobaerio-Jarvis-AI/ORVIX.spec` and `build_portable.bat`. On Windows with Python 3.12 x64, run `install.bat` only if you want the source-based setup; to create a portable package, open `Zobaerio-Jarvis-AI` and run `build_portable.bat`. The output is `dist/ORVIX-Windows-Portable.zip`. GitHub Actions also builds this ZIP on Windows and uploads it as a 14-day workflow artifact. This is an **unsigned** portable build, not a signed installer/MSIX. Online AI endpoints, speech services, and the 3D viewer's Three.js CDN still require their respective connectivity; this does not make the app fully offline.
 
 
 ## Voice reliability
@@ -92,11 +92,11 @@ The cloud API-key health check now calls the secure keyring getter with its corr
 In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI, Groq, and Google Gemini API key formats, requests the identified provider's HTTPS model catalog, and selects a recognizable chat model. The key is stored using the existing Windows credential-store integration, not in the settings JSON. Unknown or ambiguous key formats are not sent to guessed providers; configure the provider's OpenAI-compatible base URL and model in Advanced Settings instead. This is not universal native-provider support: an API key alone cannot establish compatibility with every provider, and model discovery does not prove chat generation or tool calling works. After setup, save settings, test the connection, and verify a real chat/task. Provider billing and usage limits still apply.
 
 
-## Install J.A.R.V.I.S on Windows, iPhone/iPad (iOS), and Android
+## Install ORVIX AI on Windows, iPhone/iPad (iOS), and Android
 
 **Official project links**
 - [Permanent releases and downloads](https://github.com/zobaerio/jarvisai/releases)
-- [J.A.R.V.I.S GitHub repository](https://github.com/zobaerio/jarvisai)
+- [ORVIX AI GitHub repository](https://github.com/zobaerio/jarvisai)
 - [All GitHub Actions builds](https://github.com/zobaerio/jarvisai/actions)
 - [Windows Installer build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml)
 - [Windows Portable build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml)
@@ -108,22 +108,22 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 
 ### Windows installation — visual steps
 
-![J.A.R.V.I.S Windows installation visual guide](docs/images/install-windows.svg)
+![ORVIX AI Windows installation visual guide](docs/images/install-windows.svg)
 
 #### Option A — Install using the Windows installer
 1. Open the [Windows Installer workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml).
 2. Select the newest run marked **Success** (green tick). Open the run details.
-3. Scroll to **Artifacts** and download **JARVIS-Windows-Installer** (ZIP).
-4. Extract the ZIP first. Inside it, locate and run `JARVIS-Setup.exe`.
-5. Follow the installer prompts. After installation, launch **J.A.R.V.I.S** from the Start menu or Desktop shortcut.
+3. Scroll to **Artifacts** and download **ORVIX-Windows-Installer** (ZIP).
+4. Extract the ZIP first. Inside it, locate and run `ORVIX-Setup.exe`.
+5. Follow the installer prompts. After installation, launch **ORVIX AI** from the Start menu or Desktop shortcut.
 
 **Windows security note:** The installer is currently unsigned, so Windows SmartScreen may show a warning. Check that the file came from this repository and review the warning before deciding whether to continue. Never run installers from unknown sources.
 
 #### Option B — Portable ZIP (no installation wizard)
 1. Open the [Windows Portable workflow](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml).
-2. Select the latest **successful** run and download **JARVIS-Windows-Portable** from **Artifacts**.
-3. Extract the ZIP to a folder you control, such as Documents\JARVIS.
-4. Open the extracted folder and run `JARVIS.exe`. Keep the extracted app folder and its files together; do not move only the EXE.
+2. Select the latest **successful** run and download **ORVIX-Windows-Portable** from **Artifacts**.
+3. Extract the ZIP to a folder you control, such as Documents\ORVIX.
+4. Open the extracted folder and run `ORVIX.exe`. Keep the extracted app folder and its files together; do not move only the EXE.
 
 #### Option C — Run from source
 1. Download the [repository ZIP](https://github.com/zobaerio/jarvisai/archive/refs/heads/main.zip) or clone the repository.
@@ -131,13 +131,13 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 3. Install [Python 3.12.x for Windows](https://www.python.org/downloads/).
 4. Run `install.bat`, then `run.bat`.
 
-**AI setup:** After opening J.A.R.V.I.S, use Settings to configure a supported AI provider and API key, then test the connection. Provider billing, quotas and internet access may apply. Never share your API key publicly.
+**AI setup:** After opening ORVIX AI, use Settings to configure a supported AI provider and API key, then test the connection. Provider billing, quotas and internet access may apply. Never share your API key publicly.
 
 ### 2. Android phone/tablet — APK
 
 ### Android installation — visual steps
 
-![J.A.R.V.I.S Android APK installation visual guide](docs/images/install-android.svg)
+![ORVIX AI Android APK installation visual guide](docs/images/install-android.svg)
 
 1. Open the [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml).
 2. Open the newest run marked **Success** and look for the **Android debug APK** job.
@@ -145,20 +145,20 @@ For everyday installation, first check the [Releases page](https://github.com/zo
 4. On your Android device, extract the ZIP using the Files app or another archive app.
 5. Open the extracted folder and tap `app-debug.apk`.
 6. If Android asks, allow **Install unknown apps** only for the specific file manager or browser you used. Return to the APK and tap **Install**.
-7. Open **J.A.R.V.I.S** from your app list. Turn off the temporary “install unknown apps” permission if you enabled it.
+7. Open **ORVIX AI** from your app list. Turn off the temporary “install unknown apps” permission if you enabled it.
 
 **Android limitations:** This is a **debug/testing APK**, not a production release APK or AAB. The mobile client is an early AI chat client and does not yet provide all Windows desktop automation features. AI features may need a compatible provider configuration/API key and an internet connection. Only install the APK downloaded from this project's official Actions workflow.
 
 ### 3. iPhone or iPad — iOS/iPadOS
 
-![J.A.R.V.I.S iOS installation availability status](docs/images/install-ios-status.svg)
+![ORVIX AI iOS installation availability status](docs/images/install-ios-status.svg)
 
 **An installable iPhone/iPad release is not available yet.** The current [Mobile Build workflow](https://github.com/zobaerio/jarvisai/actions/workflows/mobile-build.yml) runs an iOS compile check using `--no-codesign`; it does not produce a signed IPA, TestFlight invitation, or App Store release. Therefore, there is currently no iOS package that you can install from the GitHub Actions artifacts.
 
 When an official iOS release is available, the intended user flow will be:
 1. Open the official TestFlight invitation or App Store listing shared by this project.
 2. For a TestFlight beta, install [TestFlight from the App Store](https://apps.apple.com/app/testflight/id899247664), open the invitation link, and follow Apple's install prompts.
-3. For a public release, install J.A.R.V.I.S directly from its official App Store listing.
+3. For a public release, install ORVIX AI directly from its official App Store listing.
 
 Helpful official Apple references: [TestFlight](https://developer.apple.com/testflight/) and [Apple's app distribution documentation](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases). These links explain Apple's distribution process; they do **not** mean that this project already has a TestFlight build or App Store listing.
 
