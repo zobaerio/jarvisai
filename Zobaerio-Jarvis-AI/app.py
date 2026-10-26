@@ -140,6 +140,10 @@ class JarvisDesktop:
                   bg="#271b2a", fg="#fda4af", activebackground="#51212d",
                   activeforeground=TEXT, relief="flat", bd=0,
                   font=("Segoe UI", 8, "bold"), padx=5, cursor="hand2").pack(side="right")
+        tk.Button(shell, text="MIC / TALK", command=self._floating_listen,
+                  bg="#0e2c3c", fg="#a5f3fc", activebackground="#164e63",
+                  activeforeground=TEXT, relief="flat", bd=0,
+                  font=("Segoe UI", 8, "bold"), pady=3, cursor="hand2").pack(fill="x", padx=7, pady=(0, 6))
         for widget in (shell, orb, label):
             widget.bind("<ButtonPress-1>", self._floating_drag_start)
             widget.bind("<B1-Motion>", self._floating_drag_move)
@@ -200,6 +204,14 @@ class JarvisDesktop:
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+
+    def _floating_listen(self) -> None:
+        """Start speech input using the same flow as the main TALK button."""
+        self._show_main_from_floating()
+        try:
+            self._listen()
+        except Exception as exc:
+            self._write_message("SYSTEM", f"Voice input could not start ({type(exc).__name__}). Check microphone and speech settings.", "system")
 
     def _hide_floating_hud(self) -> None:
         self._floating_hud.withdraw()
