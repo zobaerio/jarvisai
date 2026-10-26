@@ -40,7 +40,7 @@ The AI agent can inspect visible window titles (not their contents), paste text 
 
 ## Branding and responsive UI
 
-The official SVG mark and wordmark are in `Zobaerio-Jarvis-AI/assets/branding/`. The installer generates a PNG and multi-size Windows ICO with Pillow, then assigns the ICO to the Desktop shortcut. The app uses the same logo in the header/title bar. The desktop window can shrink to 820×560; the right-side utility rail and decorative top nav collapse at narrower widths. The smartphone/Android installer is intentionally a later phase and is not included yet.
+The official SVG mark and wordmark are in `Zobaerio-Jarvis-AI/assets/branding/`. The installer generates a PNG and multi-size Windows ICO with Pillow, then assigns the ICO to the Desktop shortcut. The app uses the same logo in the header/title bar. The desktop window can shrink to 820×560; the right-side utility rail and decorative top nav collapse at narrower widths. The Flutter mobile client is available as an Android debug build through GitHub Actions; it is not yet a signed production release and does not provide full Windows desktop-agent parity.
 
 ## Guides
 - [Bengali installation guide](Zobaerio-Jarvis-AI/README_BN.md)
@@ -90,3 +90,56 @@ The cloud API-key health check now calls the secure keyring getter with its corr
 ## API key quick setup
 
 In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI, Groq, and Google Gemini API key formats, requests the identified provider's HTTPS model catalog, and selects a recognizable chat model. The key is stored using the existing Windows credential-store integration, not in the settings JSON. Unknown or ambiguous key formats are not sent to guessed providers; configure the provider's OpenAI-compatible base URL and model in Advanced Settings instead. This is not universal native-provider support: an API key alone cannot establish compatibility with every provider, and model discovery does not prove chat generation or tool calling works. After setup, save settings, test the connection, and verify a real chat/task. Provider billing and usage limits still apply.
+
+
+## Install J.A.R.V.I.S on Windows, Android, and iOS
+
+> **Important:** Download only from this repository's GitHub Actions artifacts. A workflow artifact is a ZIP download, not a permanent public release. Artifacts may expire (the mobile workflow keeps them for 14 days). The iOS workflow currently performs a build check only; it does **not** provide an installable IPA/TestFlight release.
+
+### 1. Windows — Installer or Portable version
+
+**Option A — Windows Installer (recommended when the installer workflow provides an artifact)**
+1. Open the [Windows Installer workflow runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer.yml). If that page says the workflow cannot be found, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions) and select the run named **Windows Installer Package**.
+2. Open the newest run with a green **Success** status.
+3. Scroll to **Artifacts** at the bottom and download the installer artifact (ZIP).
+4. Extract the ZIP, then run the included installer file. If Windows SmartScreen warns that the app is unsigned, verify that you downloaded it from this repository before choosing whether to continue. Do not bypass a warning for a file from an unknown source.
+5. Follow the installer prompts, then launch **J.A.R.V.I.S** from the Start menu or Desktop shortcut.
+
+**Option B — Portable ZIP (no normal installation required)**
+1. Open [all GitHub Actions runs](https://github.com/zobaerio/jarvisai/actions) and select the newest successful **Windows Portable Package** run.
+2. Download its portable artifact from the **Artifacts** section.
+3. Extract the ZIP to a folder you control (for example, Documents\JARVIS).
+4. Open the extracted folder and run the included J.A.R.V.I.S executable. Keep the extracted folder together; do not move only the EXE out of its folder.
+
+**Option C — Run from source**
+1. Download the repository using **Code → Download ZIP**, or clone it.
+2. Open `Zobaerio-Jarvis-AI/`.
+3. Install [Python 3.12.x 64-bit](https://www.python.org/downloads/).
+4. Run `install.bat`, then `run.bat`.
+
+If a workflow is still running, has failed, or has no artifact, wait for a successful run or use another available installation method. The Windows installer and portable packages may be unsigned.
+
+### 2. Android — Debug APK
+
+1. Open the [Android build workflow run](https://github.com/zobaerio/jarvisai/actions/runs/40374198718). If the artifact has expired, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions) and choose the newest successful **Mobile Build Validation** run.
+2. Open **Artifacts** and download `jarvis-mobile-android-debug` (a ZIP file).
+3. On your Android phone, extract the ZIP using Files or another archive app. Find the `.apk` file inside.
+4. Tap the APK. If Android asks, allow **Install unknown apps** only for the file manager/browser you used to open the APK, then return and tap **Install**.
+5. After installation, open **J.A.R.V.I.S**.
+
+**Security note:** Install only an APK you downloaded from this repository's Actions page. Turn off the temporary “install unknown apps” permission afterward if you enabled it.
+
+**Current limitation:** This is a **debug APK**, not a signed production/release APK or AAB. The mobile app is an early AI chat client; it does not yet have all Windows desktop automation features. You may need a compatible provider API key and internet access to chat with an AI model.
+
+### 3. iOS (iPhone/iPad) — build check only for now
+
+The [mobile workflow](https://github.com/zobaerio/jarvisai/actions) compiles the iOS app without code signing as a CI check. **There is currently no signed IPA, TestFlight invitation, or App Store release linked here**, so you cannot install this build on an iPhone/iPad from the workflow artifact. iOS installation instructions will be added once a signed distribution method is configured.
+
+### Troubleshooting
+
+- **No Artifacts section:** the run may still be in progress, may have failed, or artifact upload may not have completed.
+- **Artifact expired:** run a new successful build from GitHub Actions or use another currently available artifact.
+- **Windows blocks the installer:** check that it came from this official repository and note that unsigned builds can trigger SmartScreen. Do not run files from untrusted sources.
+- **Android says “Can't install app”:** confirm the ZIP was extracted, open the actual APK, ensure the phone has enough free space, and remove an older conflicting debug build if needed.
+- **AI does not respond:** check your internet connection, provider/base URL, model name, API key, and provider quota in app settings. Never share your API key publicly.
+
