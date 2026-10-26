@@ -108,8 +108,9 @@ def auto_configure_from_api_key(api_key: str, *, timeout: float = 8.0) -> dict[s
     else:
         raise ValueError(
             "Provider could not be identified safely from this key. For a one-field setup, use an "
-            "OpenRouter key (starts with sk-or-v1-), an OpenAI key, or a Groq key (starts with gsk_). "
-            "Other or custom providers can still be configured in Advanced Settings."
+            "OpenRouter key (starts with sk-or-v1-), an OpenAI key, a Groq key (starts with gsk_), "
+            "or a Google Gemini AI Studio key (starts with AIza). Other or custom providers can still "
+            "be configured in Advanced Settings."
         )
 
     normalized = validate_api_key_transport(base_url, key)
@@ -151,7 +152,15 @@ def auto_configure_from_api_key(api_key: str, *, timeout: float = 8.0) -> dict[s
     if chosen is None:
         # Choose only a known chat-capable family, never an arbitrary embedding/moderation model.
         markers = ("gpt-", "llama-", "gemini-", "claude-", "qwen", "deepseek-", "mixtral", "command-r")
-        chosen = next((model_id for model_id in model_ids if any(marker in model_id.lower() for marker in markers)), None)
+        non_chat_markers = ("embedding", "moderation", "rerank", "whisper", "tts", "transcription", "image", "guard")
+        chosen = next(
+            (
+                model_id for model_id in model_ids
+                if any(marker in model_id.lower() for marker in markers)
+                and not any(marker in model_id.lower() for marker in non_chat_markers)
+            ),
+            None,
+        )
     if chosen is None:
         raise ValueError(
             f"{provider} key is valid, but no safely recognizable chat model was found. "
