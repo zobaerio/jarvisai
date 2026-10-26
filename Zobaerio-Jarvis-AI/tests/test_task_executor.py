@@ -196,7 +196,7 @@ class StepwiseTaskExecutorTests(unittest.TestCase):
         self.assertEqual(status, "partial")
         self.assertEqual(step["status"], "unverified")
         self.assertEqual(step["outcome"], "partial")
-        self.assertIn("no execution evidence", result)
+        self.assertIn("no positive deterministic verification", result)
         self.assertEqual(len(agent.prompts), 1)
 
     def test_state_change_step_is_not_completed_from_claimed_text_alone(self) -> None:
