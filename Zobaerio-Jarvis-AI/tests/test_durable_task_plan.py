@@ -147,6 +147,31 @@ class DurableTaskPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.set_task_plan(task["id"], ["step"] * (MAX_STEPS + 1))
 
+    def test_plan_step_kinds_are_persisted_and_unknown_is_the_default(self) -> None:
+        task = self.store.create_task("Classified plan")
+        planned = self.store.set_task_plan(
+            task["id"],
+            ["Draft a summary", "Inspect a file", "Create a file"],
+            step_kinds=["response", "read_only", "state_change"],
+        )
+        self.assertEqual(
+            [step["kind"] for step in planned["plan"]],
+            ["response", "read_only", "state_change"],
+        )
+
+        unclassified = self.store.create_task("Legacy plan")
+        legacy = self.store.set_task_plan(unclassified["id"], ["Unclassified step"])
+        self.assertEqual(legacy["plan"][0]["kind"], "unknown")
+
+    def test_plan_step_kinds_reject_mismatched_or_untrusted_values(self) -> None:
+        task = self.store.create_task("Invalid plan kinds")
+        with self.assertRaises(ValueError):
+            self.store.set_task_plan(task["id"], ["One", "Two"], step_kinds=["response"])
+        with self.assertRaises(ValueError):
+            self.store.set_task_plan(task["id"], ["One"], step_kinds=["execute_shell"])
+        with self.assertRaises(ValueError):
+            self.store.set_task_plan(task["id"], ["One"], step_kinds=[None])
+
     def test_terminal_or_missing_tasks_cannot_be_planned_or_changed(self) -> None:
         task = self.store.create_task("Already finished")
         self.store.update_task(task["id"], status="completed")
