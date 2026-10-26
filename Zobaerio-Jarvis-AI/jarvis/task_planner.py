@@ -193,8 +193,6 @@ def classify_plan_step_kind(step_title: str, user_text: str = "") -> str:
     """
     title = " ".join(str(step_title or "").casefold().split())
     request = " ".join(str(user_text or "").casefold().split())
-    combined = f"{title} {request}"
-
     state_change_markers = (
         "create a website", "build a website", "create website", "build an app",
         "create an app", "create a file", "create file", "create a folder",
@@ -211,6 +209,24 @@ def classify_plan_step_kind(step_title: str, user_text: str = "") -> str:
         "ডিপ্লয়", "ইমেইল পাঠা", "টাইপ কর", "পেস্ট কর", "জিপ ফাইল তৈরি",
     )
     if any(marker in title for marker in state_change_markers):
+        return "state_change"
+
+    state_verbs = (
+        "create ", "build ", "open ", "launch ", "send ", "copy ", "move ", "rename ",
+        "delete ", "remove ", "install ", "save ", "edit ", "update ", "modify ",
+        "paste ", "type ", "download ", "upload ", "publish ", "deploy ", "write ",
+        "তৈরি ", "খুল", "চালু ", "পাঠা", "কপি ", "সরাও", "মুছ", "ইনস্টল ",
+        "সেভ ", "সংরক্ষণ ", "আপলোড ", "ডাউনলোড ", "পাবলিশ ", "টাইপ ", "পেস্ট ",
+    )
+    state_targets = (
+        "file", "folder", "directory", "website", "web site", "web app", "application",
+        "app", "window", "email", "message", "calendar event", "archive", "zip",
+        "ফাইল", "ফোল্ডার", "ওয়েবসাইট", "ওয়েবসাইট", "অ্যাপ", "ইমেইল", "বার্তা",
+        "ক্যালেন্ডার", "জিপ",
+    )
+    if any(verb in title for verb in state_verbs) and any(
+        target in title for target in state_targets
+    ):
         return "state_change"
 
     response_markers = (
