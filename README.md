@@ -99,14 +99,14 @@ In Settings, **AUTO SETUP FROM API KEY** recognizes supported OpenRouter, OpenAI
 ### 1. Windows — Installer or Portable version
 
 **Option A — Windows Installer (recommended when the installer workflow provides an artifact)**
-1. Open the [Windows Installer workflow runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer.yml). If that page says the workflow cannot be found, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions) and select the run named **Windows Installer Package**.
+1. Open the [Windows Installer workflow runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml). If that page says the workflow cannot be found, open [all Actions runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-installer-build.yml) and select the run named **Windows Installer Package**.
 2. Open the newest run with a green **Success** status.
 3. Scroll to **Artifacts** at the bottom and download the installer artifact (ZIP).
 4. Extract the ZIP, then run the included installer file. If Windows SmartScreen warns that the app is unsigned, verify that you downloaded it from this repository before choosing whether to continue. Do not bypass a warning for a file from an unknown source.
 5. Follow the installer prompts, then launch **J.A.R.V.I.S** from the Start menu or Desktop shortcut.
 
 **Option B — Portable ZIP (no normal installation required)**
-1. Open [all GitHub Actions runs](https://github.com/zobaerio/jarvisai/actions) and select the newest successful **Windows Portable Package** run.
+1. Open [all GitHub Actions runs](https://github.com/zobaerio/jarvisai/actions/workflows/windows-portable-build.yml) and select the newest successful **Windows Portable Package** run.
 2. Download its portable artifact from the **Artifacts** section.
 3. Extract the ZIP to a folder you control (for example, Documents\JARVIS).
 4. Open the extracted folder and run the included J.A.R.V.I.S executable. Keep the extracted folder together; do not move only the EXE out of its folder.
