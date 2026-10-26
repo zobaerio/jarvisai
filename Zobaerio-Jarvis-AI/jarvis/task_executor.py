@@ -86,6 +86,9 @@ def execute_task_plan(
 
         step_id = str(item["id"])
         title = titles[index]
+        step_kind = str(item.get("kind", "unknown"))
+        if step_kind not in {"response", "read_only", "state_change", "unknown"}:
+            step_kind = "unknown"
         updated = task_store.update_plan_step(task_id, step_id, status="running")
         if updated is None:
             final_status = "partial" if completed_count else "failed"
@@ -171,17 +174,38 @@ def execute_task_plan(
             break
 
         if tool_count == 0:
-            # Text-only steps deliver their output directly in the assistant response.
+            if step_kind == "response":
+                # Only steps classified locally as text deliverables may complete from a
+                # plain assistant response. This prevents "I created/opened/sent it" text
+                # from being treated as proof that a state change actually occurred.
+                task_store.update_plan_step(
+                    task_id,
+                    step_id,
+                    status="completed",
+                    evidence="assistant_response",
+                    verification_note="A text deliverable was returned for a response-type step; no local state change was claimed.",
+                    outcome="completed",
+                )
+                completed_count += 1
+                continue
             task_store.update_plan_step(
                 task_id,
                 step_id,
-                status="completed",
-                evidence="assistant_response",
-                verification_note="A text response was produced; no tool action was started for this step.",
-                outcome="completed",
+                status="unverified",
+                evidence="none",
+                verification_note=(
+                    f"This {step_kind.replace('_', '-')} step returned text but no tool or "
+                    "verification evidence. It was not marked complete."
+                ),
+                outcome="partial",
             )
-            completed_count += 1
-            continue
+            final_status = "partial"
+            stop_reason = (
+                "A step requiring evidence returned only text. Later steps were not started "
+                "to avoid treating an unsupported claim as a completed action."
+            )
+            report(f"Plan step {index + 1} produced no execution evidence; pausing safely")
+            break
 
         if verification_succeeded:
             task_store.update_plan_step(
@@ -195,7 +219,11 @@ def execute_task_plan(
             completed_count += 1
             continue
 
-        if tool_names and all(name in READ_ONLY_TOOL_NAMES for name in tool_names):
+        if (
+            step_kind != "state_change"
+            and tool_names
+            and all(name in READ_ONLY_TOOL_NAMES for name in tool_names)
+        ):
             task_store.update_plan_step(
                 task_id,
                 step_id,
