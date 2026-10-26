@@ -19,6 +19,20 @@ class ApiEndpointValidationTests(unittest.TestCase):
         self.assertTrue(is_local_api_endpoint("http://[::1]:8000/v1"))
         self.assertFalse(is_local_api_endpoint("https://localhost.example.com/v1"))
 
+    def test_normalizes_common_full_openrouter_endpoint_urls(self) -> None:
+        self.assertEqual(
+            validate_api_base_url("https://openrouter.ai/api/v1/chat/completions"),
+            "https://openrouter.ai/api/v1",
+        )
+        self.assertEqual(
+            validate_api_base_url("https://openrouter.ai/api/v1/models"),
+            "https://openrouter.ai/api/v1",
+        )
+        self.assertEqual(
+            validate_api_base_url("https://openrouter.ai/api/v1/"),
+            "https://openrouter.ai/api/v1",
+        )
+
     def test_rejects_embedded_credentials_query_fragment_and_bad_schemes(self) -> None:
         bad_values = [
             "ftp://api.example.com/v1",

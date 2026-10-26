@@ -43,7 +43,17 @@ def validate_api_base_url(base_url: str) -> str:
         raise ValueError("Do not place usernames or API keys inside the URL; use the protected API key field.")
     if parsed.query or parsed.fragment:
         raise ValueError("API base URL must not contain query parameters or a fragment.")
-    return value.rstrip("/")
+    # Accept either the documented OpenAI-compatible base URL or a common full
+    # endpoint accidentally pasted into Settings. Internal callers append their
+    # own operation path (/models or /chat/completions), so keeping that suffix
+    # would create invalid URLs such as /chat/completions/models.
+    normalized = value.rstrip("/")
+    lower = normalized.casefold()
+    for suffix in ("/chat/completions", "/models"):
+        if lower.endswith(suffix):
+            normalized = normalized[:-len(suffix)].rstrip("/")
+            break
+    return normalized
 
 
 def is_local_api_endpoint(base_url: str) -> bool:
