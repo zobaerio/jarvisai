@@ -13,6 +13,7 @@ from .settings import get_api_key, validate_api_key_transport
 
 MAX_IMAGE_SIDE = 1280
 MAX_IMAGE_BYTES = 1_500_000
+MAX_PROVIDER_RESPONSE_BYTES = 2_000_000
 
 
 def analyze_screen(
@@ -102,6 +103,10 @@ def analyze_screen(
     if response.status_code >= 400:
         return f"Screen analysis provider returned HTTP {response.status_code}. Check provider status and usage limits."
     try:
+        # Bound untrusted provider output before JSON decoding to avoid excessive memory/CPU use.
+        response_body = response.content
+        if not isinstance(response_body, bytes) or len(response_body) > MAX_PROVIDER_RESPONSE_BYTES:
+            return "Screen analysis provider response exceeded the 2 MB safety limit. Try again with a supported model."
         data = response.json()
         choices = data.get("choices") if isinstance(data, dict) else None
         message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
