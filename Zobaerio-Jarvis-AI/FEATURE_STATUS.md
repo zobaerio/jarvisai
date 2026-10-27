@@ -96,3 +96,7 @@ The assistant cannot safely promise to do “everything.” Keep automation leas
 - `mobile/bootstrap_platforms.py` generates the standard Android/iOS host folders without overwriting Dart source. Flutter CI runs analysis/tests and verifies host-project generation.
 - **Not complete:** feature parity with the Windows agent, desktop automation from mobile, native permissions/integrations, signed Android APK/AAB, iOS archive/App Store signing, and real-device testing. The mobile client is not yet a replacement for the Windows desktop agent.
 - Mobile API keys are stored using the platform secure-storage plugin; never commit real keys. Phone localhost does not refer to the desktop computer, so mobile configuration requires a reachable HTTPS provider endpoint.
+
+
+## Recent security hardening
+- **Task planner provider response bound:** Planning responses larger than 1 MB are rejected before JSON decoding. This protects the planning path from unexpectedly large provider bodies; it does not replace network timeouts or provider-side limits.
