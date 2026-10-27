@@ -107,6 +107,7 @@ def generate_task_plan(
             },
 
             timeout=(8, 25),
+            stream=True,
         )
     except requests.RequestException:
         # Raw exception text may expose a private endpoint or authorization details.
@@ -114,17 +115,30 @@ def generate_task_plan(
             "Planner could not reach the AI provider. Check your connection and provider settings."
         ) from None
     if cancel_event is not None and cancel_event.is_set():
+        response.close()
         raise InterruptedError("Task cancelled after planning request")
     if response.status_code >= 400:
-        raise ValueError(f"Planner provider returned HTTP {int(response.status_code)}")
-    # Provider responses are untrusted. Reject oversized bodies before JSON parsing.
-    response_body = getattr(response, "content", None)
-    if not isinstance(response_body, bytes) or len(response_body) > MAX_PROVIDER_RESPONSE_BYTES:
-        raise ValueError("Planner provider response exceeded the 1 MB safety limit")
+        status_code = int(response.status_code)
+        response.close()
+        raise ValueError(f"Planner provider returned HTTP {status_code}")
+    # Read incrementally: response.content would allocate the entire body first.
+    body = bytearray()
     try:
-        payload = response.json()
-    except (ValueError, requests.RequestException) as exc:
-        raise ValueError("Planner provider returned invalid JSON") from exc
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            if not chunk:
+                continue
+            body.extend(chunk)
+            if len(body) > MAX_PROVIDER_RESPONSE_BYTES:
+                raise ValueError("Planner provider response exceeded the 1 MB safety limit")
+        payload = json.loads(body)
+    except ValueError as exc:
+        if "1 MB safety limit" in str(exc):
+            raise
+        raise ValueError("Planner provider returned invalid JSON") from None
+    except (requests.RequestException, TypeError):
+        raise ValueError("Planner provider returned an unreadable response") from None
+    finally:
+        response.close()
     return parse_plan_response(payload)
 
 
