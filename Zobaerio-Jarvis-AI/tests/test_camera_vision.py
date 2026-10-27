@@ -1,30 +1,13 @@
 from __future__ import annotations
 
-import ctypes
 import json
 import sys
 import unittest
 from unittest.mock import Mock, patch
 
+from PIL import Image
+
 from jarvis.camera_vision import analyze_camera
-
-
-class FakeFrame:
-    def __init__(self, width: int = 64, height: int = 48) -> None:
-        self._buffer = ctypes.create_string_buffer(width * height * 3)
-        self.size = width * height * 3
-        self.__array_interface__ = {
-            "shape": (height, width, 3),
-            "typestr": "|u1",
-            "data": (ctypes.addressof(self._buffer), False),
-            "version": 3,
-        }
-
-    def __getitem__(self, _key: object) -> "FakeFrame":
-        return self
-
-    def copy(self) -> "FakeFrame":
-        return self
 
 
 class CameraVisionTests(unittest.TestCase):
@@ -44,17 +27,20 @@ class CameraVisionTests(unittest.TestCase):
         fake_cv2 = Mock()
         capture = Mock()
         capture.isOpened.return_value = True
-        capture.read.return_value = (True, FakeFrame())
+        capture.read.return_value = (True, Mock(size=1))
         fake_cv2.VideoCapture.return_value = capture
         fake_cv2.CAP_DSHOW = 700
         fake_cv2.CAP_PROP_FRAME_WIDTH = 3
         fake_cv2.CAP_PROP_FRAME_HEIGHT = 4
         fake_cv2.COLOR_BGR2RGB = 5
-        fake_cv2.cvtColor.side_effect = lambda frame, _code: frame[:, :, ::-1].copy()
+        fake_cv2.cvtColor.side_effect = lambda *_args: object()
         response = Mock()
         response.status_code = 200
         response.iter_content.return_value = [json.dumps({"choices": [{"message": {"content": "A room is visible."}}]}).encode()]
         with patch.dict(sys.modules, {"cv2": fake_cv2}), patch(
+            "jarvis.camera_vision.Image.fromarray",
+            return_value=Image.new("RGB", (64, 48), "white"),
+        ), patch(
             "jarvis.camera_vision.get_api_key", return_value="test-key"
         ), patch("jarvis.camera_vision.requests.post", return_value=response) as post:
             result = analyze_camera(
