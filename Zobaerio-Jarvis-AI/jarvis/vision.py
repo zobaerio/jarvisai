@@ -114,6 +114,8 @@ def analyze_screen(
         content = message.get("content") if isinstance(message, dict) else None
     except ResponseTooLargeError:
         return "Screen analysis provider response exceeded the 2 MB safety limit. Try again with a supported model."
+    except requests.RequestException:
+        return "Screen analysis provider response could not be read. Check the connection and try again."
     except (ValueError, TypeError, IndexError, AttributeError):
         content = None
     if isinstance(content, str) and content.strip():
