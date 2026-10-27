@@ -55,6 +55,39 @@ class ScreenVisionTests(unittest.TestCase):
         self.assertTrue(user_content[1]["image_url"]["url"].startswith("data:image/jpeg;base64,"))
         self.assertNotIn("tools", kwargs["json"])
 
+    def test_oversized_prompt_is_rejected_before_capture(self) -> None:
+        fake_pyautogui = Mock()
+        with patch.dict(sys.modules, {"pyautogui": fake_pyautogui}), patch(
+            "jarvis.vision.requests.post"
+        ) as post:
+            result = analyze_screen(
+                {"api_base_url": "http://localhost:11434/v1", "model": "vision-model"},
+                approval=lambda *_: True,
+                prompt="x" * 1001,
+            )
+        self.assertIn("1,000 characters", result)
+        fake_pyautogui.screenshot.assert_not_called()
+        post.assert_not_called()
+
+    def test_oversized_provider_response_is_rejected_before_json_parse(self) -> None:
+        response = Mock()
+        response.status_code = 200
+        response.headers = {"Content-Length": "2000001"}
+        response.content = b""
+        response.json.side_effect = AssertionError("JSON parsing should not run")
+        fake_pyautogui = Mock()
+        fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")
+        with patch.dict(sys.modules, {"pyautogui": fake_pyautogui}), patch(
+            "jarvis.vision.get_api_key", return_value="test-key"
+        ), patch("jarvis.vision.requests.post", return_value=response):
+            result = analyze_screen(
+                {"api_base_url": "https://example.invalid/v1", "model": "vision-model"},
+                approval=lambda *_: True,
+                prompt="Describe this screen",
+            )
+        self.assertIn("too large", result)
+        response.json.assert_not_called()
+
     def test_non_vision_endpoint_error_is_actionable_and_redacted(self) -> None:
         response = Mock()
         response.status_code = 400
