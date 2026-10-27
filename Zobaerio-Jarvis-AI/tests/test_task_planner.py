@@ -45,8 +45,7 @@ class TaskPlannerTests(unittest.TestCase):
         self, _local: Mock, _validate: Mock, _key: Mock, post: Mock
     ) -> None:
         post.return_value.status_code = 200
-        post.return_value.content = b'{}'
-        post.return_value.json.return_value = response_with('{"steps":["Inspect","Verify"]}')
+        post.return_value.iter_content.return_value = [b'{"choices":[{"message":{"content":"{\"steps\":[\"Inspect\",\"Verify\"]}"}}]}']
         result = generate_task_plan(
             {"api_base_url": "https://example.test/v1", "model": "test-model"},
             "  Make   a report  ",
@@ -65,14 +64,32 @@ class TaskPlannerTests(unittest.TestCase):
         self, _local: Mock, _validate: Mock, _key: Mock, post: Mock
     ) -> None:
         post.return_value.status_code = 200
-        post.return_value.content = b"x" * 1_000_001
-        post.return_value.json.side_effect = AssertionError("JSON parsing must not run")
+        post.return_value.iter_content.return_value = [b"x" * 1_000_001]
         with self.assertRaisesRegex(ValueError, "1 MB safety limit"):
             generate_task_plan(
                 {"api_base_url": "https://example.test/v1", "model": "test-model"},
                 "Create a report",
             )
-        post.return_value.json.assert_not_called()
+        post.return_value.close.assert_called_once_with()
+
+    @patch("jarvis.task_planner.requests.post")
+    @patch("jarvis.task_planner.get_api_key", return_value="test-key")
+    @patch("jarvis.task_planner.validate_api_key_transport", side_effect=lambda url, key: url)
+    @patch("jarvis.task_planner.is_local_api_endpoint", return_value=False)
+    def test_provider_response_is_streamed_and_closed(
+        self, _local: Mock, _validate: Mock, _key: Mock, post: Mock
+    ) -> None:
+        post.return_value.status_code = 200
+        post.return_value.iter_content.return_value = [
+            b'{"choices":[{"message":{"content":"{\\"steps\\":[\\"Inspect\\",\\"Verify\\"]}"}}]}'
+        ]
+        result = generate_task_plan(
+            {"api_base_url": "https://example.test/v1", "model": "test-model"},
+            "Create a report",
+        )
+        self.assertEqual(result, ["Inspect", "Verify"])
+        self.assertTrue(post.call_args.kwargs["stream"])
+        post.return_value.close.assert_called_once_with()
 
     def test_step_kind_classifier_is_conservative_about_state_changes(self) -> None:
         self.assertEqual(classify_plan_step_kind("Draft a short report"), "response")
