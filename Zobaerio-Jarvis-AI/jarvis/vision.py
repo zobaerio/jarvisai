@@ -95,6 +95,14 @@ def analyze_screen(
         response = requests.post(base_url + "/chat/completions", headers=headers, json=payload, timeout=(8, 45))
     except requests.RequestException as exc:
         return f"Screen analysis request failed safely ({type(exc).__name__}). Check the configured endpoint and model."
+    # Refuse unexpectedly large provider responses before JSON parsing. The request is
+    # already bounded by a timeout; this extra guard avoids parsing huge response bodies.
+    try:
+        declared_size = int(response.headers.get("Content-Length", "0") or "0")
+    except (TypeError, ValueError, OverflowError):
+        declared_size = 0
+    if declared_size > 2_000_000 or len(getattr(response, "content", b"") or b"") > 2_000_000:
+        return "Screen analysis provider response was too large to process safely."
     if response.status_code in {401, 403}:
         return "Screen analysis provider rejected access. Check the API key and model permissions in Settings."
     if response.status_code == 400:
