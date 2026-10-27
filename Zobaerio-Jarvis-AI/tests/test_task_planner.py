@@ -81,7 +81,13 @@ class TaskPlannerTests(unittest.TestCase):
     ) -> None:
         post.return_value.status_code = 200
         post.return_value.iter_content.return_value = [
-            b'{"choices":[{"message":{"content":"{\\"steps\\":[\\"Inspect\\",\\"Verify\\"]}"}}]}'
+            json.dumps({
+                "choices": [{
+                    "message": {
+                        "content": json.dumps({"steps": ["Inspect", "Verify"]})
+                    }
+                }]
+            }).encode("utf-8")
         ]
         result = generate_task_plan(
             {"api_base_url": "https://example.test/v1", "model": "test-model"},
