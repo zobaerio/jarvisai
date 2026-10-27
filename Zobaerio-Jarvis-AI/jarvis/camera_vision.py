@@ -26,7 +26,7 @@ def analyze_camera(
 ) -> str:
     """Capture one webcam frame only after explicit consent; never save it to disk."""
     request_text = str(prompt or "").strip() or "Describe the visible camera image."
-    if len(request_text) > 1000 or any(ord(ch) < 32 and ch not in "\\n\\t" for ch in request_text):
+    if len(request_text) > 1000 or any(ord(ch) < 32 and ch not in "\n\t" for ch in request_text):
         return "Camera analysis blocked: prompt must be at most 1,000 characters without control characters."
     if type(camera_index) is not int or not 0 <= camera_index <= 3:
         return "Camera analysis blocked: camera index must be an integer from 0 to 3."
@@ -126,7 +126,7 @@ def analyze_camera(
         return content.strip()[:6000]
     if isinstance(content, list):
         parts = [part.get("text", "") for part in content if isinstance(part, dict) and isinstance(part.get("text"), str)]
-        combined = "\\n".join(part for part in parts if part.strip()).strip()
+        combined = "\n".join(part for part in parts if part.strip()).strip()
         if combined:
             return combined[:6000]
     return "Camera analysis provider returned no readable answer. Confirm the selected model supports image input."
