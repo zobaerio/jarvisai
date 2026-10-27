@@ -17,6 +17,7 @@ from .settings import get_api_key, is_local_api_endpoint, validate_api_key_trans
 MAX_PLAN_STEPS = 12
 MAX_STEP_TITLE = 180
 MAX_REQUEST_CHARS = 2000
+MAX_PROVIDER_RESPONSE_BYTES = 1_000_000
 
 
 def parse_plan_response(payload: object) -> list[str]:
@@ -116,6 +117,10 @@ def generate_task_plan(
         raise InterruptedError("Task cancelled after planning request")
     if response.status_code >= 400:
         raise ValueError(f"Planner provider returned HTTP {int(response.status_code)}")
+    # Provider responses are untrusted. Reject oversized bodies before JSON parsing.
+    response_body = getattr(response, "content", None)
+    if not isinstance(response_body, bytes) or len(response_body) > MAX_PROVIDER_RESPONSE_BYTES:
+        raise ValueError("Planner provider response exceeded the 1 MB safety limit")
     try:
         payload = response.json()
     except (ValueError, requests.RequestException) as exc:
