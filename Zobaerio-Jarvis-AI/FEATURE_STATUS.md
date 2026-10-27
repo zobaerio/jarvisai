@@ -50,12 +50,12 @@ Audit date: 2026-10-26. Version focus: v1.7.3 bounded voice recognition and play
 
 ## Prototype / partial
 
-- **Consent-gated one-shot screen vision (initial):** The AI agent can request one desktop screenshot, show a clear approval notice before capture/transmission, downscale and JPEG-encode it in memory, and send it to the configured OpenAI-compatible vision model. The screenshot is not saved to disk by this feature. A declined approval captures nothing. Text-only models may reject image input; this is not continuous screen streaming and does not enable mouse clicking.
+- **Consent-gated one-shot screen vision (initial):** The AI agent can request one desktop screenshot, show a clear approval notice before capture/transmission, downscale and JPEG-encode it in memory, and send it to the configured OpenAI-compatible vision model. The screenshot is not saved to disk by this feature. A declined approval captures nothing. Text-only models may reject image input; this is not continuous screen streaming. A separate single-coordinate click is available only on Windows, only for a title-matched visible window, and only after action-specific approval; coordinate grounding must come from a recent screen inspection.
 - 3D design: stylized procedural mesh characters inspired by the references, not photorealistic or a pixel-perfect 1:1 conversion. The viewer now accepts a user-selected local rigged `.glb` model and can play embedded animation clips.
 - Animation: procedural characters have independent limb parts and simulated motion. A user-provided rigged `.glb` can replace the selected procedural character; if the file contains embedded clips, the viewer can play an idle/default clip and clips named like wave/hello/gesture or talk/speak. There is still no built-in production skeletal rig, generated custom model, hair/cloth physics, motion capture, natural walking, emotion capture or phoneme-level lip-sync.
 - 3D viewer runs in the default browser via a loopback-only HTTP server. Three.js 0.186.1 loads from a CDN, so an internet connection and WebGL-compatible browser are required. CDN or renderer startup failures display a recovery panel; actual GPU/browser recovery still requires device-level testing.
 - Wake word is based on repeated speech recognition, not a dedicated low-latency offline wake-word engine.
-- AI Agent can plan only with declared tools. Foreground controls are limited to title-matched text paste and a small shortcut allow-list with approval; arbitrary clicking, broad keyboard scripting, and guaranteed completion of multi-app workflows remain unsupported. A separate one-shot screenshot analysis tool is now available after explicit consent, but it is not continuous/live video and does not grant control of the screen.
+- AI Agent can plan only with declared tools. Foreground controls include title-matched text paste, an allow-listed shortcut set, and one consent-gated click at a user-grounded coordinate in a specified window. Arbitrary clicking, continuous live screen/camera analysis, broad keyboard scripting, and guaranteed completion of multi-app workflows remain unsupported. Screenshot analysis requires explicit consent and a vision-capable model.
 - Cancellation is cooperative, not a forced process kill: a blocking model network read may continue until the 45-second read timeout, and an already-started desktop/external action cannot be undone.
 - System telemetry covers CPU/memory, not a full GPU/temperature/hardware health suite.
 - Settings and permissions are basic; there is no roles/teams/account system.
@@ -78,7 +78,7 @@ Audit date: 2026-10-26. Version focus: v1.7.3 bounded voice recognition and play
 3. Build/license custom GLB/VRM models matching the supplied characters, embed idle/wave/talk clips, add facial rigging and phoneme lip-sync.
 4. Extend the FIFO command queue into a durable multi-step task planner with automatic retries/backoff, resume-after-restart, explicit step approvals and verified action logs.
 5. Add one scoped Office/calendar/email integration at a time, using least-privilege permissions and confirmation before sending/submitting.
-6. Add screen-aware automation after threat modelling, allowlists, action confirmations and audit logging.
+6. Extend screen-aware automation only after threat modelling, allowlists, action confirmations, local verification and audit logging. The current implementation supports one approved coordinate click, not general-purpose GUI control.
 7. Add automated tests, CI, signed package, uninstaller, updater and repeatable device-level tests.
 
 ## Voice reliability limitations
