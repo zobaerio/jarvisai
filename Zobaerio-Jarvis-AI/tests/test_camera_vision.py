@@ -27,7 +27,7 @@ class CameraVisionTests(unittest.TestCase):
         result = analyze_camera(
             {"api_base_url": "http://localhost:11434/v1", "model": "vision-model"},
             approval=lambda *_: False,
-            prompt="Describe this scene.\\nMention visible objects.",
+            prompt="Describe this scene.\nMention visible objects.",
         )
         self.assertIn("cancelled", result.casefold())
 
