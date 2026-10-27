@@ -56,7 +56,7 @@ class CameraVisionTests(unittest.TestCase):
                 approval=lambda *_: True,
                 prompt="Describe the camera view",
             )
-        self.assertEqual(result, "A room is visible.\\nSecond line.")
+        self.assertEqual(result, "A room is visible.\nSecond line.")
         capture.read.assert_called_once_with()
         capture.release.assert_called_once_with()
         user_content = post.call_args.kwargs["json"]["messages"][1]["content"]
