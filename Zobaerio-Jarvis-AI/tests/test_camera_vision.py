@@ -23,6 +23,14 @@ class CameraVisionTests(unittest.TestCase):
         fake_cv2.VideoCapture.assert_not_called()
         post.assert_not_called()
 
+    def test_multiline_prompt_is_allowed_when_consent_is_declined(self) -> None:
+        result = analyze_camera(
+            {"api_base_url": "http://localhost:11434/v1", "model": "vision-model"},
+            approval=lambda *_: False,
+            prompt="Describe this scene.\\nMention visible objects.",
+        )
+        self.assertIn("cancelled", result.casefold())
+
     def test_approved_camera_frame_is_sent_and_camera_is_released(self) -> None:
         fake_cv2 = Mock()
         capture = Mock()
@@ -36,7 +44,10 @@ class CameraVisionTests(unittest.TestCase):
         fake_cv2.cvtColor.side_effect = lambda frame, _code: frame[:, :, ::-1].copy()
         response = Mock()
         response.status_code = 200
-        response.iter_content.return_value = [json.dumps({"choices": [{"message": {"content": "A room is visible."}}]}).encode()]
+        response.iter_content.return_value = [json.dumps({"choices": [{"message": {"content": [
+            {"type": "text", "text": "A room is visible."},
+            {"type": "text", "text": "Second line."},
+        ]}}]}).encode()]
         with patch.dict(sys.modules, {"cv2": fake_cv2}), patch(
             "jarvis.camera_vision.get_api_key", return_value="test-key"
         ), patch("jarvis.camera_vision.requests.post", return_value=response) as post:
@@ -45,7 +56,7 @@ class CameraVisionTests(unittest.TestCase):
                 approval=lambda *_: True,
                 prompt="Describe the camera view",
             )
-        self.assertEqual(result, "A room is visible.")
+        self.assertEqual(result, "A room is visible.\\nSecond line.")
         capture.read.assert_called_once_with()
         capture.release.assert_called_once_with()
         user_content = post.call_args.kwargs["json"]["messages"][1]["content"]
