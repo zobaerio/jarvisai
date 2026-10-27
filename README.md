@@ -4,6 +4,19 @@
 **Version:** 1.7.3 — bounded voice timeouts  
 **Repository:** https://github.com/zobaerio/orvixai
 
+## Easy install (Windows)
+
+**Download the latest installer:** https://github.com/zobaerio/orvixai/releases/latest
+
+1. Open the latest release page and download **`ORVIX-AI-Setup.exe`** under Assets.
+2. Double-click the installer. It installs for the current Windows user and normally does not require administrator permission.
+3. Launch **ORVIX AI Desktop Assistant** from the Start Menu. You can optionally create a Desktop shortcut during setup.
+4. To upgrade, run the newer installer. Settings and task history are designed to remain outside the app install folder; back up important data before uninstalling.
+
+**Security note:** The installer is currently unsigned. Windows SmartScreen may show an unknown-publisher warning. Verify that the file came from this repository's Releases page before deciding whether to run it; do not disable Windows security globally. Releases will include a SHA-256 checksum file.
+
+If the Releases page has no installer yet, the release has not been published. A temporary CI build may be available under Actions → a successful Windows Installer Package run → Artifacts, but CI artifacts expire. Use Releases for the permanent download.
+
 The latest readable source tree is committed under `Zobaerio-Jarvis-AI/`. Download/clone this repository, then open that folder and run `install.bat` followed by `run.bat`. Use Python 3.12.x 64-bit on Windows 11.
 
 ## New in v1.2.3

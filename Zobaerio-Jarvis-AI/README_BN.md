@@ -2,6 +2,19 @@
 
 **সংস্করণ:** 1.7.3 — voice timeout reliability
 
+## সহজ Windows Installer (প্রস্তাবিত)
+
+**সর্বশেষ installer ডাউনলোড:** https://github.com/zobaerio/orvixai/releases/latest
+
+1. Releases পেজ খোলো এবং **Assets** থেকে `ORVIX-AI-Setup.exe` ডাউনলোড করো।
+2. ফাইলটিতে double-click করো। এটি বর্তমান Windows user-এর জন্য install হবে; সাধারণত Administrator permission লাগবে না।
+3. Setup শেষ হলে Start Menu থেকে **ORVIX AI Desktop Assistant** চালু করো। চাইলে setup-এর সময় Desktop shortcut তৈরি করো।
+4. Upgrade করার জন্য নতুন installer চালাও। Settings ও task history app folder-এর বাইরে রাখার জন্য design করা হয়েছে; তবুও uninstall করার আগে গুরুত্বপূর্ণ তথ্যের backup রাখো।
+
+**নিরাপত্তা নোট:** Installer বর্তমানে digitally signed নয়, তাই Windows SmartScreen unknown-publisher warning দেখাতে পারে। ফাইলটি অবশ্যই এই repository-এর Releases পেজ থেকে এসেছে কি না যাচাই করবে; Windows security globally বন্ধ করবে না। Release-এ SHA-256 checksum-ও থাকবে।
+
+Releases পেজে installer না থাকলে release এখনও publish হয়নি। সাময়িক CI build GitHub Actions → সফল Windows Installer Package run → Artifacts-এ থাকতে পারে, কিন্তু CI artifact স্থায়ী নয় এবং মেয়াদ শেষে মুছে যায়। স্থায়ী download-এর জন্য Releases ব্যবহার করো।
+
 Task History-তে এখন প্রতিটি tool action-এর নাম, শুরু হওয়ার সময় ও অবস্থা দেখা যাবে। Audit log-এ tool arguments বা result content রাখা হয় না। App চলার মাঝখানে বন্ধ হয়ে গেলে চলমান action-কে `INTERRUPTED` এবং ফলাফল অনিশ্চিত হিসেবে চিহ্নিত করা হবে; সেটি নিজে থেকে পুনরায় চালানো হবে না।
 
 ## নতুন: Step-by-step Task Execution
