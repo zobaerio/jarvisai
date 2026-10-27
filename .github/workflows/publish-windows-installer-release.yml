@@ -59,13 +59,13 @@ jobs:
         shell: pwsh
         working-directory: Zobaerio-Jarvis-AI
         run: |
-          $installer = "dist/JARVIS-Setup.exe"
+          $installer = "dist/ORVIX-AI-Setup.exe"
           if (!(Test-Path $installer)) { throw "Installer executable was not produced." }
           if ((Get-Item $installer).Length -lt 10MB) { throw "Installer unexpectedly looks too small." }
           if (!(Test-Path "dist/JARVIS/JARVIS.exe")) { throw "The app payload is missing." }
           if (!(Test-Path "dist/JARVIS/_internal/assets/avatar_studio.html")) { throw "The 3D Studio payload is missing." }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  JARVIS-Setup.exe" | Set-Content -Encoding ascii "dist/JARVIS-Setup.exe.sha256"
+          "$hash  ORVIX-AI-Setup.exe" | Set-Content -Encoding ascii "dist/ORVIX-AI-Setup.exe.sha256"
           "Installer verified. SHA256: $hash"
 
       - name: Publish installer and checksum to GitHub Release
@@ -75,7 +75,7 @@ jobs:
         run: |
           gh release view "${{ github.ref_name }}" *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe#J.A.R.V.I.S Windows Installer" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe.sha256#SHA256 Checksum" --title "J.A.R.V.I.S ${{ github.ref_name }}" --generate-notes
+            gh release create "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/ORVIX-AI-Setup.exe#J.A.R.V.I.S Windows Installer" "Zobaerio-Jarvis-AI/dist/ORVIX-AI-Setup.exe.sha256#SHA256 Checksum" --title "ORVIX AI ${{ github.ref_name }}" --generate-notes
           } else {
-            gh release upload "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe" "Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe.sha256" --clobber
+            gh release upload "${{ github.ref_name }}" "Zobaerio-Jarvis-AI/dist/ORVIX-AI-Setup.exe" "Zobaerio-Jarvis-AI/dist/ORVIX-AI-Setup.exe.sha256" --clobber
           }
