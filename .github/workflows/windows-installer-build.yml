@@ -54,14 +54,14 @@ jobs:
         shell: pwsh
         working-directory: Zobaerio-Jarvis-AI
         run: |
-          $installer = "dist/JARVIS-Setup.exe"
+          $installer = "dist/ORVIX-AI-Setup.exe"
           if (!(Test-Path $installer)) { throw "The Windows installer executable was not produced." }
           if ((Get-Item $installer).Length -lt 10MB) { throw "Installer unexpectedly looks too small." }
           if (!(Test-Path "dist/JARVIS/JARVIS.exe")) { throw "The app payload is missing." }
           if (!(Test-Path "dist/JARVIS/_internal/assets/avatar_studio.html")) { throw "The 3D Studio payload is missing." }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           $version = & ".packaging-venv/Scripts/python.exe" -c "from jarvis.version import APP_VERSION; print(APP_VERSION)"
-          "J.A.R.V.I.S installer verified"
+          "ORVIX AI installer verified"
           "Version: $($version.Trim())"
           "Size bytes: $((Get-Item $installer).Length)"
           "SHA256: $hash"
@@ -70,15 +70,15 @@ jobs:
         shell: pwsh
         working-directory: Zobaerio-Jarvis-AI
         run: |
-          $installer = (Resolve-Path "dist/JARVIS-Setup.exe").Path
-          $installDir = Join-Path $env:LOCALAPPDATA "Programs/Zobaerio/JARVIS"
+          $installer = (Resolve-Path "dist/ORVIX-AI-Setup.exe").Path
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs/Zobaerio/ORVIX AI"
           $appExe = Join-Path $installDir "JARVIS.exe"
           $userDataDir = Join-Path $env:APPDATA "Zobaerio/Jarvis"
           $sentinel = Join-Path $userDataDir "installer-smoke-test-preserve.txt"
 
           $install = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-") -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Silent installer exited with code $($install.ExitCode)." }
-          if (!(Test-Path $appExe)) { throw "Installed JARVIS.exe was not found." }
+          if (!(Test-Path $appExe)) { throw "Installed app executable was not found." }
           if (!(Test-Path (Join-Path $installDir "_internal/assets/avatar_studio.html"))) { throw "Installed 3D Studio asset is missing." }
 
           $app = Start-Process -FilePath $appExe -WorkingDirectory $installDir -PassThru
@@ -101,7 +101,7 @@ jobs:
       - name: Upload unsigned Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-Windows-Installer
-          path: Zobaerio-Jarvis-AI/dist/JARVIS-Setup.exe
+          name: ORVIX-AI-Windows-Installer
+          path: Zobaerio-Jarvis-AI/dist/ORVIX-AI-Setup.exe
           if-no-files-found: error
           retention-days: 90
