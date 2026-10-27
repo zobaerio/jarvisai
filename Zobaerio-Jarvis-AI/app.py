@@ -140,7 +140,6 @@ class JarvisDesktop:
         orb = tk.Canvas(shell, width=72, height=72, bg="#07111f",
                         highlightthickness=0, bd=0, cursor="fleur",
                         takefocus=True)
-        orb.configure(name="jarvis_orb")
         self._floating_orb = orb
         orb.pack(padx=8, pady=(7, 0))
         orb.create_oval(5, 5, 67, 67, outline="#164e63", width=5)
