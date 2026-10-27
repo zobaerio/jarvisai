@@ -100,7 +100,7 @@ def analyze_camera(
         "max_tokens": 700,
     }
     try:
-        response = requests.post(base_url + "/chat/completions", headers=headers, json=payload, timeout=(8, 45))
+        response = requests.post(base_url + "/chat/completions", headers=headers, json=payload, timeout=(8, 45), stream=True)
     except requests.RequestException as exc:
         return f"Camera analysis request failed safely ({type(exc).__name__}). Check the configured endpoint and model."
     if response.status_code in {401, 403}:
