@@ -60,16 +60,16 @@ class ScreenVisionTests(unittest.TestCase):
         response.status_code = 400
         response.text = "private provider response"
         fake_pyautogui = Mock()
-        with patch.dict(sys.modules, {"pyautogui": fake_pyautogui}), patch("jarvis.vision.get_api_key", return_value="test-key"), patch(
-            "jarvis.vision.requests.post", return_value=response
-        ):
-            # A declined consent must stop before screenshot capture regardless of endpoint support.
+        fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")
+        with patch.dict(sys.modules, {"pyautogui": fake_pyautogui}), patch(
+            "jarvis.vision.get_api_key", return_value="test-key"
+        ), patch("jarvis.vision.requests.post", return_value=response):
             result = analyze_screen(
                 {"api_base_url": "https://example.invalid/v1", "model": "text-only-model"},
-                approval=lambda *_: False,
+                approval=lambda *_: True,
                 prompt="Read the visible text",
             )
-        self.assertIn("cancelled", result.casefold())
+        self.assertIn("vision-capable model", result)
         self.assertNotIn("private provider response", result)
 
 
