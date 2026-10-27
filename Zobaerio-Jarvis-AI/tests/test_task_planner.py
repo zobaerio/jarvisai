@@ -45,6 +45,7 @@ class TaskPlannerTests(unittest.TestCase):
         self, _local: Mock, _validate: Mock, _key: Mock, post: Mock
     ) -> None:
         post.return_value.status_code = 200
+        post.return_value.content = b'{}'
         post.return_value.json.return_value = response_with('{"steps":["Inspect","Verify"]}')
         result = generate_task_plan(
             {"api_base_url": "https://example.test/v1", "model": "test-model"},
@@ -55,6 +56,23 @@ class TaskPlannerTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"], (8, 25))
         self.assertNotIn("tools", kwargs["json"])
         self.assertEqual(kwargs["json"]["messages"][1]["content"], "Make a report")
+
+    @patch("jarvis.task_planner.requests.post")
+    @patch("jarvis.task_planner.get_api_key", return_value="test-key")
+    @patch("jarvis.task_planner.validate_api_key_transport", side_effect=lambda url, key: url)
+    @patch("jarvis.task_planner.is_local_api_endpoint", return_value=False)
+    def test_oversized_provider_body_is_rejected_before_json_parse(
+        self, _local: Mock, _validate: Mock, _key: Mock, post: Mock
+    ) -> None:
+        post.return_value.status_code = 200
+        post.return_value.content = b"x" * 1_000_001
+        post.return_value.json.side_effect = AssertionError("JSON parsing must not run")
+        with self.assertRaisesRegex(ValueError, "1 MB safety limit"):
+            generate_task_plan(
+                {"api_base_url": "https://example.test/v1", "model": "test-model"},
+                "Create a report",
+            )
+        post.return_value.json.assert_not_called()
 
     def test_step_kind_classifier_is_conservative_about_state_changes(self) -> None:
         self.assertEqual(classify_plan_step_kind("Draft a short report"), "response")
