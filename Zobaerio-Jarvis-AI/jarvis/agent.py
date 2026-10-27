@@ -14,10 +14,11 @@ import requests
 from . import automation
 from .settings import get_api_key, is_local_api_endpoint, validate_api_key_transport
 from .safe_errors import safe_tool_error
+from .vision import analyze_screen
 
 MAX_TOOL_CALLS_PER_TASK = 12
 READ_ONLY_TOOL_NAMES = frozenset({
-    "search_files", "get_system_info", "list_open_windows", "get_active_window_title",
+    "analyze_screen", "search_files", "get_system_info", "list_open_windows", "get_active_window_title",
     "search_file_contents", "find_duplicate_files", "read_text_file",
 })
 STATE_CHANGING_TOOL_NAMES = frozenset({
@@ -239,6 +240,7 @@ def _invalid_provider_response(message: str = "AI provider returned an invalid o
 
 
 TOOLS: list[dict[str, Any]] = [
+    {"type": "function", "function": {"name": "analyze_screen", "description": "Capture one screenshot only after explicit approval and ask the configured vision-capable AI model to analyze the visible screen. The image may be sent to the configured provider; it is not saved by this feature. Do not use if the user has not consented to sharing the screen.", "parameters": {"type": "object", "properties": {"prompt": {"type": "string", "description": "What to inspect in the visible screen, up to 1,000 characters."}}, "required": ["prompt"]}}},
     {"type": "function", "function": {"name": "open_application", "description": "Open an allowlisted Windows application such as Notepad, Calculator, Paint, File Explorer, Task Manager, Word, Excel, PowerPoint, Outlook, OneNote, Snipping Tool, VS Code, the default browser, or Windows Settings.", "parameters": {"type": "object", "properties": {"app_name": {"type": "string"}}, "required": ["app_name"]}}},
     {"type": "function", "function": {"name": "open_website", "description": "Open an HTTP(S) website or search Google for a query in the default browser.", "parameters": {"type": "object", "properties": {"url_or_query": {"type": "string"}}, "required": ["url_or_query"]}}},
     {"type": "function", "function": {"name": "prepare_whatsapp_message", "description": "Open WhatsApp Web with a message prefilled for an international phone number. This never sends the message; clearly tell the user to review recipient and text and click Send manually.", "parameters": {"type": "object", "properties": {"phone_number": {"type": "string", "description": "Recipient phone number including country calling code, 8–15 digits; may include +, spaces, or hyphens."}, "message": {"type": "string", "description": "Message text to prefill, up to 4,000 characters."}}, "required": ["phone_number", "message"]}}},
@@ -536,6 +538,8 @@ class JarvisAgent:
             return f"AI request failed safely ({type(exc).__name__}). Check endpoint settings and try again."
 
     def _execute_tool(self, name: str, args: dict[str, Any]) -> str:
+        if name == "analyze_screen":
+            return analyze_screen(self.settings, self.approval, prompt=str(args.get("prompt", "")))
         if name == "open_application":
             return automation.open_application(str(args.get("app_name", "")))
         if name == "open_website":
