@@ -100,3 +100,5 @@ The assistant cannot safely promise to do “everything.” Keep automation leas
 
 ## Recent security hardening
 - **Task planner provider response bound:** Planning responses larger than 1 MB are rejected before JSON decoding. This protects the planning path from unexpectedly large provider bodies; it does not replace network timeouts or provider-side limits.
+
+- **Screen/camera vision response streaming:** Provider responses are consumed in 64 KiB chunks and rejected above 2 MB before JSON parsing; response handles close on success and early failure. This bounds response-body memory use, while provider/network timeouts remain in place.
