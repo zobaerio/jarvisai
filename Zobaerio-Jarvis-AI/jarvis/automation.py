@@ -763,6 +763,58 @@ def press_allowed_shortcut(shortcut: str, expected_app: str, approve) -> str:
         return f"Shortcut failed safely: {type(exc).__name__}: {exc}"
 
 
+
+def click_screen_point(x: int, y: int, expected_app: str, approve) -> str:
+    """Click one screen coordinate in a matched visible Windows window after explicit consent."""
+    if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, int) or not isinstance(y, int):
+        return "Screen click blocked: x and y must be integer pixel coordinates."
+    if not str(expected_app or "").strip():
+        return "Screen click blocked: specify the target window title."
+    if os.name != "nt":
+        return "Screen-coordinate clicking is supported only on Windows."
+    try:
+        import pyautogui
+
+        width, height = pyautogui.size()
+        if not (0 <= x < width and 0 <= y < height):
+            return f"Screen click blocked: coordinates must be inside the {width}×{height} primary screen."
+        found = _find_window(expected_app, timeout=1.0)
+    except Exception as exc:
+        return f"Screen click failed safely: {type(exc).__name__}."
+    if found is None:
+        return f"No visible window title matched '{expected_app}'. Nothing was clicked."
+    _hwnd, title = found
+    if not approve(
+        "Confirm screen click",
+        f"Target window: {title}\n\n"
+        f"Click once at screen coordinate ({x}, {y})?\n"
+        "A click may activate a button or change application state. Confirm the target carefully. "
+        "ORVIX will not retry the click automatically.",
+    ):
+        return "Cancelled. No screen click was sent."
+    try:
+        activated = _activate_window(expected_app)
+        if activated is None:
+            return f"Could not bring '{title}' to the foreground after approval. Nothing was clicked."
+        current_width, current_height = pyautogui.size()
+        if not (0 <= x < current_width and 0 <= y < current_height):
+            return "Screen click blocked: display dimensions changed after approval."
+        # Reconfirm the coordinate is inside the matched target window, not another app.
+        ctypes, user32 = _windows_api()
+        import ctypes.wintypes
+
+        rect = ctypes.wintypes.RECT()
+        if not user32.GetWindowRect(activated[0], ctypes.byref(rect)):
+            return "Screen click blocked: could not verify target window bounds."
+        if not (rect.left <= x < rect.right and rect.top <= y < rect.bottom):
+            return "Screen click blocked: coordinates are outside the target window."
+        if user32.GetForegroundWindow() != activated[0]:
+            return "Screen click blocked: target window lost foreground focus."
+        pyautogui.click(x=x, y=y, clicks=1, interval=0)
+        return f"Sent one click at ({x}, {y}) to '{activated[1]}'. Inspect the screen to verify the result."
+    except Exception as exc:
+        return f"Screen click failed safely: {type(exc).__name__}."
+
 def safe_child_path(location: str, name: str) -> Path:
     base = normalize_location(location)
     raw = name.strip()

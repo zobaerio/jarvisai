@@ -26,6 +26,26 @@ class ForegroundActionPolicyTests(unittest.TestCase):
         self.assertIn("only on Windows", automation.press_allowed_shortcut("CTRL+S", "Notepad", approve))
         approve.assert_not_called()
 
+    def test_screen_click_rejects_non_integer_coordinates_without_approval(self) -> None:
+        approve = Mock(return_value=True)
+        result = automation.click_screen_point(True, 20, "Notepad", approve)
+        self.assertIn("integer pixel coordinates", result)
+        approve.assert_not_called()
+
+    def test_screen_click_requires_target_window_without_approval(self) -> None:
+        approve = Mock(return_value=True)
+        result = automation.click_screen_point(10, 20, "", approve)
+        self.assertIn("target window title", result)
+        approve.assert_not_called()
+
+    def test_screen_click_never_acts_on_non_windows(self) -> None:
+        if os.name == "nt":
+            self.skipTest("This assertion is for non-Windows CI hosts.")
+        approve = Mock(return_value=True)
+        result = automation.click_screen_point(10, 20, "Notepad", approve)
+        self.assertIn("only on Windows", result)
+        approve.assert_not_called()
+
     def test_list_open_windows_does_not_claim_to_read_contents(self) -> None:
         result = automation.list_open_windows()
         if os.name != "nt":
