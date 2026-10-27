@@ -786,8 +786,8 @@ def click_screen_point(x: int, y: int, expected_app: str, approve) -> str:
     _hwnd, title = found
     if not approve(
         "Confirm screen click",
-        f"Target window: {title}\\n\\n"
-        f"Click once at screen coordinate ({x}, {y})?\\n"
+        f"Target window: {title}\n\n"
+        f"Click once at screen coordinate ({x}, {y})?\n"
         "A click may activate a button or change application state. Confirm the target carefully. "
         "ORVIX will not retry the click automatically.",
     ):
@@ -799,6 +799,15 @@ def click_screen_point(x: int, y: int, expected_app: str, approve) -> str:
         current_width, current_height = pyautogui.size()
         if not (0 <= x < current_width and 0 <= y < current_height):
             return "Screen click blocked: display dimensions changed after approval."
+        # Reconfirm the coordinate is inside the matched target window, not another app.
+        ctypes, user32 = _windows_api()
+        rect = ctypes.wintypes.RECT()
+        if not user32.GetWindowRect(activated[0], ctypes.byref(rect)):
+            return "Screen click blocked: could not verify target window bounds."
+        if not (rect.left <= x < rect.right and rect.top <= y < rect.bottom):
+            return "Screen click blocked: coordinates are outside the target window."
+        if user32.GetForegroundWindow() != activated[0]:
+            return "Screen click blocked: target window lost foreground focus."
         pyautogui.click(x=x, y=y, clicks=1, interval=0)
         return f"Sent one click at ({x}, {y}) to '{activated[1]}'. Inspect the screen to verify the result."
     except Exception as exc:
