@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from unittest.mock import Mock, patch
@@ -35,8 +36,7 @@ class CameraVisionTests(unittest.TestCase):
         fake_cv2.cvtColor.side_effect = lambda frame, _code: frame[:, :, ::-1].copy()
         response = Mock()
         response.status_code = 200
-        response.content = b"{}"
-        response.json.return_value = {"choices": [{"message": {"content": "A room is visible."}}]}
+        response.iter_content.return_value = [json.dumps({"choices": [{"message": {"content": "A room is visible."}}]}).encode()]
         with patch.dict(sys.modules, {"cv2": fake_cv2}), patch(
             "jarvis.camera_vision.get_api_key", return_value="test-key"
         ), patch("jarvis.camera_vision.requests.post", return_value=response) as post:
