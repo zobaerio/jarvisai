@@ -115,9 +115,12 @@ def generate_task_plan(
             "Planner could not reach the AI provider. Check your connection and provider settings."
         ) from None
     if cancel_event is not None and cancel_event.is_set():
+        response.close()
         raise InterruptedError("Task cancelled after planning request")
     if response.status_code >= 400:
-        raise ValueError(f"Planner provider returned HTTP {int(response.status_code)}")
+        status_code = int(response.status_code)
+        response.close()
+        raise ValueError(f"Planner provider returned HTTP {status_code}")
     # Read incrementally: response.content would allocate the entire body first.
     body = bytearray()
     try:
