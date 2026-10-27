@@ -120,6 +120,8 @@ def analyze_camera(
         content = message.get("content") if isinstance(message, dict) else None
     except ResponseTooLargeError:
         return "Camera analysis provider response exceeded the 2 MB safety limit."
+    except requests.RequestException:
+        return "Camera analysis provider response could not be read. Check the connection and try again."
     except (ValueError, TypeError, IndexError, AttributeError):
         content = None
     if isinstance(content, str) and content.strip():
