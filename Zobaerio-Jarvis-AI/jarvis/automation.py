@@ -801,6 +801,8 @@ def click_screen_point(x: int, y: int, expected_app: str, approve) -> str:
             return "Screen click blocked: display dimensions changed after approval."
         # Reconfirm the coordinate is inside the matched target window, not another app.
         ctypes, user32 = _windows_api()
+        import ctypes.wintypes
+
         rect = ctypes.wintypes.RECT()
         if not user32.GetWindowRect(activated[0], ctypes.byref(rect)):
             return "Screen click blocked: could not verify target window bounds."
