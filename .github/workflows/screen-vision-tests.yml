@@ -1,0 +1,30 @@
+name: ORVIX Screen Vision Tests
+
+on:
+  pull_request:
+    paths:
+      - "Zobaerio-Jarvis-AI/jarvis/vision.py"
+      - "Zobaerio-Jarvis-AI/jarvis/agent.py"
+      - "Zobaerio-Jarvis-AI/tests/test_screen_vision.py"
+      - ".github/workflows/screen-vision-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screen-vision-unit-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install focused test dependencies
+        run: python -m pip install --upgrade pip requests Pillow
+      - name: Run screen vision unit tests
+        working-directory: Zobaerio-Jarvis-AI
+        run: python -m unittest discover -s tests -p "test_screen_vision.py" -v
