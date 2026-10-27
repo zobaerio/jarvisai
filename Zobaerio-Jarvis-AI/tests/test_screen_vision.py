@@ -29,6 +29,8 @@ class ScreenVisionTests(unittest.TestCase):
         fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")
         response = Mock()
         response.status_code = 200
+        response.content = b""
+        response.headers = {}
         response.json.return_value = {"choices": [{"message": {"content": "The screen is mostly blank."}}]}
         approvals: list[tuple[str, str]] = []
 
@@ -91,6 +93,8 @@ class ScreenVisionTests(unittest.TestCase):
     def test_non_vision_endpoint_error_is_actionable_and_redacted(self) -> None:
         response = Mock()
         response.status_code = 400
+        response.content = b""
+        response.headers = {}
         response.text = "private provider response"
         fake_pyautogui = Mock()
         fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")
