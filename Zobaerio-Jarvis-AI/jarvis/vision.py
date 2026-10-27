@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 
 from .settings import get_api_key, validate_api_key_transport
+from .response_utils import ResponseTooLargeError, read_bounded_json
 
 
 MAX_IMAGE_SIDE = 1280
@@ -97,20 +98,22 @@ def analyze_screen(
     except requests.RequestException as exc:
         return f"Screen analysis request failed safely ({type(exc).__name__}). Check the configured endpoint and model."
     if response.status_code in {401, 403}:
+        response.close()
         return "Screen analysis provider rejected access. Check the API key and model permissions in Settings."
     if response.status_code == 400:
+        response.close()
         return "The configured model/endpoint may not support image input. Choose a vision-capable model and try again."
     if response.status_code >= 400:
-        return f"Screen analysis provider returned HTTP {response.status_code}. Check provider status and usage limits."
+        status_code = int(response.status_code)
+        response.close()
+        return f"Screen analysis provider returned HTTP {status_code}. Check provider status and usage limits."
     try:
-        # Bound untrusted provider output before JSON decoding to avoid excessive memory/CPU use.
-        response_body = response.content
-        if not isinstance(response_body, bytes) or len(response_body) > MAX_PROVIDER_RESPONSE_BYTES:
-            return "Screen analysis provider response exceeded the 2 MB safety limit. Try again with a supported model."
-        data = response.json()
+        data = read_bounded_json(response, MAX_PROVIDER_RESPONSE_BYTES)
         choices = data.get("choices") if isinstance(data, dict) else None
         message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
         content = message.get("content") if isinstance(message, dict) else None
+    except ResponseTooLargeError:
+        return "Screen analysis provider response exceeded the 2 MB safety limit. Try again with a supported model."
     except (ValueError, TypeError, IndexError, AttributeError):
         content = None
     if isinstance(content, str) and content.strip():
