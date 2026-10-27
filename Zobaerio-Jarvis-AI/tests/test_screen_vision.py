@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from unittest.mock import Mock, patch
@@ -29,8 +30,7 @@ class ScreenVisionTests(unittest.TestCase):
         fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")
         response = Mock()
         response.status_code = 200
-        response.content = b"{}"
-        response.json.return_value = {"choices": [{"message": {"content": "The screen is mostly blank."}}]}
+        response.iter_content.return_value = [json.dumps({"choices": [{"message": {"content": "The screen is mostly blank."}}]}).encode()]
         approvals: list[tuple[str, str]] = []
 
         def approve(title: str, message: str) -> bool:
@@ -78,7 +78,7 @@ class ScreenVisionTests(unittest.TestCase):
     def test_oversized_provider_response_is_rejected_before_json_parse(self) -> None:
         response = Mock()
         response.status_code = 200
-        response.content = b"x" * 2_000_001
+        response.iter_content.return_value = [b"x" * 2_000_001]
         response.json.side_effect = AssertionError("JSON parsing must not run for oversized content")
         fake_pyautogui = Mock()
         fake_pyautogui.screenshot.return_value = Image.new("RGB", (320, 200), "white")

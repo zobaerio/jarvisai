@@ -10,6 +10,7 @@ import requests
 from PIL import Image
 
 from .settings import get_api_key, validate_api_key_transport
+from .response_utils import ResponseTooLargeError, read_bounded_json
 
 MAX_IMAGE_SIDE = 1280
 MAX_IMAGE_BYTES = 1_500_000
@@ -99,23 +100,26 @@ def analyze_camera(
         "max_tokens": 700,
     }
     try:
-        response = requests.post(base_url + "/chat/completions", headers=headers, json=payload, timeout=(8, 45))
+        response = requests.post(base_url + "/chat/completions", headers=headers, json=payload, timeout=(8, 45), stream=True)
     except requests.RequestException as exc:
         return f"Camera analysis request failed safely ({type(exc).__name__}). Check the configured endpoint and model."
     if response.status_code in {401, 403}:
+        response.close()
         return "Camera analysis provider rejected access. Check the API key and model permissions in Settings."
     if response.status_code == 400:
+        response.close()
         return "The configured model/endpoint may not support image input. Choose a vision-capable model and try again."
     if response.status_code >= 400:
-        return f"Camera analysis provider returned HTTP {response.status_code}. Check provider status and usage limits."
+        status_code = int(response.status_code)
+        response.close()
+        return f"Camera analysis provider returned HTTP {status_code}. Check provider status and usage limits."
     try:
-        body = response.content
-        if not isinstance(body, bytes) or len(body) > MAX_PROVIDER_RESPONSE_BYTES:
-            return "Camera analysis provider response exceeded the 2 MB safety limit."
-        data = response.json()
+        data = read_bounded_json(response, MAX_PROVIDER_RESPONSE_BYTES)
         choices = data.get("choices") if isinstance(data, dict) else None
         message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
         content = message.get("content") if isinstance(message, dict) else None
+    except ResponseTooLargeError:
+        return "Camera analysis provider response exceeded the 2 MB safety limit."
     except (ValueError, TypeError, IndexError, AttributeError):
         content = None
     if isinstance(content, str) and content.strip():
